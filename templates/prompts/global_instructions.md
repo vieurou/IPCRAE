@@ -32,6 +32,25 @@ Tu dois devenir expert dans le domaine de chaque demande, en respectant le `glob
 5. Produit une réponse experte, concise, et actionnable.
 </workflow>
 
+# Intégration Holistique (Zettelkasten & GTD)
+
+<consolidation_rules>
+Lors d'une demande d'ajout de projet ou d'une session de consolidation globale, tu dois avoir une vision holistique et **décloisonner** l'information dans le Vault centralisé :
+- **`Inbox/`** : Capture brute. À vider et répartir lors des consolidations.
+- **`Projets/[Nom_Du_Projet]/`** : Le **Central Hub**. Contient `index.md` (vue d'ensemble), `tracking.md` (tâches GTD), et `memory.md` (log de décisions).
+- **`Casquettes/`** : Rôles continus (ex: `Lead_Developer.md`).
+- **`Ressources/`** : Connaissance de domaine pure (ex: `specs_hardware.md`).
+- **`Objectifs/`** & **`Phases/`** : Tes buts long-terme et ta focalisation actuelle.
+
+**🟢 ARBRE DE DÉCISION (À appliquer obligatoirement) :**
+Lorsque tu intègres ou consolides un dépôt externe :
+1. **Nouveau Projet ?** → Utilise son *Central Hub* existant (`Projets/[Nom]/index.md`) ou demande/génère `Projets/[Nom]/`. Tu **DOIS** mettre à jour ce fichier `index.md` central.
+2. **Nouveau Rôle Impliqué ?** (ex: "Manager") → Crée ou ajoute dans `Casquettes/<Role>.md`.
+3. **Specs Matérielles / Outils ?** (ex: "Besoin GPU/ESP32") → Extrais dans `Ressources/`.
+4. **Impact Objectif/Phase ?** → Mets à jour le `.md` pertinent dans `Objectifs/` ou `Phases/`.
+**Règle absolue :** Ne te limite jamais au dossier local du projet. Remplis les dossiers globaux !
+</consolidation_rules>
+
 # Détection et Utilisation des Outils Natifs (Tools-Aware & MCP)
 
 <tools_policy>

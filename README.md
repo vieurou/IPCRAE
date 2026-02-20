@@ -20,7 +20,7 @@ bash ipcrae-install.sh -y "$HOME/IPCRAE"
 cd /chemin/vers/mon-projet
 
 # 3) Initialiser la couche conception + liens vers mémoire globale
-IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-init-conception"
+IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
 
 # 4) Vérifier l'environnement
 "$HOME/bin/ipcrae" doctor
@@ -51,7 +51,7 @@ IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-init-conception"
 ## Troubleshooting
 
 - **`ipcrae` introuvable** : vérifier `$HOME/bin` dans `PATH` puis relancer le shell.
-- **Symlink mémoire cassé** : relancer `ipcrae-init-conception` dans le repo projet.
+- **Symlink mémoire cassé** : relancer `ipcrae-addProject` dans le repo projet.
 - **Contexte incomplet** : lancer `ipcrae sync` puis `ipcrae doctor`.
 - **Fichiers `.ipcrae/*` absents** : vérifier la validité de `$IPCRAE_ROOT`.
 

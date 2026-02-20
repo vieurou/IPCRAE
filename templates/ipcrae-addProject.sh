@@ -16,14 +16,21 @@ echo "🚀 Initialisation de l'arborescence Conception Agile Pilotée par l'IA..
 mkdir -p "$CONCEPTS_DIR"
 # Méthodo centralisée: pas de duplication complète IPCRAE dans chaque repo projet.
 mkdir -p "$LOCAL_NOTES_DIR"
+mkdir -p "$LOCAL_IPCRAE_DIR/memory" # Mémoire spécifique au projet
+
+# Méta-données du projet
+PROJECT_NAME="$(basename "$PWD")"
+DATE_CREATION="$(date +%Y-%m-%d)"
 
 # Création du .gitignore pour éviter de commiter les notes et liens mémoire
 cat << EOF > "$LOCAL_IPCRAE_DIR/.gitignore"
 # IPCRAE local notes and global memory links
 local-notes/
+memory/
 memory-global
 archives-global
 journal-global
+project.md
 EOF
 echo "✅ Créé : $LOCAL_IPCRAE_DIR/.gitignore"
 
@@ -137,13 +144,16 @@ cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md"
 ## Priorité de lecture recommandée
 1. Contexte local projet : `docs/conception/00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`
 2. Notes projet locales : `.ipcrae-project/local-notes/` (contexte temporaire de ce repo)
-3. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable)
-4. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
+3. Central Hub du Projet : `.ipcrae-memory/Projets/$(basename "$PWD")/` (Tracking GTD, Objectifs)
+4. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable de domaine)
+5. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
 
-## Règle d'or
-- Le global (`.ipcrae-memory/*`) reste la source de vérité durable.
-- Le local (`.ipcrae-project/local-notes/`) sert au contexte court terme du projet.
-- Après consolidation, remonter les décisions durables vers la mémoire globale.
+## Règle d'or et Anti-Pollution (Mémoire Isolée)
+- **IL EST STRICTEMENT INTERDIT** d'écrire des contraintes matérielles ou choix techniques propres à CE PROJET dans la mémoire globale (`.ipcrae-memory/memory/`).
+- La mémoire globale est réservée aux connaissances **réutilisables** (concepts universels, comparaisons d'outils, bonnes pratiques).
+- Les décisions et la stack technique propres à **CE PROJET** doivent aller dans `.ipcrae-project/memory/`.
+- Le global (`.ipcrae-memory/*`) reste la source de vérité durable pour le *domaine*.
+- Le local (`.ipcrae-project/local-notes/`) sert au contexte court terme (todo, debug).
 
 ## Cadence recommandée
 - Fin de session: trier `local-notes/`.
@@ -204,7 +214,8 @@ Ce dossier est volontairement **minimal** pour éviter de dupliquer la hiérarch
 
 ## Usage
 - Mettre ici le contexte de travail court terme lié au repo courant.
-- Conserver la connaissance durable dans `.ipcrae-memory/memory/` (source de vérité).
+- Conserver la connaissance de domaine (réutilisable) dans `.ipcrae-memory/memory/`.
+- Conserver la connaissance stricte au projet (stack, hardware, choix) dans `.ipcrae-project/memory/`.
 
 ## Fichiers suggérés
 - `todo.md`
@@ -214,4 +225,76 @@ EOF
 
 echo "✅ Créé : $LOCAL_NOTES_DIR/README.md"
 
-echo "🎉 Squelette documentaire, instructions IA et liens mémoire générés avec succès !"
+# 8. Création du Manifeste Projet
+cat << EOF > "$LOCAL_IPCRAE_DIR/project.md"
+# Project Manifest: ${PROJECT_NAME}
+
+- **Domaine** : [À Remplir]
+- **Créé le** : ${DATE_CREATION}
+- **Chemin** : ${PWD}
+- **Mémoire Locale** : .ipcrae-project/memory/
+EOF
+echo "✅ Créé : $LOCAL_IPCRAE_DIR/project.md"
+
+# 9. Création du Project Central Hub
+HUB_DIR="$IPCRAE_ROOT/Projets/$PROJECT_NAME"
+mkdir -p "$HUB_DIR"
+
+if [ ! -f "$HUB_DIR/index.md" ]; then
+    cat << EOF > "$HUB_DIR/index.md"
+# ${PROJECT_NAME}
+Status: Active | Next: [Définir la prochaine action GTD] | Phase: [Lier la phase actuelle]
+
+## Overview
+- **Domaine** : [À Remplir]
+- **Chemin Local** : \`${PWD}\`
+- **Mémoire Locale** : \`.ipcrae-project/memory/\`
+
+## Liens
+- [[Casquettes/]] (Rôles impliqués)
+- [[Objectifs/]] (Objectifs liés)
+EOF
+    echo "✅ Créé : $HUB_DIR/index.md"
+fi
+
+if [ ! -f "$HUB_DIR/tracking.md" ]; then
+    cat << EOF > "$HUB_DIR/tracking.md"
+# GTD Tracking - ${PROJECT_NAME}
+
+## Next Actions
+- [ ] 
+
+## Milestones
+- [ ] 
+EOF
+    echo "✅ Créé : $HUB_DIR/tracking.md"
+fi
+
+if [ ! -f "$HUB_DIR/memory.md" ]; then
+    cat << EOF > "$HUB_DIR/memory.md"
+# Memory - ${PROJECT_NAME}
+
+- Log des réunions, des décisions globales et de la synthèse IA.
+- TODO: Injecter ici les spécifications hybrides lors de la consolidation.
+EOF
+    echo "✅ Créé : $HUB_DIR/memory.md"
+fi
+
+# 10. Enregistrement dans le Registre Global
+REGISTRY_FILE="$IPCRAE_ROOT/Projets/index.md"
+if [ ! -f "$REGISTRY_FILE" ]; then
+    mkdir -p "$IPCRAE_ROOT/Projets"
+    echo "# Registre des Projets IPCRAE" > "$REGISTRY_FILE"
+    echo "" >> "$REGISTRY_FILE"
+    echo "| Nom | Chemin | Créé le |" >> "$REGISTRY_FILE"
+    echo "|---|---|---|" >> "$REGISTRY_FILE"
+fi
+
+if ! grep -q "$PWD" "$REGISTRY_FILE"; then
+    echo "| **[[${PROJECT_NAME}]]** | \`${PWD}\` | ${DATE_CREATION} |" >> "$REGISTRY_FILE"
+    echo "✅ Projet enregistré dans le Registre Global : $REGISTRY_FILE"
+else
+    echo "ℹ️  Le projet est déjà enregistré dans le Registre Global."
+fi
+
+echo "🎉 Projet intégré à IPCRAE avec succès !"

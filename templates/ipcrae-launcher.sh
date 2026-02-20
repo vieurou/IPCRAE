@@ -521,6 +521,23 @@ cmd_update() {
   fi
 }
 
+# ── Git Vault Sync ────────────────────────────────────────────
+cmd_sync_git() {
+  need_root
+  section "Sauvegarde Vault (Git Sync)"
+  if [ -d "${IPCRAE_ROOT}/.git" ]; then
+    loginfo "Synchronisation Git du Vault en cours..."
+    (
+      cd "${IPCRAE_ROOT}"
+      git add -A
+      git commit -m "Auto-sync $(date +"%Y-%m-%d %H:%M:%S")" || true
+      git push
+    ) && loginfo "✅ Sauvegarde terminée avec succès." || logwarn "Échec de la sauvegarde Git."
+  else
+    logwarn "${IPCRAE_ROOT} n'est pas un dépôt Git. Impossible de synchroniser."
+  fi
+}
+
 # ── Dashboard ─────────────────────────────────────────────────
 show_dashboard() {
   need_root
@@ -570,6 +587,7 @@ cmd_menu() {
     "Lancer session IA (mode expert)" \
     "Consolidation des notes" \
     "Update IPCRAE" \
+    "Sauvegarde Git du Vault (Push)" \
     "Close session" \
     "Health check" \
     "Doctor environnement" \
@@ -591,14 +609,15 @@ cmd_menu() {
           launch_ai "$(get_default_provider)" "$m"; break ;;
       10) cmd_consolidate; break ;;
       11) cmd_update; break ;;
-      12) cmd_close "${extra:-}"; break ;;
-      13) cmd_health; break ;;
-      14) cmd_doctor; break ;;
-      15) sync_providers; break ;;
-      16) list_providers; break ;;
-      17) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      18) cmd_process; break ;;
-      19) exit 0 ;;
+      12) cmd_sync_git; break ;;
+      13) cmd_close "${extra:-}"; break ;;
+      14) cmd_health; break ;;
+      15) cmd_doctor; break ;;
+      16) sync_providers; break ;;
+      17) list_providers; break ;;
+      18) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      19) cmd_process; break ;;
+      20) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -627,7 +646,8 @@ Commandes:
   phase|phases             Ouvrir Phases/index.md
   process [nom]            Créer/ouvrir un process ou l'index
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
-  update                   Met à jour via git pull puis réinstalle
+  update                   Met à jour via git pull puis relance l'installateur
+  sync-git                 Sauvegarde Git du vault entier (add, commit, push)
   <texte_libre>            Mode expert (ex: ipcrae DevOps)
 
 Options:
@@ -675,6 +695,7 @@ main() {
     capture)         cmd_capture "${extra:-}" ;;
     close)           cmd_close "${extra:-}" ;;
     sync)            sync_providers ;;
+    sync-git)        cmd_sync_git ;;
     list)            list_providers ;;
     zettel)          cmd_zettel "$extra" ;;
     moc)             cmd_moc "$extra" ;;

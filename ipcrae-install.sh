@@ -427,11 +427,11 @@ node_modules/
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 7) INSTALLATION DES LANCEURS (IPCRAE + IPCRAE-INIT-CONCEPTION)
+# 7) INSTALLATION DES LANCEURS (IPCRAE + IPCRAE-ADDPROJECT)
 # ═══════════════════════════════════════════════════════════════════════════
 section "Installation des scripts CLI dans le PATH"
 
-if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-init-conception ?" "y"; then
+if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
   mkdir -p "$HOME/bin"
 
   if [ -f "$SCRIPT_DIR/templates/ipcrae-launcher.sh" ]; then
@@ -443,10 +443,10 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-init-conception ?" "y";
     exit 1
   fi
   
-  if [ -f "$SCRIPT_DIR/templates/ipcrae-init-conception.sh" ]; then
-    cp "$SCRIPT_DIR/templates/ipcrae-init-conception.sh" "$HOME/bin/ipcrae-init-conception"
+  if [ -f "$SCRIPT_DIR/templates/ipcrae-addProject.sh" ]; then
+    cp "$SCRIPT_DIR/templates/ipcrae-addProject.sh" "$HOME/bin/ipcrae-addProject"
   else
-    logerr "Template templates/ipcrae-init-conception.sh introuvable !"
+    logerr "Template templates/ipcrae-addProject.sh introuvable !"
     exit 1
   fi
   
@@ -458,8 +458,8 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-init-conception ?" "y";
     logwarn "Dossier templates/prompts introuvable, installation des prompts omise."
   fi
 
-  chmod +x "$HOME/bin/ipcrae-init-conception"
-  loginfo "✓ Script ipcrae-init-conception installé dans ~/bin"
+  chmod +x "$HOME/bin/ipcrae-addProject"
+  loginfo "✓ Script ipcrae-addProject installé dans ~/bin"
 
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"

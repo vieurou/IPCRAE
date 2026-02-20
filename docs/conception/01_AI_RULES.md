@@ -1,15 +1,15 @@
-# Règles de l'IA pour le projet IPCRAE
+# Règles de l'IA pour ce Projet
 
 ## 1. Stack Technique & Conventions
-- **Langages** : Bash (Bourne Again SHell).
-- **Style** : Posix-compliant (si possible) et robuste (`set -euo pipefail`).
-- **Tests** : BATS (Bash Automated Testing System) pour la ligne de commande.
+- **Langages** : [Ex: TypeScript]
+- **Frameworks** : [Ex: React, SvelteKit]
+- **Tests** : [Ex: Vitest, Playwright]
+- **Style** : [Ex: Pas de semicolon, 2 espaces]
 
 ## 2. Librairies Interdites / Autorisées
-- **Interdit** : Dépendances externes exotiques évitées. Tout doit fonctionner sur Ubuntu/Debian standard (Bash, sed, awk, grep).
-- **Autorisé** : Commandes natives UNIX. `python3` ou `curl` utilisés uniquement pour des fallbacks vitaux.
+- **Interdit** : [Ex: axios (utiliser fetch), lodash (utiliser méthodes ES6 native)]
+- **Autorisé** : [Ex: zod pour la validation]
 
 ## 3. Workflow de Validation
-Tout script doit passer l'analyse syntaxique stricte avec `bash -n script.sh` avant d'être validé.
-Les modifications structurelles doivent être testées (dry-run existant `-d`).
+Tout code produit doit être validé via `npm test` avant d'être considéré comme terminé ou suggéré.
 
