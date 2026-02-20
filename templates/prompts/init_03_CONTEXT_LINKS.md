@@ -10,3 +10,4 @@
 - Le global (`.ipcrae-memory/*`) reste la source de vérité durable.
 - Le local (`.ipcrae-project/local-notes/`) sert au contexte court terme du projet.
 - Après consolidation, remonter les décisions durables vers la mémoire globale.
+- **Auto-Création (CRITIQUE)** : Si une ressource, un Hub ou un index mentionné dans l'architecture n'existe pas encore, ton rôle strict est de **le générer sur-le-champ** au lieu d'ignorer la règle. Tu es le constructeur de ce système.

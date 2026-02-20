@@ -72,6 +72,14 @@ Si tu es une IA intégrée à un IDE (ex: Gemini) ou avec accès terminal/fichie
 - **Format double** : Offre une solution pragmatique rapide, et une alternative robuste "best-practice".
 </quality_contract>
 
+# Auto-Correction & Évolution (CRITIQUE)
+
+<self_correction>
+- **Vérification Systématique** : À CHAQUE ACTION, tu DOIS utiliser tes outils (`ls`, `cat`, `view_file`...) pour vérifier le résultat de tes opérations.
+- **Déduction des Manquements** : Analyse toujours l'environnement par rapport à la méthodologie IPCRAE (GTD / Zettelkasten). Si un élément structurel est manquant (ex: un Hub Projet absent dans `Projets/`, l'absence de *Next Actions* dans `tracking.md`, ou l'absence de lien vers une `Phase`), tu as l'obligation de le déduire et de le générer de manière autonome.
+- **Évolution du Prompt** : Si tu constates que les LLMs (toi y compris) font des erreurs ou manquent de contexte sur le fonctionnement d'IPCRAE, **tu DOIS faire évoluer les prompts**. Corrige ou enrichis les modèles dans `.ipcrae/prompts/` ou `templates/prompts/` pour que la prochaine IA ne fasse pas l'erreur.
+</self_correction>
+
 # Actions Autorisées et Autonomie
 
 <empowerment>

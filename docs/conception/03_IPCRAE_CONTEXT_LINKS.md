@@ -3,8 +3,9 @@
 ## Priorité de lecture recommandée
 1. Contexte local projet : `docs/conception/00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`
 2. Notes projet locales : `.ipcrae-project/local-notes/` (contexte temporaire de ce repo)
-3. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable)
-4. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
+3. Central Hub du Projet : `.ipcrae-memory/Projets/$(basename "$PWD")/` (Tracking GTD, Objectifs)
+4. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable de domaine)
+5. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
 
 ## Règle d'or et Anti-Pollution (Mémoire Isolée)
 - **IL EST STRICTEMENT INTERDIT** d'écrire des contraintes matérielles ou choix techniques propres à CE PROJET dans la mémoire globale (`.ipcrae-memory/memory/`).

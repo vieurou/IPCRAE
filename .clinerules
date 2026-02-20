@@ -153,6 +153,25 @@ Tu dois devenir expert dans le domaine de chaque demande, en respectant le `glob
 5. Produit une réponse experte, concise, et actionnable.
 </workflow>
 
+# Intégration Holistique (Zettelkasten & GTD)
+
+<consolidation_rules>
+Lors d'une demande d'ajout de projet ou d'une session de consolidation globale, tu dois avoir une vision holistique et **décloisonner** l'information dans le Vault centralisé :
+- **`Inbox/`** : Capture brute. À vider et répartir lors des consolidations.
+- **`Projets/[Nom_Du_Projet]/`** : Le **Central Hub**. Contient `index.md` (vue d'ensemble), `tracking.md` (tâches GTD), et `memory.md` (log de décisions).
+- **`Casquettes/`** : Rôles continus (ex: `Lead_Developer.md`).
+- **`Ressources/`** : Connaissance de domaine pure (ex: `specs_hardware.md`).
+- **`Objectifs/`** & **`Phases/`** : Tes buts long-terme et ta focalisation actuelle.
+
+**🟢 ARBRE DE DÉCISION (À appliquer obligatoirement) :**
+Lorsque tu intègres ou consolides un dépôt externe :
+1. **Nouveau Projet ?** → Utilise son *Central Hub* existant (`Projets/[Nom]/index.md`) ou demande/génère `Projets/[Nom]/`. Tu **DOIS** mettre à jour ce fichier `index.md` central.
+2. **Nouveau Rôle Impliqué ?** (ex: "Manager") → Crée ou ajoute dans `Casquettes/<Role>.md`.
+3. **Specs Matérielles / Outils ?** (ex: "Besoin GPU/ESP32") → Extrais dans `Ressources/`.
+4. **Impact Objectif/Phase ?** → Mets à jour le `.md` pertinent dans `Objectifs/` ou `Phases/`.
+**Règle absolue :** Ne te limite jamais au dossier local du projet. Remplis les dossiers globaux !
+</consolidation_rules>
+
 # Détection et Utilisation des Outils Natifs (Tools-Aware & MCP)
 
 <tools_policy>
@@ -173,6 +192,14 @@ Si tu es une IA intégrée à un IDE (ex: Gemini) ou avec accès terminal/fichie
 - **Limites claires** : Présente l'Incertitude. Si tu doutes, dis-le.
 - **Format double** : Offre une solution pragmatique rapide, et une alternative robuste "best-practice".
 </quality_contract>
+
+# Auto-Correction & Évolution (CRITIQUE)
+
+<self_correction>
+- **Vérification Systématique** : À CHAQUE ACTION, tu DOIS utiliser tes outils (`ls`, `cat`, `view_file`...) pour vérifier le résultat de tes opérations.
+- **Déduction des Manquements** : Analyse toujours l'environnement par rapport à la méthodologie IPCRAE (GTD / Zettelkasten). Si un élément structurel est manquant (ex: un Hub Projet absent dans `Projets/`, l'absence de *Next Actions* dans `tracking.md`, ou l'absence de lien vers une `Phase`), tu as l'obligation de le déduire et de le générer de manière autonome.
+- **Évolution du Prompt** : Si tu constates que les LLMs (toi y compris) font des erreurs ou manquent de contexte sur le fonctionnement d'IPCRAE, **tu DOIS faire évoluer les prompts**. Corrige ou enrichis les modèles dans `.ipcrae/prompts/` ou `templates/prompts/` pour que la prochaine IA ne fasse pas l'erreur.
+</self_correction>
 
 # Actions Autorisées et Autonomie
 
@@ -207,8 +234,9 @@ Tout code produit doit être validé via `npm test` avant d'être considéré co
 ## Priorité de lecture recommandée
 1. Contexte local projet : `docs/conception/00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`
 2. Notes projet locales : `.ipcrae-project/local-notes/` (contexte temporaire de ce repo)
-3. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable)
-4. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
+3. Central Hub du Projet : `.ipcrae-memory/Projets/$(basename "$PWD")/` (Tracking GTD, Objectifs)
+4. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable de domaine)
+5. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
 
 ## Règle d'or et Anti-Pollution (Mémoire Isolée)
 - **IL EST STRICTEMENT INTERDIT** d'écrire des contraintes matérielles ou choix techniques propres à CE PROJET dans la mémoire globale (`.ipcrae-memory/memory/`).
