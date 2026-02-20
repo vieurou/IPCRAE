@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 # IPCRA Étendu v3.1 — Lanceur multi-provider
 # Commandes : daily, weekly, monthly, close, sync, zettel, moc,
-#             health, review, launch, menu
+#             health, context, review, launch, menu
 # Providers : Claude, Gemini, Codex, (Kilo via VS Code)
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
@@ -75,6 +75,14 @@ require_or_warn() {
     return 1
   fi
   return 0
+}
+
+# Retourne 0 si memory/<domain>.md a au moins une valeur renseignée ("- Clé : valeur")
+context_is_populated() {
+  local domain="$1"
+  local mem="${IPCRA_ROOT}/memory/${domain}.md"
+  [ -f "$mem" ] || return 1
+  grep -qE '^- [^:]+: .+' "$mem"
 }
 
 urlencode() {
@@ -680,10 +688,106 @@ cmd_health() {
   done
   printf '📝 Streak daily: %s jours consécutifs\n' "$streak"
 
+  # Contexte agents
+  local ctx_domains=("devops" "electronique" "musique" "maison" "sante" "finance")
+  local ctx_ok=0 ctx_missing=()
+  for _d in "${ctx_domains[@]}"; do
+    if context_is_populated "$_d" 2>/dev/null; then
+      ctx_ok=$((ctx_ok + 1))
+    else
+      ctx_missing+=("$_d")
+    fi
+  done
+  printf '🤖 Contexte agents: %s/%s renseignés' "$ctx_ok" "${#ctx_domains[@]}"
+  if [ ${#ctx_missing[@]} -gt 0 ]; then
+    printf ' %b(vides: %s)%b' "$YELLOW" "${ctx_missing[*]}" "$NC"
+    printf ' → ipcra context <domaine>'
+  fi
+  printf '\n'
+
   # Dernière activité
   printf '\n%b📝 Modifié récemment (7j)%b\n' "$YELLOW" "$NC"
   find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcra/*" -print0 2>/dev/null \
     | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^\./||' || true
+}
+
+# ── Context collect ───────────────────────────────────────────
+cmd_context_collect() {
+  local domain="${1:-}"
+  need_root
+  if [ -z "$domain" ]; then
+    printf 'Domaines disponibles: devops electronique musique maison sante finance\n'
+    read -r -p "Domaine : " domain
+    [ -z "$domain" ] && { logerr "Domaine requis"; return 1; }
+  fi
+  domain="${domain,,}"
+
+  local mem="${IPCRA_ROOT}/memory/${domain}.md"
+  local agent="${IPCRA_ROOT}/Agents/agent_${domain}.md"
+
+  [ -f "$mem" ] || { logerr "Fichier mémoire introuvable: memory/${domain}.md"; return 1; }
+
+  section "Contexte — ${domain}"
+
+  if context_is_populated "$domain"; then
+    loginfo "Contexte existant :"
+    grep -E '^- [^:]+: .+' "$mem" | head -10
+    printf '\n'
+    prompt_yes_no "Mettre à jour ?" "n" || return 0
+  else
+    logwarn "Contexte vide. Quelques questions pour personnaliser les réponses."
+  fi
+
+  # Extraire les questions du fichier agent (lignes "> N. Question ?")
+  local questions=()
+  if [ -f "$agent" ]; then
+    while IFS= read -r line; do
+      [[ "$line" =~ ^\>\ [0-9]+\. ]] && questions+=("${line#> }")
+    done < "$agent"
+  fi
+  [ ${#questions[@]} -eq 0 ] && questions=("Contexte général pour ${domain} ?")
+
+  # Collecter les réponses
+  local new_entries=()
+  for q in "${questions[@]}"; do
+    local label ans
+    label=$(printf '%s' "$q" | sed 's/^[0-9]*\. //; s/ ?$//')
+    printf '  %b→%b %s\n' "$BLUE" "$NC" "$q"
+    read -r -p "    Réponse (Entrée pour passer) : " ans || true
+    [ -n "$ans" ] && new_entries+=("- ${label} : ${ans}")
+  done
+
+  [ ${#new_entries[@]} -eq 0 ] && { logwarn "Aucune réponse — contexte inchangé."; return 0; }
+
+  printf '\n%bEntrées à écrire :%b\n' "$BOLD" "$NC"
+  printf '  %s\n' "${new_entries[@]}"
+  printf '\n'
+
+  prompt_yes_no "Écrire dans memory/${domain}.md ?" "y" || return 0
+
+  # Injecter après la ligne "<!-- Collecté..."  dans la section Contexte
+  local tmp
+  tmp=$(mktemp /tmp/ipcra_ctx.XXXXXX)
+  local in_ctx=false injected=false
+  while IFS= read -r line; do
+    printf '%s\n' "$line"
+    if [[ "$line" =~ ^##\ Contexte ]] && ! $injected; then
+      in_ctx=true
+    fi
+    if $in_ctx && ! $injected && [[ "$line" =~ ^\<\!--\ Collecté ]]; then
+      printf '%s\n' "${new_entries[@]}"
+      injected=true
+      in_ctx=false
+    fi
+  done < "$mem" > "$tmp"
+
+  if $injected; then
+    cp "$tmp" "$mem"
+    loginfo "Contexte '${domain}' mis à jour dans memory/${domain}.md"
+  else
+    logerr "Section '<!-- Collecté...' introuvable dans memory/${domain}.md — rien écrit."
+  fi
+  rm -f "$tmp"
 }
 
 # ── Doctor ────────────────────────────────────────────────────
@@ -823,7 +927,13 @@ launch_with_prompt() {
 launch_ai() {
   local provider="$1" expert="${2:-}"
   if [ -n "$expert" ]; then
-    local prompt="Mode expert: ${expert}. Lis d'abord .ipcra/context.md, Phases/index.md, memory/, la weekly courante et la daily du jour. Puis travaille."
+    local domain="${expert,,}"
+    if ! context_is_populated "$domain" 2>/dev/null; then
+      logwarn "Contexte '${expert}' vide dans memory/${domain}.md"
+      loginfo "→ Le LLM posera les questions en début de session."
+      loginfo "→ Ou collecte maintenant : ipcra context ${domain}"
+    fi
+    local prompt="Mode expert: ${expert}. Lis d'abord .ipcra/context.md, Phases/index.md, memory/${domain}.md, la weekly courante et la daily du jour. Puis travaille."
     launch_with_prompt "$provider" "$prompt"
   else
     launch_with_prompt "$provider" ""
@@ -995,6 +1105,7 @@ main() {
     moc)             cmd_moc "$extra" ;;
     concept)         cmd_concept "$extra" ;;
     health)          cmd_health ;;
+    context)         cmd_context_collect "${extra:-}" ;;
     doctor)          cmd_doctor ;;
     review)          cmd_review "$extra" "$provider" ;;
     phase|phases)    need_root; open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md" ;;
