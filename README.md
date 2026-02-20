@@ -87,16 +87,37 @@ IPCRAE_ROOT/
 
 ---
 
-## 4) Installation & Mise à jour
+## 4) Quickstart & Installation
 
-### Installation rapide
+### 4.1 Quickstart complet (Workflow recommandé)
+
 ```bash
+# 1) Installer IPCRAE (vault central)
 git clone https://github.com/vieurou/IPCRAE.git
 cd IPCRAE
-bash ipcrae-install.sh -y
+bash ipcrae-install.sh -y "$HOME/IPCRAE"
+
+# 2) Aller dans un repo projet local
+cd /chemin/vers/mon-projet
+
+# 3) Initialiser la couche conception + liens vers mémoire globale
+IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
+
+# 4) Vérifier l'environnement
+"$HOME/bin/ipcrae" doctor
 ```
 
-### Mise à jour en production (sans perte de données)
+### 4.2 Installation détaillée
+
+L'installateur peut être exécuté en mode interactif (sans `-y`) pour vous guider lors de la première configuration (initialisation Git, choix du provider IA).
+
+Vérifiez que `~/bin` est dans votre `PATH` :
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 4.3 Mise à jour en production (sans perte de données)
 Pour un cerveau existant déjà en prod, utiliser la migration safe :
 ```bash
 ipcrae migrate-safe
@@ -234,10 +255,46 @@ La méthode est stable si :
 
 ---
 
+## 14) Précisions techniques et Robustesse
+
+### Notes sur l'installateur
+- La fonction `write_safe` accepte **2 modes d'écriture** :
+  1. `write_safe "chemin" "contenu"` (argument inline)
+  2. `write_safe "chemin" <<'EOF' ... EOF` (heredoc via stdin)
+- En mode strict (`set -u`), l'absence de second argument n'entraîne pas d'erreur, mais si la fonction est appelée **sans contenu** d'aucune manière, elle échoue explicitement avec un message d'erreur.
+
+### Troubleshooting (Dépannage)
+- **`ipcrae` introuvable** : l'installateur place le binaire dans `$HOME/bin`. Faites `export PATH=$HOME/bin:$PATH` et ajoutez-le à votre `.bashrc`.
+- **Lien symbolique `.ipcrae-memory` cassé** : vérifiez de n'avoir pas déplacé `<projet_local>` ou la variable `$IPCRAE_ROOT`. Relancez `ipcrae-addProject` localement.
+- **Contexte IA incomplet** : lancer `ipcrae sync` puis `ipcrae doctor`.
+- **Fichiers `.ipcrae/*` absents** : vérifier la validité de `$IPCRAE_ROOT`.
+
 ### Vérification QA Rapide (pour Devs)
+Intuitif à tester en environnement sandbox isolé avant de toucher à votre vrai cerveau :
 ```bash
-# Sandboxing
+# 1) Sanity check syntaxe Bash
+bash -n ipcrae-install.sh
+
+# 2) Exécution non-interactive isolée
 TMP_HOME=$(mktemp -d)
 TMP_VAULT="$(mktemp -d)/vault"
 HOME="$TMP_HOME" bash ipcrae-install.sh -y "$TMP_VAULT"
+
+# 3) Contrôle minimal
+[ -f "$TMP_VAULT/.ipcrae/context.md" ]
+[ -f "$TMP_VAULT/.ipcrae/config.yaml" ]
 ```
+
+### Améliorations Futures (Roadmap Technique)
+- Ajouter un mode `--dry-run` pour l'installateur.
+- Ajouter une suite de tests shell (`bats`).
+- Uniformiser la création des repositories avec `git init -b main`.
+
+---
+
+## 15) Licence & Contribution
+
+MIT — Utilisation libre, personnelle et commerciale.
+
+Les PR sont bienvenues. Avant toute soumission exécutez un Linter agressif :
+`bash -n ipcrae-install.sh` + `shellcheck ipcrae-install.sh`.
