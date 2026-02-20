@@ -1,42 +1,454 @@
-# IPCRA Étendu (v3.1)
+# 🧠 IPCRA v3.1
 
-IPCRA (Inbox, Projets, Casquettes, Ressources, Archives) est un système personnel de PKM (Personal Knowledge Management) et de CDE (Context Driven Engineering) piloté par l'IA.
-
-Ce dépôt contient l'installateur unifié, le lanceur CLI et les scripts d'initialisation de projets agiles pour faire le pont entre un "cerveau global" et des espaces de travail de code locaux.
-
-## 🚀 Installation
-
-Un seul script suffit pour déployer l'arborescence, les templates documentaires, les profils d'agents spécialisés et installer les CLI (`ipcra`, `ipcra-claude`, etc.).
-
-```bash
-git clone https://github.com/vieurou/IPCRAE.git
-cd IPCRAE
-bash ipcra-install.sh
-```
-
-> **Support :** L'installateur supporte le mode interactif ou silencieux (`-y`). Le script central n'altérera pas les notes existantes s'il est relancé en mise à jour.
+> **I**nbox · **P**rojets · **C**asquettes · **R**essources · **A**rchives
+> Un système de gestion de vie complet, piloté par l'IA, 100% local, versionnable et CLI-friendly.
 
 ---
 
-## 🛠 Composants Principaux
+## Pourquoi IPCRA ?
 
-### 1. Le Cerveau Global
-Créé dans `~/IPCRA` par défaut, c'est la source de vérité absolue contenant :
-- `Zettelkasten/` : Notes atomiques et Maps of Content (MOC).
-- `Journal/` & `Phases/` : Organisation temporelle (Daily, Weekly, Monthly) et priorités actives.
-- `memory/` : Cerveau partitionné par domaines (DevOps, Musique, Électronique...) pour que l'IA ne lise que ce qui lui est utile.
-- `Inbox/` & `Projets/` : Suivi méthodologie GTD (Get Things Done).
+Les assistants IA oublient tout entre les sessions. Les outils cloud (Notion, Obsidian Sync…) centralisent tes données chez un tiers. Les méthodes classiques (GTD, PARA, Zettelkasten) sont puissantes mais rarement intégrées entre elles.
 
-### 2. Le Lanceur CLI (`ipcra`)
-Installé globalement dans votre `$PATH` (`~/bin`), c'est votre interface quotidienne avec le système :
-- `ipcra` : Ouvre le Dashboard et le menu interactif.
-- `ipcra daily --prep` : Fait rédiger à Gemini/Claude un brouillon de note quotidienne en analysant la note d'hier, votre weekly en cours et la liste d'attente.
-- `ipcra zettel "Titre"` : Création encodée et template d'une note Zettelkasten.
-- `ipcra capture "Idée"` : Stocke la chaîne en un éclair dans l'Inbox.
-- `ipcra process <nom>` : Charge un process standardisé et identifie si un agent IA spécifique est recommandé pour vous accompagner pendant l'exécution.
+**IPCRA résout les trois problèmes à la fois :**
 
-### 3. Le Scaffold de Conception (`ipcra-init-conception`)
-Destiné à être exécuté **à la racine de vos dépôts de code / projets techniques**, ce script :
-1. Démarre l'architecture documentaire `docs/conception/` (Vision, Architecture, Règles Techniques, Concepts).
-2. Construit dynamiquement les fichiers locaux de règles IA (`.claude.md`, `.clinerules`, `.cursorrules`, etc.) en fusionnant les instructions vitales de la racine `~/IPCRA/.ipcra/context.md` avec les règles spécifiques du projet local (RAG statique par concaténation).
-3. Crée un lien symbolique `.ipcra-memory -> ~/IPCRA` pour exposer la mémoire globale du système à l'agent IA de votre IDE (Hub & Spoke), sans en dupliquer le contenu !
+- La vérité est dans des **fichiers Markdown locaux**, versionnés sous Git
+- L'IA reçoit un **contexte structuré et à jour** à chaque session
+- La méthode combine **GTD + PARA + Zettelkasten + journaling** dans un seul système cohérent
+- Compatible avec **Claude Code, Gemini CLI, Codex, Kilo Code** (VS Code)
+
+---
+
+## Table des matières
+
+- [Concepts](#concepts)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Utilisation](#utilisation)
+- [Providers IA](#providers-ia)
+- [Méthodologie](#méthodologie)
+- [Zettelkasten](#zettelkasten)
+- [Mémoire par domaine](#mémoire-par-domaine)
+- [Agents spécialisés](#agents-spécialisés)
+- [Rituels](#rituels)
+- [Conception & Développement (CDE)](#conception--développement-cde)
+
+---
+
+## Concepts
+
+### Le problème de la mémoire IA
+
+Chaque conversation repart de zéro. Si tu travailles sur un projet complexe, l'IA ne sait pas ce que tu as décidé hier, quels sont tes standards, ni tes contraintes. IPCRA injecte ce contexte **automatiquement** à chaque lancement.
+
+### IPCRA = PARA adapté
+
+IPCRA s'inspire directement de la méthode **PARA** (Tiago Forte) :
+
+| PARA | IPCRA | Rôle |
+|------|-------|------|
+| Projects | `Projets/` | Objectif + fin définie |
+| Areas | `Casquettes/` | Responsabilités continues |
+| Resources | `Ressources/` | Connaissance brute par domaine |
+| Archive | `Archives/` | Terminé / gelé |
+
+Avec en plus : `Inbox/`, `Zettelkasten/`, `memory/`, `Agents/`, `Journal/`, `Phases/`, `Process/`, `Objectifs/`.
+
+---
+
+## Architecture
+
+```
+~/IPCRA/
+├── .ipcra/
+│   ├── context.md          ← Identité, méthode, projets en cours (source de vérité)
+│   ├── instructions.md     ← Règles IA communes à tous les providers
+│   └── config.yaml         ← Provider par défaut, chemins
+│
+├── Inbox/                  ← Capture brute : idées, tâches, liens
+│   └── waiting-for.md      ← Éléments délégués en attente
+│
+├── Projets/                ← Projets avec objectif et fin
+│   └── _template_projet.md
+│
+├── Casquettes/             ← Responsabilités continues (Areas de PARA)
+│   └── _template_casquette.md
+│
+├── Ressources/             ← Documentation brute par domaine
+│   ├── Tech/{DevOps,Linux,Docker,NodeJS,SvelteKit,Embedded,Healthcare-IT,Security,Database}
+│   ├── Electronique/{ESP32,Arduino,Circuits,IoT,Datasheets}
+│   ├── Musique/{Production,Synthese,Hardware,Plugins}
+│   ├── Maison/{Domotique,Renovation,Energie,Jardinage}
+│   ├── Sante/{Nutrition,Sport,Sommeil}
+│   ├── Finance/{Budget,Investissement,Fiscalite}
+│   └── Apprentissage/{Methodes,Cours,Certifications}
+│
+├── Zettelkasten/           ← Notes atomiques permanentes (pensée digérée)
+│   ├── _inbox/             ← Brouillons en attente de traitement
+│   ├── permanents/         ← Notes validées, reliées entre elles
+│   └── MOC/                ← Maps of Content (index thématiques)
+│
+├── Archives/               ← Projets/ressources terminés
+│
+├── Journal/
+│   ├── Daily/YYYY/         ← Notes quotidiennes
+│   ├── Weekly/YYYY/        ← Revues hebdomadaires (numérotation ISO)
+│   └── Monthly/YYYY/       ← Revues mensuelles
+│
+├── Phases/                 ← Phases de vie actives → pilotent les priorités
+├── Process/                ← Procédures récurrentes (checklists)
+├── Objectifs/              ← Vision annuelle, trimestrielle, Someday/Maybe
+│
+├── memory/                 ← Mémoire IA par domaine
+│   ├── devops.md
+│   ├── electronique.md
+│   ├── musique.md
+│   ├── maison.md
+│   ├── sante.md
+│   └── finance.md
+│
+├── Agents/                 ← Rôles IA spécialisés par domaine
+│   ├── agent_devops.md
+│   ├── agent_electronique.md
+│   ├── agent_musique.md
+│   ├── agent_maison.md
+│   ├── agent_sante.md
+│   └── agent_finance.md
+│
+├── CLAUDE.md               ← Contexte généré pour Claude Code
+├── GEMINI.md               ← Contexte généré pour Gemini CLI
+├── AGENTS.md               ← Contexte généré pour Codex/OpenAI
+├── .kilocode/rules/        ← Contexte généré pour Kilo Code (VS Code)
+├── .claudeignore
+├── .geminiignore
+└── index.md                ← Dashboard de navigation
+```
+
+---
+
+## Installation
+
+### Prérequis
+
+- `bash` >= 4.0
+- `git`
+- Au moins un provider IA : `claude`, `gemini`, `codex` (voir [Providers IA](#providers-ia))
+- `python3` (streak daily + encodage URL)
+- `iconv` (inclus dans `glibc` sur Debian/Ubuntu)
+- Optionnel : [Obsidian](https://obsidian.md) pour la navigation visuelle
+
+### Installation rapide
+
+```bash
+chmod +x ipcra-install.sh
+./ipcra-install.sh
+```
+
+L'installateur est **interactif** et guide chaque étape :
+
+1. Choix du dossier racine (défaut : `~/IPCRA`)
+2. Initialisation Git optionnelle (`.gitignore` inclus)
+3. Création de l'arborescence complète
+4. Écriture des fichiers sources (`.ipcra/context.md`, `instructions.md`, `config.yaml`)
+5. Installation des templates (Daily, Weekly, Monthly, Projet, Phase, Process)
+6. Installation des agents spécialisés
+7. Génération des fichiers provider (`CLAUDE.md`, `GEMINI.md`, etc.)
+8. Installation du lanceur `~/bin/ipcra` + raccourcis `ipcra-claude`, `ipcra-gemini`, `ipcra-codex`
+
+### Mode non-interactif (CI / bootstrap)
+
+```bash
+./ipcra-install.sh --yes /chemin/vers/vault
+```
+
+### Post-installation
+
+Vérifier que `~/bin` est dans le `PATH` :
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+ipcra --version
+```
+
+Pour utiliser un vault différent de `~/IPCRA` :
+
+```bash
+export IPCRA_ROOT=/data/vault
+```
+
+---
+
+## Utilisation
+
+### Commandes disponibles
+
+| Commande | Description |
+|----------|-------------|
+| `ipcra` | Menu interactif |
+| `ipcra daily` | Ouvrir/créer la note du jour |
+| `ipcra daily --prep` | L'IA génère un brouillon de daily |
+| `ipcra weekly` | Ouvrir/créer la revue hebdo (ISO) |
+| `ipcra monthly` | Ouvrir/créer la revue mensuelle |
+| `ipcra close [domaine]` | Clôture session : l'IA met à jour `memory/` |
+| `ipcra capture "texte"` | Capture rapide dans `Inbox/` |
+| `ipcra zettel "titre"` | Créer une note atomique Zettelkasten |
+| `ipcra moc "thème"` | Créer/ouvrir une Map of Content |
+| `ipcra sync` | Régénère `CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, Kilo |
+| `ipcra health` | Diagnostic du système |
+| `ipcra review phase` | Revue de phase guidée par l'IA |
+| `ipcra review project` | Rétrospective de projet |
+| `ipcra review quarter` | Revue trimestrielle |
+| `ipcra process "nom"` | Ouvrir/créer un process |
+| `ipcra-init-conception` | Scaffold documentaire CDE dans un dépôt de code |
+| `ipcra launch [domaine]` | Lancer l'IA en mode expert |
+| `ipcra -p gemini <cmd>` | Forcer un provider spécifique |
+| `ipcra providers` | Lister les providers disponibles |
+
+### Raccourcis provider
+
+```bash
+ipcra-claude "question"
+ipcra-gemini "question"
+ipcra-codex  "question"
+```
+
+### Exemples courants
+
+```bash
+# Début de journée
+ipcra daily --prep
+# → L'IA prépare le brouillon depuis hier + phases + waiting-for
+
+# Pendant le travail
+ipcra capture "Idée ESP32 deep sleep pour capteur temp"
+ipcra zettel "MQTT QoS niveaux et cas d'usage"
+
+# Fin de session
+ipcra close devops
+# → L'IA résume et met à jour memory/devops.md
+
+# Diagnostic
+ipcra health
+
+# Revue du dimanche
+ipcra weekly
+ipcra review phase
+```
+
+---
+
+---
+
+## Conception & Développement (CDE)
+
+Le script de scaffold `ipcra-init-conception` permet de lier la puissance documentaire d'IPCRA à vos environnements de développement (IDE) locaux, sans jamais polluer vos dépôts Git avec vos notes globales.
+
+En exécutant `ipcra-init-conception` à la racine de n'importe quel code ou projet (par ex. `~/DEV/MonApp/`), le script déploie le pont *Hub & Spoke* de l'ingénierie dirigée par le contexte :
+
+1. **Architecture Documentaire Locale** : Génération d'un dossier `docs/conception/` structuré pour l'IA, contenant `00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`, et un sous-dossier `concepts/` avec le template de feature agile.
+2. **Génération Mutante des Règles IA** : Importe dynamiquement vos instructions globales de base (`~/IPCRA/.ipcra/context.md` et `instructions.md`) et les fusionne aux directives spécifiques du projet en cours (`01_AI_RULES.md`) pour instancier les fichiers locaux de contexte réclamés par les IDE et CLI modernes (`.clinerules`, `.claude.md`, `.kilocode.md`, `.antigravity`, etc.).
+3. **Le Lien Cerveau (`.ipcra-memory`)** : Crée un lien symbolique invisible `.ipcra-memory -> ~/IPCRA`. L'Agent IA de votre éditeur accède ainsi instantanément en lecture à TOUTES les notes du Cerveau Global (DevOps, Électronique, MOCs, Zettelkasten) pertinentes, le tout évitant toute duplication physique de documents.
+
+## Providers IA
+
+| Provider | Commande | Notes |
+|----------|----------|-------|
+| **Claude Code** | `claude` | Provider principal recommandé |
+| **Gemini CLI** | `gemini` | Fallback sans `--context` si non supporté |
+| **Codex** | `codex` | OpenAI Codex CLI |
+| **Kilo Code** | VS Code | Lit `.kilocode/rules/ipcra.md` automatiquement |
+
+### Changer le provider par défaut
+
+```yaml
+# .ipcra/config.yaml
+default_provider: gemini
+```
+
+### Comment l'IA reçoit le contexte
+
+```
+.ipcra/context.md      ┐
+                       ├──→ ipcra sync ──→ CLAUDE.md
+.ipcra/instructions.md ┘                 → GEMINI.md
+                                         → AGENTS.md
+                                         → .kilocode/rules/ipcra.md
+```
+
+> ⚠️ Ne jamais éditer `CLAUDE.md` directement — éditer `.ipcra/context.md` puis `ipcra sync`.
+
+---
+
+## Méthodologie
+
+### Flux GTD adapté
+
+```
+Capturer (Inbox/)
+    └─→ Clarifier : actionnable ?
+         ├─ Non  → Ressources/ | Someday/Maybe | Supprimer
+         └─ Oui  → < 2 min ?
+                    ├─ Oui → Faire maintenant
+                    └─ Non → Projet/ ou Next Action (Casquette/)
+                             Délégué → Inbox/waiting-for.md
+```
+
+### Matrice de priorités
+
+| Quadrant | Action |
+|----------|--------|
+| 🔴 Urgent + Important | Faire **maintenant** |
+| 🟠 Important, non urgent | **Planifier** (Phase/Projet) |
+| 🟡 Urgent, non important | **Déléguer** ou quick-win |
+| ⚪ Ni urgent ni important | **Someday/Maybe** ou supprimer |
+
+### Phases de vie
+
+Le dossier `Phases/` contient la **phase de vie active** : une intention de période (ex : *"Déployer l'infra monitoring"*, *"Rénover la cuisine"*). Elle pilote les priorités.
+
+> **Règle** : si un projet n'est pas autorisé par la phase active, il est en pause.
+
+---
+
+## Zettelkasten
+
+| Dossier | Rôle |
+|---------|------|
+| `_inbox/` | Brouillons, notes fraîches non encore traitées |
+| `permanents/` | Notes atomiques validées, reliées entre elles |
+| `MOC/` | Maps of Content : index thématiques |
+
+### Principes
+
+- **Atomicité** : une note = une seule idée, dans tes propres mots
+- **Liens** : chaque note permanente pointe vers d'autres via `[[note]]`
+- **Distinction** : `Ressources/` = matière brute — `Zettelkasten/permanents/` = pensée digérée
+
+### Workflow
+
+```
+Idée brute  →  ipcra capture "..."
+            →  ipcra zettel "titre"  →  Zettelkasten/_inbox/YYYYMMDDHHMM-slug.md
+                                     →  Traiter  →  Zettelkasten/permanents/
+                                                 →  Relier dans MOC/
+```
+
+### Format d'une note permanente
+
+```yaml
+---
+id: 202602200342
+tags: [mqtt, iot, protocole]
+liens: []
+source:
+created: 2026-02-20
+---
+# MQTT QoS — les 3 niveaux et leurs cas d'usage
+
+<!-- Une seule idée, formulée dans tes mots -->
+
+## Liens
+- [[202602190918-esp32-deep-sleep]] — même projet capteur température
+
+## Source
+- https://mqtt.org/mqtt-specification/
+```
+
+---
+
+## Mémoire par domaine
+
+Chaque domaine a un fichier dans `memory/` que l'IA lit **en priorité** avant de répondre.
+
+| Fichier | Contenu typique |
+|---------|-----------------|
+| `memory/devops.md` | Stack, infra, décisions d'archi, erreurs connues |
+| `memory/electronique.md` | MCU, projets, erreurs de câblage passées |
+| `memory/musique.md` | Setup audio, chaîne signal, matériel |
+| `memory/maison.md` | Travaux en cours, contraintes, devis |
+| `memory/sante.md` | Routines, objectifs, points de vigilance |
+| `memory/finance.md` | Enveloppes, objectifs, échéances |
+
+### Format d'entrée recommandé
+
+```markdown
+## 2026-02-20 - Passage Traefik v2 → v3
+
+**Contexte** : Migration reverse proxy Docker
+**Décision** : Rester sur Traefik v2 jusqu'à stabilisation plugins
+**Raison** : Plugin oauth2-proxy incompatible v3 au 2026-02-20
+**Résultat** : ✅ Production stable
+```
+
+### Mise à jour automatique
+
+```bash
+ipcra close          # L'IA identifie le domaine et écrit dans memory/
+ipcra close devops   # Forcer le domaine si session multi-sujets
+```
+
+---
+
+## Agents spécialisés
+
+Les fichiers `Agents/agent_<domaine>.md` définissent le **rôle, les contraintes et le workflow** de l'IA par domaine.
+
+| Agent | Profil |
+|-------|--------|
+| `agent_devops` | Architecte DevOps/SRE Linux/Docker, IT santé, compliance HDS/RGPD |
+| `agent_electronique` | Ingénieur embedded ESP32/Arduino, vérifie datasheets et niveaux logiques |
+| `agent_musique` | Ingénieur son + bidouilleur hardware, synthèse, circuit bending |
+| `agent_maison` | Conseiller rénovation/énergie, normes NF C 15-100, DTU, RE2020 |
+| `agent_sante` | Sources HAS/OMS uniquement, jamais de diagnostic |
+| `agent_finance` | Fiscal français, plafonds vérifiés avec date de validité |
+
+Chaque agent :
+
+1. Lit `memory/<domaine>.md` en premier
+2. Applique les contraintes spécifiques du domaine
+3. Produit des livrables adaptés (commandes shell, schémas, code firmware, etc.)
+
+---
+
+## Rituels
+
+| Cycle | Moment | Durée | Commande |
+|-------|--------|-------|----------|
+| **Daily** | Chaque matin | 5–10 min | `ipcra daily --prep` |
+| **Weekly** | Dimanche soir | 30 min | `ipcra weekly` + `ipcra review phase` |
+| **Monthly** | 1er du mois | 1 h | `ipcra monthly` + `ipcra review quarter` |
+| **Close** | Fin de session IA | 5 min | `ipcra close` |
+| **Health** | À la demande | < 1 min | `ipcra health` |
+
+---
+
+## Exemple de sortie `ipcra health`
+
+```
+📊 Health Check — 2026-02-20
+
+📥 Inbox: 3 notes (⚠ 1 > 7 jours)
+⏳ Waiting-for: 2 items
+🚀 Projets: 4
+🗃️  Zettelkasten: 5 inbox (⚠ 2 > 7j) | 23 permanents | 4 MOC
+🧠 Mémoire: 3 domaines avec entrées
+📝 Streak daily: 7 jours consécutifs
+
+📝 Modifié récemment (7j)
+  • Projets/monitoring-infra/
+  • memory/devops.md
+  • Journal/Daily/2026/2026-02-20.md
+```
+
+---
+
+## Licence
+
+MIT — Utilisation libre, personnelle et commerciale.
+
+---
+
+## Contribuer
+
+Les PR sont bienvenues.
+Avant toute soumission : `bash -n ipcra-install.sh` + `shellcheck ipcra-install.sh`.
