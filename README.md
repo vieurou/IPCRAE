@@ -314,6 +314,12 @@ ipcrae-tokenpack project mon-projet
 # Interroge automatiquement les IA CLI disponibles (claude/gemini/codex)
 ipcrae-agent-bridge "Donne le plan de migration"
 
+# Forcer un refresh (sans cache)
+ipcrae-agent-bridge --no-cache "Donne le plan de migration"
+
+# TTL cache custom (1h)
+ipcrae-agent-bridge --ttl 3600 "Plan de release"
+
 # Produit un prompt court optimisé selon l'agent cible
 ipcrae-prompt-optimize claude "Créer une weekly actionable"
 ```
@@ -321,7 +327,7 @@ ipcrae-prompt-optimize claude "Créer une weekly actionable"
 ### Pourquoi ça consomme moins de tokens
 - Le contexte est tronqué et nettoyé (`ipcrae-tokenpack`) : suppression des lignes vides/commentaires + limite de taille.
 - Les prompts imposent une sortie **courte et actionnable** (contrat quick win + plan robuste).
-- Le bridge multi-agent évite les prompts longs manuels répétés et standardise le format de demande.
+- Le bridge multi-agent évite les prompts longs manuels répétés, standardise le format de demande, et met en cache les réponses pour éviter les appels identiques.
 
 ### Veille agents CLI et stratégie d'usage
 - **Claude CLI** : excellent pour architecture, arbitrages, risques.
