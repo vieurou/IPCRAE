@@ -466,6 +466,20 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     logwarn "Dossier templates/prompts introuvable, installation des prompts omise."
   fi
 
+  if [ -d "$SCRIPT_DIR/templates/scripts" ]; then
+    mkdir -p "$IPCRAE_ROOT/Scripts" "$HOME/bin"
+    cp "$SCRIPT_DIR"/templates/scripts/*.sh "$IPCRAE_ROOT/Scripts/"
+    chmod +x "$IPCRAE_ROOT"/Scripts/*.sh
+
+    cp "$SCRIPT_DIR/templates/scripts/ipcrae-tokenpack.sh" "$HOME/bin/ipcrae-tokenpack"
+    cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-bridge.sh" "$HOME/bin/ipcrae-agent-bridge"
+    cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$HOME/bin/ipcrae-prompt-optimize"
+    chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize"
+    loginfo "✓ Scripts token/multi-agent installés (ipcrae-tokenpack, ipcrae-agent-bridge, ipcrae-prompt-optimize)"
+  else
+    logwarn "Dossier templates/scripts introuvable, installation des scripts avancés omise."
+  fi
+
   chmod +x "$HOME/bin/ipcrae-addProject"
   loginfo "✓ Script ipcrae-addProject installé dans ~/bin"
 
