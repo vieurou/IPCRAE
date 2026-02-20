@@ -243,12 +243,14 @@ ipcra review phase
 
 ## Providers IA
 
-| Provider | Commande | Notes |
-|----------|----------|-------|
-| **Claude Code** | `claude` | Provider principal recommandé |
-| **Gemini CLI** | `gemini` | Fallback sans `--context` si non supporté |
-| **Codex** | `codex` | OpenAI Codex CLI |
-| **Kilo Code** | VS Code | Lit `.kilocode/rules/ipcra.md` automatiquement |
+Les assistants IA utilisés par IPCRA ont des capacités et des limites distinctes. IPCRA tente d'unifier leur comportement via les fichiers de contexte injectés.
+
+| Provider | Commande | Capacités & Limites |
+|----------|----------|---------------------|
+| **Claude Code** | `claude` | **Recommandé**. Excellente compréhension globale de projets. Idéal pour `ipcra ingest`. *Limite : Ne peut pas exécuter `ipcra consolidate` en natif si désactivé en Headless.* |
+| **Gemini CLI** | `gemini` | Rapide. Bon pour la préparation de notes et la synthèse (`ipcra daily --prep`). *Limite : Le flag `--context` n'est pas supporté par tous les wrappers CLI (IPCRA fallback sur une concaténation).* |
+| **Codex** | `codex` | Mode agent robuste (OpenAI). |
+| **Kilo Code** | VS Code | Intégration IDE poussée. Lit automatiquement `.kilocode/rules/ipcra.md`. |
 
 ### Changer le provider par défaut
 
@@ -267,7 +269,7 @@ default_provider: gemini
                                          → .kilocode/rules/ipcra.md
 ```
 
-> ⚠️ Ne jamais éditer `CLAUDE.md` directement — éditer `.ipcra/context.md` puis `ipcra sync`.
+> ⚠️ Attention : Les fichiers d'instructions (ex: `.claude.md`) ne surchargent pas magiquement le comportement de l'IA de la même façon selon le provider. Toujours s'assurer que l'outil CLI cible lit bien le fichier de règles généré dans le répertoire courant. Ne jamais éditer `CLAUDE.md` directement — éditer `.ipcra/context.md` puis `ipcra sync`.
 
 ---
 
@@ -299,52 +301,6 @@ Capturer (Inbox/)
 Le dossier `Phases/` contient la **phase de vie active** : une intention de période (ex : *"Déployer l'infra monitoring"*, *"Rénover la cuisine"*). Elle pilote les priorités.
 
 > **Règle** : si un projet n'est pas autorisé par la phase active, il est en pause.
-
----
-
-## Zettelkasten
-
-| Dossier | Rôle |
-|---------|------|
-| `_inbox/` | Brouillons, notes fraîches non encore traitées |
-| `permanents/` | Notes atomiques validées, reliées entre elles |
-| `MOC/` | Maps of Content : index thématiques |
-
-### Principes
-
-- **Atomicité** : une note = une seule idée, dans tes propres mots
-- **Liens** : chaque note permanente pointe vers d'autres via `[[note]]`
-- **Distinction** : `Ressources/` = matière brute — `Zettelkasten/permanents/` = pensée digérée
-
-### Workflow
-
-```
-Idée brute  →  ipcra capture "..."
-            →  ipcra zettel "titre"  →  Zettelkasten/_inbox/YYYYMMDDHHMM-slug.md
-                                     →  Traiter  →  Zettelkasten/permanents/
-                                                 →  Relier dans MOC/
-```
-
-### Format d'une note permanente
-
-```yaml
----
-id: 202602200342
-tags: [mqtt, iot, protocole]
-liens: []
-source:
-created: 2026-02-20
----
-# MQTT QoS — les 3 niveaux et leurs cas d'usage
-
-<!-- Une seule idée, formulée dans tes mots -->
-
-## Liens
-- [[202602190918-esp32-deep-sleep]] — même projet capteur température
-
-## Source
-- https://mqtt.org/mqtt-specification/
-```
 
 ---
 
@@ -381,6 +337,22 @@ ipcra close devops   # Forcer le domaine si session multi-sujets
 
 ---
 
+## 🧭 Quelle note va où ? (Matrice Stratégique)
+
+IPCRA repose sur une source de vérité unique. L'objectif est de ne jamais dupliquer l'information. Voici le contrat de confiance absolu sur où écrire l'information :
+
+| Type d'information | Emplacement | Durée de vie | Rôle & Traitement |
+|-------------------|-------------|--------------|-------------------|
+| **Action / Idée rapide** | `Inbox/*.md` | Très Courte | À clarifier/classer lors du Daily/Weekly. |
+| **Brouillon de Projet** | `.ipcra-project/local-notes/` | Courte (le temps de l'itération) | Contexte local temporaire. À purger via `ipcra consolidate`. |
+| **Logique de Projet Fixée** | `Projets/[Nom]/` | Moyenne (le temps du projet) | Ce qu'il faut accomplir (*What/How*). Migre dans `Archives/`. |
+| **Décision Technique Durable**| `.ipcra-memory/memory/[Domaine].md` | Longue | Règle d'or, contraintes, leçons. Ce que l'IA **doit lire** (*Why*). |
+| **Concept Atomique Isolable**| `Zettelkasten/permanents/`| Longue | Savoir digéré (agnostique du projet), réutilisable pour la réflexion. |
+| **Doc de référence externe** | `Ressources/` | Longue | Datasheet, manuel, PDF... Source brute de connaissance. |
+| **Traces et Historique** | `Archives/` & `Journal/` | Éternelle | Ne sont consultés que sur recherche active, jamais par défaut. |
+
+---
+
 ## Agents spécialisés
 
 Les fichiers `Agents/agent_<domaine>.md` définissent le **rôle, les contraintes et le workflow** de l'IA par domaine.
@@ -402,15 +374,18 @@ Chaque agent :
 
 ---
 
-## Rituels
+## Rituels Formels
 
-| Cycle | Moment | Durée | Commande |
-|-------|--------|-------|----------|
-| **Daily** | Chaque matin | 5–10 min | `ipcra daily --prep` |
-| **Weekly** | Dimanche soir | 30 min | `ipcra weekly` + `ipcra review phase` |
-| **Monthly** | 1er du mois | 1 h | `ipcra monthly` + `ipcra review quarter` |
-| **Close** | Fin de session IA | 5 min | `ipcra close` |
-| **Health** | À la demande | < 1 min | `ipcra health` |
+Pour que le système ne s'effondre pas sous l'obsolescence, IPCRA impose une cadence de "garbage collection" (nettoyage).
+
+| Cycle | Moment | Durée | Commande | Résultat Attendu |
+|-------|--------|-------|----------|------------------|
+| **Daily** | Chaque matin | 5–10 min | `ipcra daily --prep` | L'IA trie votre inbox. Le cap est fixé pour la journée. |
+| **Close** | Fin de session IA | 5 min | `ipcra close` | Fin de journée de dev : la mémoire de domaine est à jour. |
+| **Consolidate** | **Fin d'une Feature** | 5 min | `ipcra consolidate` | Remontée des `local-notes` volatiles vers la mémoire globale. |
+| **Weekly** | Dimanche soir | 30 min | `ipcra weekly` + `ipcra review phase` | Alignement avec les `Phases`. Vidage manuel de la `Inbox`. |
+| **Monthly** | 1er du mois | 1 h | `ipcra monthly` + `ipcra review quarter` | Déplacement massif vers les `Archives/`. Ajustement d'Objectifs. |
+| **Health** | À la demande | < 1 min | `ipcra health` | Diagnostic : traque les notes moisies en Inbox et Zettelkasten. |
 
 ---
 
@@ -448,6 +423,49 @@ C'est une commande **profondément agentique** (interactive) s'appuyant sur un P
 1. **Analyse Documentaire** : L'IA lit les `README` et `docs/` existants pour documenter l'objectif métier et l'architecture locale dans la mémoire globale IPCRA.
 2. **Audit de Code (Deep Dive)** : L'IA explore le code source avec ses propres outils (ls, cat, ast-grep) pour documenter les hacks, la dette, les choix technologiques et les patterns d'implémentation.
 3. **Zettelkasten Atomique** : Si l'IA détecte des algorithmes universels ou des patterns de conception précieux, elle crée de son propre chef des notes atomiques isolées directement dans `Zettelkasten/_inbox/`.
+
+---
+
+## 🔥 Quickstart : Le Workflow Recommandé de bout en bout
+
+Pour être pleinement efficace, utilisez la séquence (Runbook) suivante :
+
+### 1. Démarrer sa journée
+1. Lancez votre terminal.
+2. Tapez `ipcra daily --prep` : l'IA lit vos priorités passées et l'état d'hier pour vous rédiger votre brouillon du jour.
+3. Vérifiez la santé système : `ipcra health`.
+
+### 2. Démarrer un nouveau projet local de dev
+1. Naviguez dans votre dépôt de code (ex: `cd ~/DEV/NouveauProjet`).
+2. Scaffoldez les liens IPCRA : `ipcra-init-conception`
+3. Remplissez le `docs/conception/00_VISION.md`
+4. Capturez vos notes brutes, debug, todo jetable pendant le dev dans `.ipcra-project/local-notes/`.
+
+### 3. Coder avec l'IA
+1. Les hooks sont générés : votre assistant IA cible a déjà chargé `.clinerules` (ou équivalent) comprenant les `.ipcra-memory/memory/`. Il connait tout de vous.
+2. Coder itérativement.
+
+### 4. Clôturer proprement l'itération
+1. Vous avez terminé une feature majeure. Il y a eu de nombreuses leçons techniques tirées.
+2. Tapez `ipcra consolidate devops` (remplacez devops par votre domaine).
+3. Visualisez le résumé magique généré par l'IA des erreurs surmontées. Validez.
+4. Le dossier brouillon est purgé. Votre mémoire globale est renforcée pour toujours.
+
+---
+
+## 🛠 Troubleshooting & Migration
+
+### Migration depuis une installation non centralisée (v2.x)
+Si vous aviez précédemment dupliqué des dossiers entiers d'IPCRA (ex: dossiers .ipcra isolés) au lieu d'utiliser le modèle centralisé (Hub & Spoke), agissez ainsi :
+1. Choisissez un Vault "Maître" (votre IPCRA Source of Truth).
+2. Utilisez **`ipcra ingest [domaine]`** sur vos anciens répertoires locaux afin d'auditer et pomper la connaissance pour l'injecter au Maître.
+3. Effacez le dossier `.ipcra` répliqué et remplacez-le en exécutant `ipcra-init-conception` pour placer les liens symboliques vers `.ipcra-memory`.
+
+### Problèmes Courants
+- **`ipcra: command not found`** : Le dossier `~/bin` n'est pas dans votre variable `$PATH`. Exécutez : `echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc` puis `source ~/.bashrc`.
+- **Lien symbolique cassé (mémoire indisponible)** : Vérifiez la variable d'environnement `$IPCRA_ROOT`. Vous pouvez forcer le chemin dans `~/.bashrc` via `export IPCRA_ROOT=/chemin/vers/VraiIPCRA`.
+- **"Aucun contenu trouvé à consolider"** : La commande `ipcra consolidate` cherche des fichiers `.md` modifiés dans le dossier précis `.ipcra-project/local-notes/`. Si vous écrivez vos brouillons à la racine de votre projet de code, ils seront ignorés par sécurité.
+- **Vérifier l'état du lanceur** : Utilisez à tout moment `ipcra doctor`.
 
 ---
 
