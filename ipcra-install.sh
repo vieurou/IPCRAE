@@ -11,6 +11,26 @@ RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 AUTO_YES=false
 IPCRA_ROOT=""
 
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { logerr "Commande requise introuvable: $1"; exit 1; }
+}
+
+normalize_root() {
+  local input="$1"
+  # Expansion robuste de ~ sans eval.
+  if [[ "$input" == "~" ]]; then
+    input="$HOME"
+  elif [[ "$input" == ~/* ]]; then
+    input="$HOME/${input#~/}"
+  fi
+
+  # Retirer les slashs finaux sauf pour '/'.
+  while [ "$input" != "/" ] && [[ "$input" == */ ]]; do
+    input="${input%/}"
+  done
+  printf '%s' "$input"
+}
+
 # ── Utilitaires ───────────────────────────────────────────────────────────
 loginfo()  { printf '%b→ %s%b\n' "$GREEN"  "$1" "$NC"; }
 logwarn()  { printf '%b⚠ %s%b\n' "$YELLOW" "$1" "$NC"; }
@@ -34,9 +54,12 @@ backup_if_exists() {
 
 write_safe() {
   local f="$1" c="$2"
+  local tmp
   mkdir -p "$(dirname "$f")"
+  tmp="$(mktemp "${f}.tmp.XXXXXX")"
+  printf '%s\n' "$c" > "$tmp"
   backup_if_exists "$f"
-  printf '%s\n' "$c" > "$f"
+  mv "$tmp" "$f"
 }
 
 usage() {
@@ -57,7 +80,15 @@ while [ $# -gt 0 ]; do
   case "$1" in
     -y|--yes) AUTO_YES=true;; -h|--help) usage; exit 0;;
     -V|--version) echo "IPCRA Install v$VERSION"; exit 0;;
-    -*) logerr "Option inconnue: $1"; usage; exit 1;; *) IPCRA_ROOT="$1";;
+    -*) logerr "Option inconnue: $1"; usage; exit 1;;
+    *)
+      if [ -n "$IPCRA_ROOT" ]; then
+        logerr "Un seul chemin cible est autorisé. Reçu en trop: $1"
+        usage
+        exit 1
+      fi
+      IPCRA_ROOT="$1"
+      ;;
   esac; shift
 done
 
@@ -67,6 +98,15 @@ if [ -z "$IPCRA_ROOT" ]; then
   else printf 'Dossier racine IPCRA:\n'; read -r -p "→ [$local_default] " IPCRA_ROOT
     IPCRA_ROOT=${IPCRA_ROOT:-$local_default}; fi
 fi
+
+IPCRA_ROOT="$(normalize_root "$IPCRA_ROOT")"
+
+case "$IPCRA_ROOT" in
+  ""|"/")
+    logerr "Chemin cible invalide: '$IPCRA_ROOT'"
+    exit 1
+    ;;
+esac
 
 printf '%b╔═══════════════════════════════════════════╗%b\n' "$BLUE" "$NC"
 printf '%b║  IPCRA Étendu v3 — Install multi-provider ║%b\n' "$BLUE" "$NC"
@@ -78,6 +118,7 @@ mkdir -p "$IPCRA_ROOT"; cd "$IPCRA_ROOT"
 
 if [ ! -d ".git" ]; then
   if prompt_yes_no "Initialiser un dépôt Git dans $IPCRA_ROOT ?" "y"; then
+    require_cmd git
     git init
     cat > .gitignore << 'GITEOF'
 *.bak-*
@@ -836,6 +877,24 @@ logwarn()  { printf '%b%s%b\n' "$YELLOW" "$*" "$NC"; }
 logerr()   { printf '%b%s%b\n' "$RED"    "$*" "$NC" >&2; }
 section()  { printf '\n%b━━ %s ━━%b\n' "$BOLD" "$*" "$NC"; }
 
+prompt_yes_no() {
+  local q="$1" d="${2:-y}" a
+  while true; do
+    if [ "$d" = "y" ]; then
+      read -r -p "$q [Y/n] " a || a="y"
+      a=${a:-y}
+    else
+      read -r -p "$q [y/N] " a || a="n"
+      a=${a:-n}
+    fi
+    case "$a" in
+      [Yy]*) return 0 ;;
+      [Nn]*) return 1 ;;
+      *) echo "y ou n." ;;
+    esac
+  done
+}
+
 # ── Fichiers temp (cleanup auto) ─────────────────────────────
 TEMP_FILES=()
 cleanup_temps() { for f in "${TEMP_FILES[@]}"; do rm -f "$f"; done; }
@@ -1131,6 +1190,7 @@ cmd_zettel() {
   id="$(date +%Y%m%d%H%M)"
   local slug
   slug=$(printf '%s' "$title" | iconv -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
+  [ -z "$slug" ] && slug="note"
   local filename="${id}-${slug}.md"
   local rel="Zettelkasten/_inbox/${filename}"
   local abs="${IPCRA_ROOT}/${rel}"
@@ -1177,6 +1237,7 @@ cmd_moc() {
 
   local slug
   slug=$(printf '%s' "$theme" | iconv -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
+  [ -z "$slug" ] && slug="theme"
   local filename="MOC-${slug}.md"
   local rel="Zettelkasten/MOC/${filename}"
   local abs="${IPCRA_ROOT}/${rel}"
@@ -1735,4 +1796,3 @@ EOF_CONCEPTION
     loginfo "Ajouté ~/bin au PATH dans ~/.bashrc. Redémarrez le terminal en tapant 'bash'."
   fi
 fi
-
