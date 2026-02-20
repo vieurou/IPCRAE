@@ -61,3 +61,35 @@ IPCRA_ROOT="$HOME/IPCRA" "$HOME/bin/ipcra-init-conception"
 bash -n ipcra-install.sh
 HOME=$(mktemp -d) bash ipcra-install.sh -y "$(mktemp -d)/vault"
 ```
+
+## Notes de robustesse (installateur)
+
+- La fonction `write_safe` accepte désormais **2 modes d'écriture** :
+  1. `write_safe "chemin" "contenu"` (argument inline)
+  2. `write_safe "chemin" <<'EOF' ... EOF` (heredoc via stdin)
+- En mode `set -u`, l'absence de second argument n'entraîne plus d'erreur `unbound variable`.
+- Si `write_safe` est appelé **sans contenu** (ni 2e argument, ni stdin), le script échoue explicitement avec un message d'erreur.
+
+## Méthode de vérification recommandée
+
+```bash
+# 1) Sanity check syntaxe Bash
+bash -n ipcra-install.sh
+
+# 2) Exécution non-interactive isolée
+TMP_HOME=$(mktemp -d)
+TMP_VAULT="$(mktemp -d)/vault"
+HOME="$TMP_HOME" bash ipcra-install.sh -y "$TMP_VAULT"
+
+# 3) Contrôle minimal du résultat
+[ -f "$TMP_VAULT/.ipcra/context.md" ]
+[ -f "$TMP_VAULT/.ipcra/instructions.md" ]
+[ -f "$TMP_VAULT/.ipcra/config.yaml" ]
+```
+
+## Améliorations proposées
+
+- Ajouter un mode `--dry-run` pour afficher les actions sans écrire sur disque.
+- Ajouter une suite de tests shell (bats) couvrant : parsing options, modes d'écriture `write_safe`, et idempotence partielle.
+- Vérifier les dépendances optionnelles (`realpath`, `sed`, etc.) avec un sous-commande `ipcra doctor --verbose`.
+- Uniformiser la branche Git créée (`main` au lieu de `master`) via `git init -b main` quand supporté.
