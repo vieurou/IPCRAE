@@ -1360,6 +1360,65 @@ EOF
   rm -f "$draft" 2>/dev/null || true
 }
 
+# ── Ingest Project (Audit & Sync) ─────────────────────────────
+cmd_ingest() {
+  local domain="${1:-}"
+  if [ -z "$domain" ]; then
+    read -r -p "Domaine global cible (ex: devops, electronique) : " domain
+    [ -z "$domain" ] && { logerr "Domaine requis"; return 1; }
+  fi
+
+  local memory_dir="${IPCRA_ROOT:-$HOME/IPCRA}/memory"
+  [ -d ".ipcra-memory/memory" ] && memory_dir=".ipcra-memory/memory"
+  
+  if [ ! -d "$memory_dir" ]; then
+    logerr "Dossier mémoire introuvable ($memory_dir). Êtes-vous dans un projet IPCRA ?"
+    return 1
+  fi
+
+  if [ ! -d ".git" ] && [ ! -d "src" ] && [ ! -f "README.md" ]; then
+    logwarn "Ceci ne ressemble pas à la racine d'un projet."
+    prompt_yes_no "Lancer l'ingestion quand même ?" "y" || return 0
+  fi
+
+  local prompt="MISSION D'INGESTION DE PROJET (CDE -> GLOBAL) :
+Tu es un Architecte Logiciel Senior et un Knowledge Manager de notre système IPCRA. Ton but est de procéder à la synchronisation d'un projet existant vers la mémoire globale IPCRA.
+
+ÉTAPE 1 : ANALYSE DES DOCUMENTS
+- Recherche et lis attentivement la documentation locale (README.md, docs/, .ipcra-project/local-notes/).
+- Identifie l'objectif métier, l'architecture, et les conventions du projet.
+- Ajoute ou mets à jour de façon structurée la mémoire globale dans \`${memory_dir}/${domain}.md\` (Crée le titre, le but, l'état actuel).
+
+ÉTAPE 2 : VÉRIFICATION MINUTIEUSE DU CODE
+- Explore le code source du projet localement. Analyse son arborescence et scrute les fichiers d'implémentation clés.
+- Cherche les incohérences entre la théorie (docs) et la pratique (code).
+- Identifie les patterns techniques pertinents, les hacks, les dettes techniques ou les configurations spécifiques.
+- Complète ton entrée dans \`${memory_dir}/${domain}.md\` avec ces découvertes techniques (sous une section 'Analyse Technique approfondie').
+- Corrige d'éventuelles erreurs conceptuelles trouvées dans la doc locale ou la mémoire.
+
+ÉTAPE 3 : ENRICHISSEMENT ZETTELKASTEN
+- Si tu découvres des concepts techniques pointus ou universels (ex: une stratégie de cache précise, un algorithme), crée de nouvelles notes atomiques dans \`${IPCRA_ROOT:-$HOME/IPCRA}/Zettelkasten/_inbox/\`.
+- Format strict d'un fichier Zettelkasten :
+---
+id: [YYYYMMDDHHMM]
+tags: [tag1, tag2]
+liens: []
+source: Ingestion du projet $(basename "$PWD")
+created: $(today)
+---
+# Titre du concept
+[Explication claire et atomique]
+
+RÈGLE D'OR:
+Exécute ces 3 étapes de façon séquentielle et autonome en m'expliquant ce que tu fais."
+
+  local provider
+  provider=$(get_default_provider)
+  
+  loginfo "Démarrage de la session d'ingestion interactive avec ${provider}..."
+  launch_with_prompt "$provider" "$prompt"
+}
+
 # ── Health ────────────────────────────────────────────────────
 cmd_health() {
   need_root
@@ -1588,6 +1647,7 @@ cmd_menu() {
     "MOC (Map of Content)" \
     "Capture rapide (Inbox)" \
     "Consolider notes locales (Projet)" \
+    "Ingérer projet existant (Audit & Sync)" \
     "Lancer session IA" \
     "Lancer session IA (mode expert)" \
     "Close session" \
@@ -1606,16 +1666,17 @@ cmd_menu() {
       6)  read -r -p "Thème: " _t; cmd_moc "$_t"; break ;;
       7)  read -r -p "Note: " _n; cmd_capture "$_n"; break ;;
       8)  cmd_consolidate; break ;;
-      9)  launch_ai "$(get_default_provider)"; break ;;
-      10) read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
+      9)  read -r -p "Domaine global cible: " _d; cmd_ingest "$_d"; break ;;
+      10) launch_ai "$(get_default_provider)"; break ;;
+      11) read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
           launch_ai "$(get_default_provider)" "$m"; break ;;
-      11) cmd_close "${extra:-}"; break ;;
-      12) cmd_health; break ;;
-      13) sync_providers; break ;;
-      14) list_providers; break ;;
-      15) open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      16) open_note "${IPCRA_ROOT}/Process/index.md" "Process/index.md"; break ;;
-      17) exit 0 ;;
+      12) cmd_close "${extra:-}"; break ;;
+      13) cmd_health; break ;;
+      14) sync_providers; break ;;
+      15) list_providers; break ;;
+      16) open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      17) open_note "${IPCRA_ROOT}/Process/index.md" "Process/index.md"; break ;;
+      18) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -1659,6 +1720,7 @@ Exemples:
   ipcra review phase       # revue de phase
   ipcra close              # clôture session (mémoire globale -> IPCRA_ROOT)
   ipcra consolidate        # consolide notes du projet CDE -> mémoire globale
+  ipcra ingest [domaine]   # analyse / audit projet existant vers mémoire
   ipcra DevOps             # mode expert DevOps
   ipcra -p gemini Musique  # Gemini en mode expert musique
   ipcra sync               # régénérer fichiers provider
@@ -1694,6 +1756,7 @@ main() {
     capture)         cmd_capture "${extra:-}" ;;
     close)           cmd_close "${extra:-}" ;;
     consolidate)     cmd_consolidate "${extra:-}" ;;
+    ingest|audit)    cmd_ingest "${extra:-}" ;;
     sync)            sync_providers ;;
     list)            list_providers ;;
     zettel)          cmd_zettel "$extra" ;;
