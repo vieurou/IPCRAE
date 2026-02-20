@@ -213,6 +213,7 @@ write_safe ".ipcrae/config.yaml" <<EOF_CONF
 ipcrae_root: "${IPCRAE_ROOT}"
 version: "${VERSION}"
 default_provider: claude
+auto_git_sync: true
 
 providers:
   claude:
@@ -449,6 +450,13 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     logerr "Template templates/ipcrae-addProject.sh introuvable !"
     exit 1
   fi
+
+  if [ -f "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" ]; then
+    cp "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" "$HOME/bin/ipcrae-migrate-safe"
+    chmod +x "$HOME/bin/ipcrae-migrate-safe"
+  else
+    logwarn "Template templates/ipcrae-migrate-safe.sh introuvable (migration safe non installée)."
+  fi
   
   if [ -d "$SCRIPT_DIR/templates/prompts" ]; then
     mkdir -p "$IPCRAE_ROOT/.ipcrae/prompts/"
@@ -491,9 +499,14 @@ else
 fi
 
 if [ "$DRY_RUN" = true ]; then
-  loginfo "[DRY-RUN] Écriture de default_provider: $default_prov dans .ipcrae/config.yaml"
+  loginfo "[DRY-RUN] Mise à jour de default_provider: $default_prov dans .ipcrae/config.yaml"
 else
-  echo "default_provider: \"$default_prov\"" > ".ipcrae/config.yaml"
+  if grep -q '^default_provider:' ".ipcrae/config.yaml" 2>/dev/null; then
+    sed -i "s/^default_provider:.*/default_provider: \"$default_prov\"/" ".ipcrae/config.yaml"
+  else
+    printf 'default_provider: "%s"\n' "$default_prov" >> ".ipcrae/config.yaml"
+  fi
+  grep -q '^auto_git_sync:' ".ipcrae/config.yaml" 2>/dev/null || printf 'auto_git_sync: true\n' >> ".ipcrae/config.yaml"
 fi
 loginfo "Provider par défaut configuré sur : $default_prov"
 

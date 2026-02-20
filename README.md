@@ -41,12 +41,50 @@ IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
 2. En fin de feature / session, consolider l’essentiel vers `.ipcrae-memory/memory/`.
 3. Garder l’historique dans `Journal/` et nettoyer le bruit local.
 
+
+## Architecture des prompts IA (v3.2)
+
+Le système de prompts est désormais factorisé en couches :
+
+- `templates/prompts/core_ai_functioning.md` : fonctionnement IA commun.
+- `templates/prompts/core_ai_workflow_ipcra.md` : workflow Agile/GTD IPCRAE.
+- `templates/prompts/core_ai_memory_method.md` : gouvernance mémoire (local/projet/global).
+- `templates/prompts/agent_<domaine>.md` : spécialisations métier.
+
+Principe: charger le noyau commun puis la couche agent pour obtenir des réponses plus homogènes et une meilleure consolidation de mémoire.
+
+
+## Git dans le workflow mémoire
+
+Par défaut (`auto_git_sync: true`), IPCRAE peut auto-commit et auto-push les nouvelles entrées mémoire (capture, zettel, création daily/weekly/monthly, close) si le vault est un dépôt Git avec remote `origin` configuré.
+
+- Override session : `IPCRAE_AUTO_GIT=true|false`
+- Sauvegarde manuelle complète : `ipcrae sync-git`
+
 ## Compatibilité providers (important)
 
 - Le launcher IPCRAE gère `claude`, `gemini`, `codex`.
 - Le niveau d’injection de contexte dépend du provider CLI installé et de ses options.
 - Utiliser `ipcrae sync` pour régénérer les fichiers provider (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, Kilo).
 - Utiliser `ipcrae doctor` pour vérifier dépendances/fichiers avant une session IA.
+
+
+## Mise à jour IPCRAE en production (sans perte de données)
+
+Pour un cerveau existant déjà en prod, utiliser la migration safe :
+
+```bash
+ipcrae migrate-safe
+```
+
+Algorithme appliqué :
+1. Backup complet du vault (archive tar.gz) avant toute modification.
+2. Merge non destructif des prompts (`.ipcrae/prompts/`) :
+   - fichier absent => créé
+   - fichier différent => écrit en `*.new-<timestamp>` (jamais d'écrasement direct).
+3. Mise à jour des scripts CLI avec backup local (`~/bin/*.bak-<timestamp>`).
+4. Enrichissement de config sans overwrite (`default_provider`, `auto_git_sync`).
+5. Rapport de migration écrit dans `.ipcrae/backups/`.
 
 ## Troubleshooting
 
