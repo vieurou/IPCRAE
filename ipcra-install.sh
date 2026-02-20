@@ -61,6 +61,10 @@ write_safe() {
   tmp="$(mktemp "${f}.tmp.XXXXXX")"
   if [ "$#" -ge 2 ]; then
     printf '%s\n' "$c" > "$tmp"
+  elif [ -t 0 ]; then
+    logerr "write_safe: contenu manquant pour '$f' (utiliser un 2e argument ou un heredoc)"
+    rm -f "$tmp"
+    return 1
   else
     cat > "$tmp"
   fi
