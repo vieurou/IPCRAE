@@ -1630,11 +1630,15 @@ set -euo pipefail
 IPCRA_ROOT="${IPCRA_ROOT:-$HOME/IPCRA}"
 CONCEPTION_DIR="docs/conception"
 CONCEPTS_DIR="$CONCEPTION_DIR/concepts"
+LOCAL_IPCRA_DIR=".ipcra-project"
+LOCAL_NOTES_DIR="$LOCAL_IPCRA_DIR/local-notes"
 
 echo "🚀 Initialisation de l'arborescence Conception Agile Pilotée par l'IA..."
 
 # Création des dossiers
 mkdir -p "$CONCEPTS_DIR"
+# Méthodo centralisée: pas de duplication complète IPCRA dans chaque repo projet.
+mkdir -p "$LOCAL_NOTES_DIR"
 
 # 1. 00_VISION.md
 cat << 'EOF' > "$CONCEPTION_DIR/00_VISION.md"
@@ -1762,11 +1766,22 @@ echo "✅ Créé : $CONCEPTS_DIR/_TEMPLATE_CONCEPT.md"
 # Claude regarde .claude.md ou .clinerules
 RULES_CONTENT=$(cat << EOF
 # Project-Specific AI Instructions
+
+## Ordre de lecture obligatoire pour l'agent
+1) docs/conception/00_VISION.md
+2) docs/conception/01_AI_RULES.md
+3) docs/conception/02_ARCHITECTURE.md
+4) .ipcra-project/local-notes/ (notes locales projet)
+5) .ipcra-memory/memory/ (mémoire globale, source de vérité)
+6) .ipcra-memory/Archives/ + .ipcra-memory/Journal/ (historique global)
+
 $(cat "$IPCRA_ROOT/.ipcra/context.md" 2>/dev/null || echo "Contexte introuvable.")
 ---
 $(cat "$IPCRA_ROOT/.ipcra/instructions.md" 2>/dev/null || echo "Instructions introuvables.")
 ---
 $(cat "$CONCEPTION_DIR/01_AI_RULES.md" 2>/dev/null || echo "Règles introuvables.")
+---
+$(cat "$CONCEPTION_DIR/03_IPCRA_CONTEXT_LINKS.md" 2>/dev/null || echo "Liens de contexte introuvables.")
 EOF
 )
 
@@ -1777,15 +1792,54 @@ echo "$RULES_CONTENT" > ".openai" && echo "✅ Créé : .openai"
 echo "$RULES_CONTENT" > ".kilocode.md" && echo "✅ Créé : .kilocode.md"
 echo "$RULES_CONTENT" > ".clinerules" && echo "✅ Créé : .clinerules"
 
-# 6. Création du lien vers le Cerveau Global (Bouton d'or)
-# On crée un lien symbolique vers ~/IPCRA pour que l'IA puisse "voir" la mémoire globale 
-# même si elle est limitée au dossier du projet.
+# 6. Liens vers le Cerveau Global + raccourcis ciblés
+# On crée un lien symbolique vers l'IPCRA global pour que l'IA puisse lire la mémoire,
+# les archives et l'historique même en travaillant dans un repo local.
 if [ -d "$IPCRA_ROOT" ]; then
     ln -sfn "$IPCRA_ROOT" ".ipcra-memory"
     echo "✅ Créé : Lien symbolique .ipcra-memory -> \$IPCRA_ROOT"
+
+    [ -d "$IPCRA_ROOT/memory" ] && ln -sfn "../.ipcra-memory/memory" "$LOCAL_IPCRA_DIR/memory-global"
+    [ -d "$IPCRA_ROOT/Archives" ] && ln -sfn "../.ipcra-memory/Archives" "$LOCAL_IPCRA_DIR/archives-global"
+    [ -d "$IPCRA_ROOT/Journal" ] && ln -sfn "../.ipcra-memory/Journal" "$LOCAL_IPCRA_DIR/journal-global"
 fi
 
-echo "🎉 Squelette documentaire, instructions IA et lien mémoire générés avec succès !"
+# 7. Guide de lecture pour l'IA (priorité local + global)
+cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRA_CONTEXT_LINKS.md"
+# IPCRA Context Links (Local + Global)
+
+## Priorité de lecture recommandée
+1. Contexte local projet : \`docs/conception/00_VISION.md\`, \`01_AI_RULES.md\`, \`02_ARCHITECTURE.md\`
+2. Notes projet locales : \`.ipcra-project/local-notes/\` (contexte temporaire de ce repo)
+3. Mémoire globale : \`.ipcra-memory/memory/\` (source de vérité durable)
+4. Historique global : \`.ipcra-memory/Archives/\` et \`.ipcra-memory/Journal/\`
+
+## Règle d'or
+- Le global (\`.ipcra-memory/*\`) reste la source de vérité durable.
+- Le local (\`.ipcra-project/local-notes/\`) sert au contexte court terme du projet.
+- Après consolidation, remonter les décisions durables vers la mémoire globale.
+EOF
+
+echo "✅ Créé : $CONCEPTION_DIR/03_IPCRA_CONTEXT_LINKS.md"
+
+cat << 'EOF' > "$LOCAL_NOTES_DIR/README.md"
+# Local Notes (Projet)
+
+Ce dossier est volontairement **minimal** pour éviter de dupliquer la hiérarchie IPCRA globale.
+
+## Usage
+- Mettre ici le contexte de travail court terme lié au repo courant.
+- Conserver la connaissance durable dans \`.ipcra-memory/memory/\` (source de vérité).
+
+## Fichiers suggérés
+- \`todo.md\`
+- \`decisions-locales.md\`
+- \`debug-log.md\`
+EOF
+
+echo "✅ Créé : $LOCAL_NOTES_DIR/README.md"
+
+echo "🎉 Squelette documentaire, instructions IA et liens mémoire générés avec succès !"
 EOF_CONCEPTION
 
   chmod +x "$HOME/bin/ipcra-init-conception"
