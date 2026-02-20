@@ -298,3 +298,47 @@ MIT — Utilisation libre, personnelle et commerciale.
 
 Les PR sont bienvenues. Avant toute soumission exécutez un Linter agressif :
 `bash -n ipcrae-install.sh` + `shellcheck ipcrae-install.sh`.
+
+
+## 16) Scripts prêts à l'emploi (optimisation tokens + orchestration agents)
+
+Nouveaux scripts livrés pour réduire les tokens et accélérer les réponses IA :
+
+```bash
+# Génère un contexte compact (core)
+ipcrae-tokenpack core
+
+# Génère un contexte compact pour un projet
+ipcrae-tokenpack project mon-projet
+
+# Interroge automatiquement les IA CLI disponibles (claude/gemini/codex)
+ipcrae-agent-bridge "Donne le plan de migration"
+
+# Forcer un refresh (sans cache)
+ipcrae-agent-bridge --no-cache "Donne le plan de migration"
+
+# TTL cache custom (1h)
+ipcrae-agent-bridge --ttl 3600 "Plan de release"
+
+# Produit un prompt court optimisé selon l'agent cible
+ipcrae-prompt-optimize claude "Créer une weekly actionable"
+```
+
+### Pourquoi ça consomme moins de tokens
+- Le contexte est tronqué et nettoyé (`ipcrae-tokenpack`) : suppression des lignes vides/commentaires + limite de taille.
+- Les prompts imposent une sortie **courte et actionnable** (contrat quick win + plan robuste).
+- Le bridge multi-agent évite les prompts longs manuels répétés, standardise le format de demande, et met en cache les réponses pour éviter les appels identiques.
+
+### Veille agents CLI et stratégie d'usage
+- **Claude CLI** : excellent pour architecture, arbitrages, risques.
+- **Gemini CLI** : bon en enchaînement terminal/outils.
+- **Codex CLI** : efficace pour patch minimal + validations techniques.
+
+Recommandation : utiliser `ipcrae-prompt-optimize` avant chaque délégation, puis `ipcrae-agent-bridge` pour comparer rapidement les sorties quand l'enjeu est critique.
+
+### Améliorations utiles à ajouter ensuite
+1. **Cache de réponses** (`.ipcrae/cache/`) avec hash prompt+contexte pour éviter de reconsommer des tokens.
+2. **Scoring automatique des réponses agents** (exactitude, actionnabilité, coût).
+3. **Mode consensus** : synthèse automatique des 2 meilleurs agents.
+4. **Routage intelligent** par type de tâche (debug, archi, rédaction, revue sécurité).
+
