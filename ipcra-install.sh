@@ -1261,6 +1261,105 @@ MEOF
   open_note "$abs" "$rel"
 }
 
+# ── Consolidation CDE ─────────────────────────────────────────
+cmd_consolidate() {
+  if [ ! -d ".ipcra-project/local-notes" ]; then
+    logerr "Dossier .ipcra-project/local-notes introuvable."
+    logwarn "Cette commande s'exécute à la racine d'un projet local (Architecture CDE)."
+    return 1
+  fi
+
+  local domain="${1:-}"
+  if [ -z "$domain" ]; then
+    read -r -p "Domaine global cible (ex: devops, electronique) : " domain
+    [ -z "$domain" ] && { logerr "Domaine requis"; return 1; }
+  fi
+
+  local memory_dir=".ipcra-memory/memory"
+  local memory_file="${memory_dir}/${domain}.md"
+  
+  if [ ! -d "$memory_dir" ]; then
+    logerr "Lien global .ipcra-memory introuvable ou brisé."
+    return 1
+  fi
+
+  local local_content=""
+  local has_notes=false
+  for f in .ipcra-project/local-notes/*.md; do
+    [ -e "$f" ] || continue
+    [ "$(basename "$f")" = "README.md" ] && continue
+    has_notes=true
+    local_content+=$'\n\n--- Source: '"$(basename "$f")"$' ---\n'
+    local_content+=$(cat "$f" 2>/dev/null)
+  done
+
+  if [ "$has_notes" = false ] || [ -z "$(echo "$local_content" | tr -d '[:space:]-')" ]; then
+    logwarn "Aucun contenu Markdown local trouvé à consolider (hors README.md)."
+    return 0
+  fi
+
+  loginfo "Génération de la synthèse IA (cela prend quelques secondes)..."
+  local prompt
+  prompt=$(cat <<EOF
+Voici les notes brutes locales d'un projet. Joue le rôle d'un architecte technique implacable.
+Extrais UNIQUEMENT les décisions durables, les leçons apprises, les erreurs résolues et les patterns réutilisables.
+Ignore totalement les TODOs, les notes jetables et les logs sans intérêt.
+Rédige une entrée concise et structurée (en Markdown) pour la base de connaissances globale du domaine "${domain}".
+Commence obligatoirement par un titre H2 : "## $(today) - Synthèse de projet" (invente le nom du projet).
+Voici les notes :
+${local_content}
+EOF
+)
+
+  local provider
+  provider=$(get_default_provider)
+  local draft=".ipcra-project/draft-consolidation.md"
+  
+  case "$provider" in
+    claude) claude -p "$prompt" > "$draft" 2>/dev/null ;;
+    gemini) gemini "$prompt" > "$draft" 2>/dev/null ;;
+    codex) codex "$prompt" > "$draft" 2>/dev/null ;;
+    *) logerr "Provider $provider non supporté en headless."; return 1 ;;
+  esac
+
+  if [ ! -s "$draft" ]; then
+    logerr "La génération IA a échoué (réponse vide)."
+    return 1
+  fi
+
+  loginfo "Brouillon généré."
+  local editor="${EDITOR:-nano}"
+  "$editor" "$draft"
+
+  section "Validation de la consolidation"
+  cat "$draft"
+  echo ""
+  
+  if prompt_yes_no "Ce draft est-il correct ? L'injecter dans la mémoire globale ($domain) ?" "y"; then
+    if [ ! -f "$memory_file" ]; then
+      echo "# Mémoire — ${domain}" > "$memory_file"
+    fi
+    echo "" >> "$memory_file"
+    cat "$draft" >> "$memory_file"
+    loginfo "Injecté avec succès dans $memory_file"
+    
+    if prompt_yes_no "Vider les notes locales traitées pour ce projet ?" "y"; then
+      for f in .ipcra-project/local-notes/*.md; do
+        [ -e "$f" ] || continue
+        [ "$(basename "$f")" = "README.md" ] && continue
+        rm -f "$f"
+      done
+      echo "# Tâches en cours" > .ipcra-project/local-notes/todo.md
+      loginfo "Dossier local-notes/ purgé."
+    fi
+  else
+    logwarn "Injection annulée. Le draft reste disponible dans $draft"
+    return 0
+  fi
+  
+  rm -f "$draft" 2>/dev/null || true
+}
+
 # ── Health ────────────────────────────────────────────────────
 cmd_health() {
   need_root
@@ -1488,6 +1587,7 @@ cmd_menu() {
     "Zettelkasten (nouvelle note)" \
     "MOC (Map of Content)" \
     "Capture rapide (Inbox)" \
+    "Consolider notes locales (Projet)" \
     "Lancer session IA" \
     "Lancer session IA (mode expert)" \
     "Close session" \
@@ -1505,16 +1605,17 @@ cmd_menu() {
       5)  read -r -p "Titre: " _t; cmd_zettel "$_t"; break ;;
       6)  read -r -p "Thème: " _t; cmd_moc "$_t"; break ;;
       7)  read -r -p "Note: " _n; cmd_capture "$_n"; break ;;
-      8)  launch_ai "$(get_default_provider)"; break ;;
-      9)  read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
+      8)  cmd_consolidate; break ;;
+      9)  launch_ai "$(get_default_provider)"; break ;;
+      10) read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
           launch_ai "$(get_default_provider)" "$m"; break ;;
-      10) cmd_close "${extra:-}"; break ;;
-      11) cmd_health; break ;;
-      12) sync_providers; break ;;
-      13) list_providers; break ;;
-      14) open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      15) open_note "${IPCRA_ROOT}/Process/index.md" "Process/index.md"; break ;;
-      16) exit 0 ;;
+      11) cmd_close "${extra:-}"; break ;;
+      12) cmd_health; break ;;
+      13) sync_providers; break ;;
+      14) list_providers; break ;;
+      15) open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      16) open_note "${IPCRA_ROOT}/Process/index.md" "Process/index.md"; break ;;
+      17) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -1556,7 +1657,8 @@ Exemples:
   ipcra moc "DevOps"       # Map of Content DevOps
   ipcra health             # diagnostic système
   ipcra review phase       # revue de phase
-  ipcra close              # clôture session
+  ipcra close              # clôture session (mémoire globale -> IPCRA_ROOT)
+  ipcra consolidate        # consolide notes du projet CDE -> mémoire globale
   ipcra DevOps             # mode expert DevOps
   ipcra -p gemini Musique  # Gemini en mode expert musique
   ipcra sync               # régénérer fichiers provider
@@ -1591,6 +1693,7 @@ main() {
     monthly)         cmd_monthly ;;
     capture)         cmd_capture "${extra:-}" ;;
     close)           cmd_close "${extra:-}" ;;
+    consolidate)     cmd_consolidate "${extra:-}" ;;
     sync)            sync_providers ;;
     list)            list_providers ;;
     zettel)          cmd_zettel "$extra" ;;
