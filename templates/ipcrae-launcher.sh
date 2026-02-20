@@ -531,8 +531,23 @@ cmd_sync_git() {
       cd "${IPCRAE_ROOT}"
       git add -A
       git commit -m "Auto-sync $(date +"%Y-%m-%d %H:%M:%S")" || true
-      git push
-    ) && loginfo "✅ Sauvegarde terminée avec succès." || logwarn "Échec de la sauvegarde Git."
+      
+      # Vérifier si un dépôt distant ('origin') existe
+      if ! git remote | grep -q "^origin$"; then
+          logwarn "Aucun dépôt distant (remote) configuré."
+          read -r -p "Veuillez entrer l'URL de votre dépôt Git (ex: https://github.com/vieurou/vault.git) : " remote_url
+          if [ -n "$remote_url" ]; then
+              git remote add origin "$remote_url"
+              git branch -M main
+              git push -u origin main && loginfo "✅ Remote ajouté et sauvegarde terminée avec succès." || logwarn "Échec du push initial."
+          else
+              logwarn "URL vide, sauvegarde distante annulée (les commits restent locaux)."
+              exit 1
+          fi
+      else
+          git push && loginfo "✅ Sauvegarde terminée avec succès." || logwarn "Échec de la sauvegarde Git."
+      fi
+    )
   else
     logwarn "${IPCRAE_ROOT} n'est pas un dépôt Git. Impossible de synchroniser."
   fi
