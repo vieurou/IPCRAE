@@ -54,11 +54,16 @@ backup_if_exists() {
 }
 
 write_safe() {
-  local f="$1" c="$2"
+  local f="$1"
+  local c="${2-}"
   local tmp
   mkdir -p "$(dirname "$f")"
   tmp="$(mktemp "${f}.tmp.XXXXXX")"
-  printf '%s\n' "$c" > "$tmp"
+  if [ "$#" -ge 2 ]; then
+    printf '%s\n' "$c" > "$tmp"
+  else
+    cat > "$tmp"
+  fi
   backup_if_exists "$f"
   mv "$tmp" "$f"
 }
