@@ -25,5 +25,7 @@
 ## Définition de Done IA (STRICTE)
 - Le livrable répond à la demande.
 - Les vérifications sont exécutées ou l'absence est justifiée.
-- **OBLIGATION ABSOLUE : Tu as EXPLICITEMENT écrit de nouvelles entrées dans les fichiers mémoire (`.ipcrae-project/memory/` ou `memory/`).**
+- **OBLIGATION ABSOLUE : Tu as EXPLICITEMENT documenté ton travail dans le système de fichiers, en respectant la matrice :**
+  - Si c'est en cours (WIP, debug, todo) ➔ `.ipcrae-project/local-notes/`.
+  - Si c'est une décision technique clé ou une fin de feature ➔ `.ipcrae-project/memory/` (spécifique) ou `.ipcrae-memory/memory/` (global).
 - Le prochain pas est nommé.
