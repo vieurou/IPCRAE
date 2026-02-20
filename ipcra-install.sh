@@ -722,6 +722,12 @@ done
 ```
 '
 
+[ ! -f "Zettelkasten/MOC/index.md" ] && write_safe "Zettelkasten/MOC/index.md" '# MOC — Index général
+
+## Thèmes
+<!-- Lister ici les MOC créés : [[MOC-devops]], [[MOC-electronique]]... -->
+-'
+
 # v3.1 : Zettelkasten template
 write_safe "Zettelkasten/_template.md" '---
 id: {{id}}
@@ -1027,7 +1033,12 @@ Format : utilise le template standard daily (## Top 3, ## Agenda, ## Next action
       claude --append-system-prompt-file "$ctx_file" "$prep_prompt"
       ;;
     gemini)
-      gemini --context "$ctx_file" "$prep_prompt" 2>/dev/null || gemini "$prep_prompt"
+      if gemini --context "$ctx_file" "$prep_prompt" 2>/dev/null; then
+        :
+      else
+        logwarn "Gemini: --context non supporté, lancement sans contexte fichier"
+        gemini "$prep_prompt"
+      fi
       ;;
     codex)
       codex "$prep_prompt"
@@ -1299,7 +1310,7 @@ cmd_review() {
 cmd_process() {
   need_root
   local proc="${1:-}"
-  local provider="$2"
+  local provider="${2:-$(get_default_provider)}"
   if [ -z "$proc" ]; then
     open_note "${IPCRA_ROOT}/Process/index.md" "Process/index.md"
     return
@@ -1308,14 +1319,17 @@ cmd_process() {
   if [ ! -f "${IPCRA_ROOT}/${p}" ]; then
     if [ -f "${IPCRA_ROOT}/Process/_template_process.md" ]; then
       cp "${IPCRA_ROOT}/Process/_template_process.md" "${IPCRA_ROOT}/${p}"
-      sed -i "s/\[Nom\]/${proc}/g" "${IPCRA_ROOT}/${p}"
+      local safe_proc
+      safe_proc=$(printf '%s' "$proc" | sed 's/[\/&]/\\&/g')
+      sed -i "s/\[Nom\]/${safe_proc}/g" "${IPCRA_ROOT}/${p}"
     else
       printf '# Process — %s\n' "$proc" > "${IPCRA_ROOT}/${p}"
     fi
   fi
   
   local agent
-  agent=$(grep -A1 "^## Agent IA recommandé" "${IPCRA_ROOT}/${p}" 2>/dev/null | tail -n 1 | sed 's/^- *//')
+  agent=$(grep -A1 "^## Agent IA recommandé" "${IPCRA_ROOT}/${p}" 2>/dev/null \
+    | grep -v '^--$' | tail -n 1 | sed 's/^- *//')
   if [ -n "$agent" ] && [[ "$agent" != "(ex"* ]]; then
      printf '%b🤖 Agent recommandé détecté : %s%b\n' "$GREEN" "$agent" "$NC"
     if prompt_yes_no "Lancer l'IA avec cet agent sur ce process ?" "y"; then
