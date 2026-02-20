@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-# IPCRA - Initialisation de la structure de Conception Agile par IA (AIDD/CDE)
+# IPCRAE - Initialisation de la structure de Conception Agile par IA (AIDD/CDE)
 # Ce script crée un squelette documentaire optimisé pour la lecture par un agent IA.
 
-IPCRA_ROOT="${IPCRA_ROOT:-$HOME/IPCRA}"
+IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/IPCRAE}"
 CONCEPTION_DIR="docs/conception"
 CONCEPTS_DIR="$CONCEPTION_DIR/concepts"
-LOCAL_IPCRA_DIR=".ipcra-project"
-LOCAL_NOTES_DIR="$LOCAL_IPCRA_DIR/local-notes"
+LOCAL_IPCRAE_DIR=".ipcrae-project"
+LOCAL_NOTES_DIR="$LOCAL_IPCRAE_DIR/local-notes"
 
 echo "🚀 Initialisation de l'arborescence Conception Agile Pilotée par l'IA..."
 
 # Création des dossiers
 mkdir -p "$CONCEPTS_DIR"
-# Méthodo centralisée: pas de duplication complète IPCRA dans chaque repo projet.
+# Méthodo centralisée: pas de duplication complète IPCRAE dans chaque repo projet.
 mkdir -p "$LOCAL_NOTES_DIR"
+
+# Création du .gitignore pour éviter de commiter les notes et liens mémoire
+cat << EOF > "$LOCAL_IPCRAE_DIR/.gitignore"
+# IPCRAE local notes and global memory links
+local-notes/
+memory-global
+archives-global
+journal-global
+EOF
+echo "✅ Créé : $LOCAL_IPCRAE_DIR/.gitignore"
 
 # 1. 00_VISION.md
 cat << 'EOF' > "$CONCEPTION_DIR/00_VISION.md"
@@ -121,27 +131,27 @@ EOF
 echo "✅ Créé : $CONCEPTS_DIR/_TEMPLATE_CONCEPT.md"
 
 # 5. Guide de lecture pour l'IA (priorité local + global)
-cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRA_CONTEXT_LINKS.md"
-# IPCRA Context Links (Local + Global)
+cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md"
+# IPCRAE Context Links (Local + Global)
 
 ## Priorité de lecture recommandée
 1. Contexte local projet : `docs/conception/00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`
-2. Notes projet locales : `.ipcra-project/local-notes/` (contexte temporaire de ce repo)
-3. Mémoire globale : `.ipcra-memory/memory/` (source de vérité durable)
-4. Historique global : `.ipcra-memory/Archives/` et `.ipcra-memory/Journal/`
+2. Notes projet locales : `.ipcrae-project/local-notes/` (contexte temporaire de ce repo)
+3. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable)
+4. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
 
 ## Règle d'or
-- Le global (`.ipcra-memory/*`) reste la source de vérité durable.
-- Le local (`.ipcra-project/local-notes/`) sert au contexte court terme du projet.
+- Le global (`.ipcrae-memory/*`) reste la source de vérité durable.
+- Le local (`.ipcrae-project/local-notes/`) sert au contexte court terme du projet.
 - Après consolidation, remonter les décisions durables vers la mémoire globale.
 
 ## Cadence recommandée
 - Fin de session: trier `local-notes/`.
-- Fin de feature: promouvoir les décisions durables vers `.ipcra-memory/memory/`.
+- Fin de feature: promouvoir les décisions durables vers `.ipcrae-memory/memory/`.
 - Revue hebdo: archiver le bruit, conserver les apprentissages réutilisables.
 EOF
 
-echo "✅ Créé : $CONCEPTION_DIR/03_IPCRA_CONTEXT_LINKS.md"
+echo "✅ Créé : $CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md"
 
 # 6. Création des fichiers de règles universels pour les agents IA
 # On utilise les noms de fichiers spécifiques aux agents utilisés par l'utilisateur.
@@ -154,17 +164,17 @@ RULES_CONTENT=$(cat << EOF
 1) docs/conception/00_VISION.md
 2) docs/conception/01_AI_RULES.md
 3) docs/conception/02_ARCHITECTURE.md
-4) .ipcra-project/local-notes/ (notes locales projet)
-5) .ipcra-memory/memory/ (mémoire globale, source de vérité)
-6) .ipcra-memory/Archives/ + .ipcra-memory/Journal/ (historique global)
+4) .ipcrae-project/local-notes/ (notes locales projet)
+5) .ipcrae-memory/memory/ (mémoire globale, source de vérité)
+6) .ipcrae-memory/Archives/ + .ipcrae-memory/Journal/ (historique global)
 
-$(cat "$IPCRA_ROOT/.ipcra/context.md" 2>/dev/null || echo "Contexte introuvable.")
+$(cat "$IPCRAE_ROOT/.ipcrae/context.md" 2>/dev/null || echo "Contexte introuvable.")
 ---
-$(cat "$IPCRA_ROOT/.ipcra/instructions.md" 2>/dev/null || echo "Instructions introuvables.")
+$(cat "$IPCRAE_ROOT/.ipcrae/instructions.md" 2>/dev/null || echo "Instructions introuvables.")
 ---
 $(cat "$CONCEPTION_DIR/01_AI_RULES.md" 2>/dev/null || echo "Règles introuvables.")
 ---
-$(cat "$CONCEPTION_DIR/03_IPCRA_CONTEXT_LINKS.md" 2>/dev/null || echo "Liens de contexte introuvables.")
+$(cat "$CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md" 2>/dev/null || echo "Liens de contexte introuvables.")
 EOF
 )
 
@@ -176,25 +186,25 @@ echo "$RULES_CONTENT" > ".kilocode.md" && echo "✅ Créé : .kilocode.md"
 echo "$RULES_CONTENT" > ".clinerules" && echo "✅ Créé : .clinerules"
 
 # 7. Liens vers le Cerveau Global + raccourcis ciblés
-# On crée un lien symbolique vers l'IPCRA global pour que l'IA puisse lire la mémoire,
+# On crée un lien symbolique vers l'IPCRAE global pour que l'IA puisse lire la mémoire,
 # les archives et l'historique même en travaillant dans un repo local.
-if [ -d "$IPCRA_ROOT" ]; then
-    ln -sfn "$IPCRA_ROOT" ".ipcra-memory"
-    echo "✅ Créé : Lien symbolique .ipcra-memory -> \$IPCRA_ROOT"
+if [ -d "$IPCRAE_ROOT" ]; then
+    ln -sfn "$IPCRAE_ROOT" ".ipcrae-memory"
+    echo "✅ Créé : Lien symbolique .ipcrae-memory -> \$IPCRAE_ROOT"
 
-    [ -d "$IPCRA_ROOT/memory" ] && ln -sfn "../.ipcra-memory/memory" "$LOCAL_IPCRA_DIR/memory-global"
-    [ -d "$IPCRA_ROOT/Archives" ] && ln -sfn "../.ipcra-memory/Archives" "$LOCAL_IPCRA_DIR/archives-global"
-    [ -d "$IPCRA_ROOT/Journal" ] && ln -sfn "../.ipcra-memory/Journal" "$LOCAL_IPCRA_DIR/journal-global"
+    [ -d "$IPCRAE_ROOT/memory" ] && ln -sfn "../.ipcrae-memory/memory" "$LOCAL_IPCRAE_DIR/memory-global"
+    [ -d "$IPCRAE_ROOT/Archives" ] && ln -sfn "../.ipcrae-memory/Archives" "$LOCAL_IPCRAE_DIR/archives-global"
+    [ -d "$IPCRAE_ROOT/Journal" ] && ln -sfn "../.ipcrae-memory/Journal" "$LOCAL_IPCRAE_DIR/journal-global"
 fi
 
 cat << 'EOF' > "$LOCAL_NOTES_DIR/README.md"
 # Local Notes (Projet)
 
-Ce dossier est volontairement **minimal** pour éviter de dupliquer la hiérarchie IPCRA globale.
+Ce dossier est volontairement **minimal** pour éviter de dupliquer la hiérarchie IPCRAE globale.
 
 ## Usage
 - Mettre ici le contexte de travail court terme lié au repo courant.
-- Conserver la connaissance durable dans `.ipcra-memory/memory/` (source de vérité).
+- Conserver la connaissance durable dans `.ipcrae-memory/memory/` (source de vérité).
 
 ## Fichiers suggérés
 - `todo.md`

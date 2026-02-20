@@ -10,3 +10,8 @@
 - Le global (`.ipcrae-memory/*`) reste la source de vérité durable.
 - Le local (`.ipcrae-project/local-notes/`) sert au contexte court terme du projet.
 - Après consolidation, remonter les décisions durables vers la mémoire globale.
+
+## Cadence recommandée
+- Fin de session: trier `local-notes/`.
+- Fin de feature: promouvoir les décisions durables vers `.ipcrae-memory/memory/`.
+- Revue hebdo: archiver le bruit, conserver les apprentissages réutilisables.

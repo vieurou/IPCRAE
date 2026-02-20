@@ -62,7 +62,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$IPCRA_ROOT" ]; then
-  local_default="$HOME/IPCRA"
+  local_default="$HOME/IPCRAE"
   if [ "$AUTO_YES" = true ]; then IPCRA_ROOT="$local_default"
   else printf 'Dossier racine IPCRA:\n'; read -r -p "→ [$local_default] " IPCRA_ROOT
     IPCRA_ROOT=${IPCRA_ROOT:-$local_default}; fi

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# IPCRA Étendu v3.1 — Lanceur multi-provider
+# IPCRAE Étendu v3.1 — Lanceur multi-provider
 # Commandes : daily, weekly, monthly, close, sync, zettel, moc,
 #             health, review, launch, menu
 # Providers : Claude, Gemini, Codex, (Kilo via VS Code)
@@ -8,9 +8,9 @@
 set -euo pipefail
 
 VERSION="3.1.0"
-IPCRA_ROOT="${IPCRA_ROOT:-${HOME}/IPCRA}"
-IPCRA_CONFIG="${IPCRA_ROOT}/.ipcra/config.yaml"
-VAULT_NAME="$(basename "$IPCRA_ROOT")"
+IPCRAE_ROOT="${IPCRAE_ROOT:-${HOME}/IPCRAE}"
+IPCRAE_CONFIG="${IPCRAE_ROOT}/.ipcrae/config.yaml"
+VAULT_NAME="$(basename "$IPCRAE_ROOT")"
 
 # ── Couleurs ──────────────────────────────────────────────────
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'
@@ -46,7 +46,7 @@ trap cleanup_temps EXIT INT TERM
 
 make_temp() {
   local f
-  f=$(mktemp /tmp/ipcra.XXXXXX.md)
+  f=$(mktemp /tmp/ipcrae.XXXXXX.md)
   TEMP_FILES+=("$f")
   printf '%s' "$f"
 }
@@ -60,11 +60,11 @@ yesterday() {
 }
 
 need_root() {
-  if [ ! -d "$IPCRA_ROOT" ]; then
-    logerr "IPCRA_ROOT introuvable: $IPCRA_ROOT"
+  if [ ! -d "$IPCRAE_ROOT" ]; then
+    logerr "IPCRAE_ROOT introuvable: $IPCRAE_ROOT"
     exit 1
   fi
-  cd "$IPCRA_ROOT"
+  cd "$IPCRAE_ROOT"
 }
 
 open_note() {
@@ -74,9 +74,9 @@ open_note() {
 
 # ── Provider detection ────────────────────────────────────────
 get_default_provider() {
-  if [ -f "$IPCRA_CONFIG" ]; then
+  if [ -f "$IPCRAE_CONFIG" ]; then
     local p
-    p=$(grep -E '^default_provider:' "$IPCRA_CONFIG" 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
+    p=$(grep -E '^default_provider:' "$IPCRAE_CONFIG" 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
     [ -n "$p" ] && printf '%s' "$p" && return
   fi
   for cmd in claude gemini codex; do
@@ -104,10 +104,10 @@ list_providers() {
 # ── Sync : régénérer fichiers provider ────────────────────────
 sync_providers() {
   loginfo "Synchronisation des fichiers provider..."
-  local ctx="${IPCRA_ROOT}/.ipcra/context.md"
-  local ins="${IPCRA_ROOT}/.ipcra/instructions.md"
+  local ctx="${IPCRAE_ROOT}/.ipcrae/context.md"
+  local ins="${IPCRAE_ROOT}/.ipcrae/instructions.md"
   if [ ! -f "$ctx" ] || [ ! -f "$ins" ]; then
-    logerr "Sources manquantes (.ipcra/context.md ou instructions.md)"
+    logerr "Sources manquantes (.ipcrae/context.md ou instructions.md)"
     exit 1
   fi
 
@@ -116,14 +116,14 @@ sync_providers() {
 
   for target in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
     local file="${target%%:*}" name="${target##*:}"
-    printf '# Instructions pour %s — IPCRA v3.1\n# ⚠ GÉNÉRÉ — éditer .ipcra/context.md + instructions.md\n# Régénérer : ipcra sync\n\n%s\n' \
-      "$name" "$body" > "${IPCRA_ROOT}/${file}"
+    printf '# Instructions pour %s — IPCRAE v3.1\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' \
+      "$name" "$body" > "${IPCRAE_ROOT}/${file}"
     printf '  ✓ %s\n' "$file"
   done
 
-  mkdir -p "${IPCRA_ROOT}/.kilocode/rules"
-  printf '# Instructions IPCRA pour Kilo Code\n# ⚠ GÉNÉRÉ\n\n%s\n' "$body" > "${IPCRA_ROOT}/.kilocode/rules/ipcra.md"
-  printf '  ✓ .kilocode/rules/ipcra.md\n'
+  mkdir -p "${IPCRAE_ROOT}/.kilocode/rules"
+  printf '# Instructions IPCRAE pour Kilo Code\n# ⚠ GÉNÉRÉ\n\n%s\n' "$body" > "${IPCRAE_ROOT}/.kilocode/rules/ipcrae.md"
+  printf '  ✓ .kilocode/rules/ipcrae.md\n'
   loginfo "Sync terminée."
 }
 
@@ -134,8 +134,8 @@ cmd_daily() {
   local y d rel abs
   y="$(year)"; d="$(today)"
   rel="Journal/Daily/${y}/${d}.md"
-  abs="${IPCRA_ROOT}/${rel}"
-  mkdir -p "${IPCRA_ROOT}/Journal/Daily/${y}"
+  abs="${IPCRAE_ROOT}/${rel}"
+  mkdir -p "${IPCRAE_ROOT}/Journal/Daily/${y}"
 
   if [ "$prep" = "--prep" ]; then
     logerr "--prep nécessite une implémentation spécifique du prompt"
@@ -155,8 +155,8 @@ cmd_weekly() {
   local y w rel abs
   y="$(date +%G)"; w="$(iso_week)"
   rel="Journal/Weekly/${y}/${w}.md"
-  abs="${IPCRA_ROOT}/${rel}"
-  mkdir -p "${IPCRA_ROOT}/Journal/Weekly/${y}"
+  abs="${IPCRAE_ROOT}/${rel}"
+  mkdir -p "${IPCRAE_ROOT}/Journal/Weekly/${y}"
   if [ ! -f "$abs" ]; then
     printf '# Weekly — %s\n\n## Objectifs semaine\n- [ ] \n- [ ] \n- [ ] \n' "$w" > "$abs"
     loginfo "Weekly créée: $rel"
@@ -170,8 +170,8 @@ cmd_monthly() {
   local y m rel abs
   y="$(year)"; m="$(date +%Y-%m)"
   rel="Journal/Monthly/${y}/${m}.md"
-  abs="${IPCRA_ROOT}/${rel}"
-  mkdir -p "${IPCRA_ROOT}/Journal/Monthly/${y}"
+  abs="${IPCRAE_ROOT}/${rel}"
+  mkdir -p "${IPCRAE_ROOT}/Journal/Monthly/${y}"
   if [ ! -f "$abs" ]; then
     printf '# Revue mensuelle — %s\n\n## Bilan objectifs\n\n## Ajustements\n\n## Mois prochain\n' "$m" > "$abs"
     loginfo "Monthly créée: $rel"
@@ -193,9 +193,9 @@ launch_with_prompt() {
 launch_ai() {
   local p="$1" m="${2:-}"
   if [ -n "$m" ]; then
-    launch_with_prompt "$p" "MODE EXPERT: ${m}. Analyser le contexte IPCRA et aider sur ce domaine."
+    launch_with_prompt "$p" "MODE EXPERT: ${m}. Analyser le contexte IPCRAE et aider sur ce domaine."
   else
-    launch_with_prompt "$p" "Bonjour. Je suis prêt à travailler sur IPCRA."
+    launch_with_prompt "$p" "Bonjour. Je suis prêt à travailler sur IPCRAE."
   fi
 }
 
@@ -223,7 +223,7 @@ cmd_capture() {
   local ts
   ts=$(date +%Y%m%d%H%M%S)
   local rel="Inbox/capture-${ts}.md"
-  local abs="${IPCRA_ROOT}/${rel}"
+  local abs="${IPCRAE_ROOT}/${rel}"
   printf '# Capture %s\n\n%s\n' "$(date +'%Y-%m-%d %H:%M')" "$text" > "$abs"
   loginfo "Note capturée dans $rel"
 }
@@ -244,13 +244,13 @@ cmd_zettel() {
   [ -z "$slug" ] && slug="note"
   local filename="${id}-${slug}.md"
   local rel="Zettelkasten/_inbox/${filename}"
-  local abs="${IPCRA_ROOT}/${rel}"
+  local abs="${IPCRAE_ROOT}/${rel}"
 
-  if [ -f "${IPCRA_ROOT}/Zettelkasten/_template.md" ]; then
+  if [ -f "${IPCRAE_ROOT}/Zettelkasten/_template.md" ]; then
     sed -e "s/{{id}}/${id}/g" \
         -e "s/{{date}}/$(today)/g" \
         -e "s/{{titre}}/${title}/g" \
-        "${IPCRA_ROOT}/Zettelkasten/_template.md" > "$abs"
+        "${IPCRAE_ROOT}/Zettelkasten/_template.md" > "$abs"
   else
     cat > "$abs" <<ZEOF
 ---
@@ -291,7 +291,7 @@ cmd_moc() {
   [ -z "$slug" ] && slug="theme"
   local filename="MOC-${slug}.md"
   local rel="Zettelkasten/MOC/${filename}"
-  local abs="${IPCRA_ROOT}/${rel}"
+  local abs="${IPCRAE_ROOT}/${rel}"
 
   if [ ! -f "$abs" ]; then
     cat > "$abs" <<MEOF
@@ -377,23 +377,27 @@ cmd_health() {
 
   # Dernière activité
   printf '\n%b📝 Modifié récemment (7j)%b\n' "$YELLOW" "$NC"
-  find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcra/*" -print0 2>/dev/null \
+  find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcrae/*" -print0 2>/dev/null \
     | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^\./||' || true
 }
 
 cmd_doctor() {
   need_root
+  local verbose=false
+  if [ "${1:-}" = "--verbose" ] || [ "${1:-}" = "-v" ]; then verbose=true; fi
+  
   section "Doctor — Environnement"
 
   local missing=0
-  for c in git find sed awk; do
+  for c in git find sed awk python3 curl iconv; do
     if command -v "$c" >/dev/null 2>&1; then
-      printf '  ✓ %s\n' "$c"
+      [ "$verbose" = true ] && printf '  ✓ %s\n' "$c"
     else
       printf '  ✗ %s (manquant)\n' "$c"
       missing=$((missing + 1))
     fi
   done
+  [ "$verbose" = false ] && [ "$missing" -eq 0 ] && printf '  ✓ Dépendances système OK\n'
 
   printf '\n%bProviders%b\n' "$YELLOW" "$NC"
   for c in claude gemini codex; do
@@ -404,17 +408,17 @@ cmd_doctor() {
     fi
   done
 
-  printf '\n%bFichiers IPCRA%b\n' "$YELLOW" "$NC"
+  printf '\n%bFichiers IPCRAE%b\n' "$YELLOW" "$NC"
   for f in \
-    "$IPCRA_ROOT/.ipcra/context.md" \
-    "$IPCRA_ROOT/.ipcra/instructions.md" \
-    "$IPCRA_ROOT/CLAUDE.md" \
-    "$IPCRA_ROOT/GEMINI.md" \
-    "$IPCRA_ROOT/AGENTS.md"; do
+    "$IPCRAE_ROOT/.ipcrae/context.md" \
+    "$IPCRAE_ROOT/.ipcrae/instructions.md" \
+    "$IPCRAE_ROOT/CLAUDE.md" \
+    "$IPCRAE_ROOT/GEMINI.md" \
+    "$IPCRAE_ROOT/AGENTS.md"; do
     if [ -f "$f" ]; then
-      printf '  ✓ %s\n' "${f#$IPCRA_ROOT/}"
+      printf '  ✓ %s\n' "${f#$IPCRAE_ROOT/}"
     else
-      printf '  ✗ %s\n' "${f#$IPCRA_ROOT/}"
+      printf '  ✗ %s\n' "${f#$IPCRAE_ROOT/}"
     fi
   done
 
@@ -459,10 +463,68 @@ cmd_review() {
   esac
 }
 
+# ── Consolidation ─────────────────────────────────────────────
+cmd_consolidate() {
+  need_root
+  local domain="${1:-}"
+  if [ -z "$domain" ]; then
+    read -r -p "Domaine à consolider (ex: devops, electronique) : " domain
+    [ -z "$domain" ] && { logerr "Domaine requis"; return 1; }
+  fi
+  local prompt="CONSOLIDATION GLOBALE :
+1) Lis memory/${domain}.md pour connaître l'état actuel.
+2) Cherche les notes locales via 'find .ipcrae-project/local-notes/' ou 'find Projets/'.
+3) Propose une mise à jour synthétique et structurée de memory/${domain}.md sans effacer l'historique pertinent."
+  
+  launch_with_prompt "$(get_default_provider)" "$prompt"
+}
+
+# ── Process ───────────────────────────────────────────────────
+cmd_process() {
+  need_root
+  local nom="${1:-}"
+  if [ -z "$nom" ]; then
+    open_note "${IPCRAE_ROOT}/Process/index.md" "Process/index.md"
+    return 0
+  fi
+  local slug
+  slug=$(printf '%s' "$nom" | iconv -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
+  [ -z "$slug" ] && slug="process"
+  local filename="Process-${slug}.md"
+  local abs="${IPCRAE_ROOT}/Process/${filename}"
+  
+  if [ ! -f "$abs" ] && [ -f "${IPCRAE_ROOT}/Process/_template_process.md" ]; then
+    cp "${IPCRAE_ROOT}/Process/_template_process.md" "$abs"
+    sed -i "s/\[Nom\]/${nom}/g" "$abs"
+    loginfo "Process créé: Process/${filename}"
+  fi
+  open_note "$abs" "Process/${filename}"
+}
+
+# ── Update ────────────────────────────────────────────────────
+cmd_update() {
+  need_root
+  section "Mise à jour IPCRAE"
+  if [ -d "${IPCRAE_ROOT}/.git" ]; then
+    loginfo "Vérification des mises à jour..."
+    (cd "${IPCRAE_ROOT}" && git pull) || logwarn "Échec du git pull."
+  else
+    logwarn "${IPCRAE_ROOT} n'est pas un dépôt Git."
+  fi
+  
+  if prompt_yes_no "Relancer l'installateur (ipcrae-install.sh) ?" "y"; then
+    if [ -f "${IPCRAE_ROOT}/ipcrae-install.sh" ]; then
+      bash "${IPCRAE_ROOT}/ipcrae-install.sh"
+    else
+      logwarn "Installateur introuvable dans ${IPCRAE_ROOT}"
+    fi
+  fi
+}
+
 # ── Dashboard ─────────────────────────────────────────────────
 show_dashboard() {
   need_root
-  section "Tableau de Bord IPCRA [${VAULT_NAME}]"
+  section "Tableau de Bord IPCRAE [${VAULT_NAME}]"
   
   # Daily status
   local today_file="Journal/Daily/$(year)/$(today).md"
@@ -470,7 +532,7 @@ show_dashboard() {
     printf '📅 Daily : %b✓ OK%b\n' "$GREEN" "$NC"
     grep '\- \[ \]' "$today_file" | head -3 | awk '{print "  - " $0}' || true
   else
-    printf '📅 Daily : %b✗ Absente (ipcra daily)%b\n' "$RED" "$NC"
+    printf '📅 Daily : %b✗ Absente (ipcrae daily)%b\n' "$RED" "$NC"
   fi
 
   # Inbox status
@@ -487,7 +549,7 @@ show_dashboard() {
   fi
 
   printf '\n%b📝 Modifié récemment (7j)%b\n' "$YELLOW" "$NC"
-  find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcra/*" -print0 2>/dev/null \
+  find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcrae/*" -print0 2>/dev/null \
     | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^\./||' || true
   printf '\n'
 }
@@ -506,6 +568,8 @@ cmd_menu() {
     "Capture rapide (Inbox)" \
     "Lancer session IA" \
     "Lancer session IA (mode expert)" \
+    "Consolidation des notes" \
+    "Update IPCRAE" \
     "Close session" \
     "Health check" \
     "Doctor environnement" \
@@ -525,14 +589,16 @@ cmd_menu() {
       8)  launch_ai "$(get_default_provider)"; break ;;
       9)  read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
           launch_ai "$(get_default_provider)" "$m"; break ;;
-      10) cmd_close "${extra:-}"; break ;;
-      11) cmd_health; break ;;
-      12) cmd_doctor; break ;;
-      13) sync_providers; break ;;
-      14) list_providers; break ;;
-      15) open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      16) open_note "${IPCRA_ROOT}/Process/index.md" "Process/index.md"; break ;;
-      17) exit 0 ;;
+      10) cmd_consolidate; break ;;
+      11) cmd_update; break ;;
+      12) cmd_close "${extra:-}"; break ;;
+      13) cmd_health; break ;;
+      14) cmd_doctor; break ;;
+      15) sync_providers; break ;;
+      16) list_providers; break ;;
+      17) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      18) cmd_process; break ;;
+      19) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -541,7 +607,7 @@ cmd_menu() {
 # ── Usage ─────────────────────────────────────────────────────
 usage() {
   cat <<EOF
-Usage: ipcra [COMMANDE] [OPTIONS]
+Usage: ipcrae [COMMANDE] [OPTIONS]
 
 Commandes:
   (rien)|menu              Menu interactif
@@ -555,12 +621,14 @@ Commandes:
   list                     Lister les providers disponibles
   zettel [titre]           Créer une note atomique Zettelkasten
   moc [thème]              Créer/ouvrir une Map of Content
-  health                   Diagnostic du système IPCRA
-  doctor                   Vérifier dépendances + fichiers IPCRA
+  health                   Diagnostic du système IPCRAE
+  doctor [-v]              Vérifier dépendances + fichiers IPCRAE
   review <type>            Revue adaptative (phase|project|quarter)
   phase|phases             Ouvrir Phases/index.md
-  process [nom]            Ouvrir un process ou l'index
-  <texte_libre>            Mode expert (ex: ipcra DevOps)
+  process [nom]            Créer/ouvrir un process ou l'index
+  consolidate <domaine>    Lancer une IA pour compacter la mémoire
+  update                   Met à jour via git pull puis réinstalle
+  <texte_libre>            Mode expert (ex: ipcrae DevOps)
 
 Options:
   -p, --provider PROVIDER  Choisir le provider (claude|gemini|codex)
@@ -568,18 +636,13 @@ Options:
   -V, --version            Version
 
 Exemples:
-  ipcra                    # menu
-  ipcra daily              # daily note
-  ipcra daily --prep       # daily pré-rédigée par l'IA
-  ipcra zettel "Idée X"   # nouvelle note Zettelkasten
-  ipcra moc "DevOps"       # Map of Content DevOps
-  ipcra health             # diagnostic système
-  ipcra doctor             # diagnostic environnement
-  ipcra review phase       # revue de phase
-  ipcra close              # clôture session
-  ipcra DevOps             # mode expert DevOps
-  ipcra -p gemini Musique  # Gemini en mode expert musique
-  ipcra sync               # régénérer fichiers provider
+  ipcrae                    # menu
+  ipcrae process facturation # crée/ouvre Process-facturation.md
+  ipcrae consolidate devops # compacte la mémoire DevOps
+  ipcrae update             # mise à jour système
+  ipcrae doctor -v          # diagnostic complet
+  ipcrae DevOps             # mode expert DevOps
+  ipcrae sync               # régénérer fichiers provider
 EOF
 }
 
@@ -591,7 +654,7 @@ main() {
     case "$1" in
       -p|--provider) provider="${2:-}"; shift ;;
       -h|--help)     usage; exit 0 ;;
-      -V|--version)  printf 'IPCRA Launcher v%s\n' "$VERSION"; exit 0 ;;
+      -V|--version)  printf 'IPCRAE Launcher v%s\n' "$VERSION"; exit 0 ;;
       -*)            # Options attachées à une commande (ex: --prep)
         if [ -n "$cmd" ]; then extra="$1"
         else logerr "Option inconnue: $1"; usage; exit 1; fi ;;
@@ -616,10 +679,12 @@ main() {
     zettel)          cmd_zettel "$extra" ;;
     moc)             cmd_moc "$extra" ;;
     health)          cmd_health ;;
-    doctor)          cmd_doctor ;;
+    doctor)          cmd_doctor "$extra" ;;
     review)          cmd_review "$extra" "$provider" ;;
-    phase|phases)    need_root; open_note "${IPCRA_ROOT}/Phases/index.md" "Phases/index.md" ;;
-    process|processes) logerr "Fonction non implémentée" ;;
+    update)          cmd_update ;;
+    consolidate)     cmd_consolidate "$extra" ;;
+    phase|phases)    need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
+    process|processes) cmd_process "$extra" ;;
     *)
       # Texte libre = mode expert
       need_root; show_dashboard
