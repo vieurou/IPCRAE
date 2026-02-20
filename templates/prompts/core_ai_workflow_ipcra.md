@@ -12,17 +12,18 @@
    - Maintenir une traçabilité des décisions (quoi/pourquoi).
 4. **Review**
    - Vérifier qualité, risques, impacts croisés (projet, phase, objectifs).
-5. **Consolider**
-   - Promouvoir le durable vers mémoire globale.
+5. **Consolider (OBLIGATOIRE)**
+   - **TU DOIS** promouvoir le durable vers la mémoire globale (`memory/`).
    - Laisser le temporaire en local puis archiver/supprimer selon cadence.
+   - *Règle absolue : Ne jamais fermer une feature sans documenter sa trace dans le cerveau du projet ou le cerveau global.*
 
 ## Cadence recommandée
 - **Daily** : prochaine action claire + blocage principal.
 - **Weekly** : nettoyer backlog, aligner phase active.
 - **Monthly** : consolider patterns réutilisables et décisions structurantes.
 
-## Définition de Done IA
+## Définition de Done IA (STRICTE)
 - Le livrable répond à la demande.
 - Les vérifications sont exécutées ou l'absence est justifiée.
-- Les mises à jour mémoire sont explicites.
+- **OBLIGATION ABSOLUE : Tu as EXPLICITEMENT écrit de nouvelles entrées dans les fichiers mémoire (`.ipcrae-project/memory/` ou `memory/`).**
 - Le prochain pas est nommé.

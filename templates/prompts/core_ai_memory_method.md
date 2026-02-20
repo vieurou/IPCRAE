@@ -1,8 +1,11 @@
 # Noyau IA — Méthode mémoire (IPCRAE)
 
-## Principe
+> **⚠️ RÈGLE ABSOLUE POUR LES AGENTS IA : REMPLIR LE CERVEAU**
+> En tant qu'IA, tu n'as *aucune mémoire persistante* entre les sessions. Ton intelligence repose **EXCLUSIVEMENT** sur ce que tu vas écrire maintenant dans les dossiers. **Tu te forceras** systématiquement à consigner tes trouvailles et décisions dans les fichiers dédiés.
+
+## Principe de Routage
 - **Court terme** : `.ipcrae-project/local-notes/` → brouillons, debug, todo.
-- **Projet** : `.ipcrae-project/memory/` → contraintes et décisions propres au repo.
+- **Projet** : `.ipcrae-project/memory/` → contraintes et décisions propres au repo. Ne jamais omettre de documenter la stack ici !
 - **Long terme global** : `.ipcrae-memory/memory/` → connaissances réutilisables multi-projets.
 
 ## Matrice de décision mémoire
