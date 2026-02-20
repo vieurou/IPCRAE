@@ -201,11 +201,6 @@ if [ "${IPCRAE_EMBED_PROMPTS:-false}" = "true" ]; then
 fi
 
 echo "$RULES_CONTENT" > ".ai-instructions.md" && echo "✅ Créé : .ai-instructions.md"
-echo "$RULES_CONTENT" > ".antigravity" && echo "✅ Créé : .antigravity"
-echo "$RULES_CONTENT" > ".claude.md" && echo "✅ Créé : .claude.md"
-echo "$RULES_CONTENT" > ".openai" && echo "✅ Créé : .openai"
-echo "$RULES_CONTENT" > ".kilocode.md" && echo "✅ Créé : .kilocode.md"
-echo "$RULES_CONTENT" > ".clinerules" && echo "✅ Créé : .clinerules"
 
 # 7. Liens vers le Cerveau Global + raccourcis ciblés
 # On crée un lien symbolique vers l'IPCRAE global pour que l'IA puisse lire la mémoire,
