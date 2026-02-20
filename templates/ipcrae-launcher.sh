@@ -72,6 +72,57 @@ open_note() {
   ${EDITOR:-nano} "$abs"
 }
 
+
+read_config_value() {
+  local key="$1"
+  if [ -f "$IPCRAE_CONFIG" ]; then
+    grep -E "^${key}:" "$IPCRAE_CONFIG" 2>/dev/null | head -1 | awk '{print $2}' | tr -d '"' || true
+  fi
+}
+
+is_truthy() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+auto_git_sync_event() {
+  local reason="${1:-update}"
+
+  # Priorité: variable d'env > config > défaut(false)
+  local mode="${IPCRAE_AUTO_GIT:-}"
+  if [ -z "$mode" ]; then
+    mode="$(read_config_value auto_git_sync)"
+  fi
+  mode="${mode:-false}"
+
+  if ! is_truthy "$mode"; then
+    return 0
+  fi
+
+  if [ ! -d "${IPCRAE_ROOT}/.git" ]; then
+    logwarn "Auto Git activé mais ${IPCRAE_ROOT} n'est pas un dépôt Git."
+    return 0
+  fi
+
+  (
+    cd "${IPCRAE_ROOT}"
+    git add -A
+    if git diff --cached --quiet; then
+      return 0
+    fi
+
+    git commit -m "chore(ipcrae): ${reason} ($(date +'%Y-%m-%d %H:%M:%S'))" || return 0
+
+    if git remote | grep -q '^origin$'; then
+      git push || logwarn "Auto-push échoué (commit local conservé)."
+    else
+      logwarn "Auto-commit fait, mais aucun remote 'origin' configuré (push ignoré)."
+    fi
+  )
+}
+
 # ── Provider detection ────────────────────────────────────────
 get_default_provider() {
   if [ -f "$IPCRAE_CONFIG" ]; then
@@ -145,6 +196,7 @@ cmd_daily() {
   if [ ! -f "$abs" ]; then
     printf '# Daily — %s\n\n## Top 3\n- [ ] \n- [ ] \n- [ ] \n' "$d" > "$abs"
     loginfo "Daily créée: $rel"
+    auto_git_sync_event "create daily ${rel}"
   fi
   open_note "$abs" "$rel"
 }
@@ -160,6 +212,7 @@ cmd_weekly() {
   if [ ! -f "$abs" ]; then
     printf '# Weekly — %s\n\n## Objectifs semaine\n- [ ] \n- [ ] \n- [ ] \n' "$w" > "$abs"
     loginfo "Weekly créée: $rel"
+    auto_git_sync_event "create weekly ${rel}"
   fi
   open_note "$abs" "$rel"
 }
@@ -175,6 +228,7 @@ cmd_monthly() {
   if [ ! -f "$abs" ]; then
     printf '# Revue mensuelle — %s\n\n## Bilan objectifs\n\n## Ajustements\n\n## Mois prochain\n' "$m" > "$abs"
     loginfo "Monthly créée: $rel"
+    auto_git_sync_event "create monthly ${rel}"
   fi
   open_note "$abs" "$rel"
 }
@@ -210,6 +264,7 @@ cmd_close() {
 2) Mettre à jour memory/${domain}.md si pertinent.
 3) Préparer la transition pour demain."
   launch_with_prompt "$provider" "$prompt"
+  auto_git_sync_event "close session"
 }
 
 # ── Capture ───────────────────────────────────────────────────
@@ -226,6 +281,7 @@ cmd_capture() {
   local abs="${IPCRAE_ROOT}/${rel}"
   printf '# Capture %s\n\n%s\n' "$(date +'%Y-%m-%d %H:%M')" "$text" > "$abs"
   loginfo "Note capturée dans $rel"
+  auto_git_sync_event "capture ${rel}"
 }
 
 # ── Zettelkasten ──────────────────────────────────────────────
@@ -274,6 +330,7 @@ ZEOF
   fi
 
   loginfo "Zettel créée: $rel"
+  auto_git_sync_event "create zettel ${rel}"
   open_note "$abs" "$rel"
 }
 
@@ -308,6 +365,7 @@ cmd_moc() {
 
 MEOF
     loginfo "MOC créé: $rel"
+    auto_git_sync_event "create moc ${rel}"
   fi
   open_note "$abs" "$rel"
 }
@@ -553,6 +611,27 @@ cmd_sync_git() {
   fi
 }
 
+
+
+# ── Safe migration (no data loss) ─────────────────────────────
+cmd_migrate_safe() {
+  need_root
+  section "Migration safe IPCRAE"
+
+  local migrator="${HOME}/bin/ipcrae-migrate-safe"
+  if [ ! -x "$migrator" ]; then
+    logwarn "ipcrae-migrate-safe introuvable dans ~/bin. Tentative locale..."
+    if [ -x "${IPCRAE_ROOT}/templates/ipcrae-migrate-safe.sh" ]; then
+      migrator="${IPCRAE_ROOT}/templates/ipcrae-migrate-safe.sh"
+    else
+      logerr "Script de migration safe introuvable. Réinstaller IPCRAE pour l'obtenir."
+      return 1
+    fi
+  fi
+
+  IPCRAE_ROOT="$IPCRAE_ROOT" "$migrator"
+}
+
 # ── Dashboard ─────────────────────────────────────────────────
 show_dashboard() {
   need_root
@@ -629,10 +708,11 @@ cmd_menu() {
       14) cmd_health; break ;;
       15) cmd_doctor; break ;;
       16) sync_providers; break ;;
-      17) list_providers; break ;;
-      18) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      19) cmd_process; break ;;
-      20) exit 0 ;;
+      17) cmd_migrate_safe; break ;;
+      18) list_providers; break ;;
+      19) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      20) cmd_process; break ;;
+      21) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -663,7 +743,11 @@ Commandes:
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
   update                   Met à jour via git pull puis relance l'installateur
   sync-git                 Sauvegarde Git du vault entier (add, commit, push)
+  migrate-safe             Upgrade IPCRAE sans perte (backup + merge non destructif)
   <texte_libre>            Mode expert (ex: ipcrae DevOps)
+
+Variables utiles:
+  IPCRAE_AUTO_GIT=true     Auto-commit/push après nouvelles entrées mémoire
 
 Options:
   -p, --provider PROVIDER  Choisir le provider (claude|gemini|codex)
@@ -711,6 +795,7 @@ main() {
     close)           cmd_close "${extra:-}" ;;
     sync)            sync_providers ;;
     sync-git)        cmd_sync_git ;;
+    migrate-safe)    cmd_migrate_safe ;;
     list)            list_providers ;;
     zettel)          cmd_zettel "$extra" ;;
     moc)             cmd_moc "$extra" ;;

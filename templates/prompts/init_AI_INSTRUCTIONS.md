@@ -1,12 +1,20 @@
 # Project-Specific AI Instructions
 
-## Ordre de lecture intelligent pour l'agent (Évite le Context Bloat)
-1) `docs/conception/00_VISION.md` (Compréhension globale)
-2) `.ipcrae-project/local-notes/STATE.md` (Contexte volatil : où en est-on exactement ?)
-3) Le `docs/conception/concepts/` sur lequel on travaille actuellement.
+## Ordre de lecture intelligent (anti-bloat)
+1) `docs/conception/00_VISION.md`
+2) `docs/conception/01_AI_RULES.md`
+3) `.ipcrae-project/local-notes/STATE.md`
+4) Concept actif dans `docs/conception/concepts/`
 
-> **RÈGLE ANTI-BLOAT** 
-> Tu as accès à la mémoire globale (`.ipcrae-memory/memory/`) et à l'architecture (`docs/conception/02_ARCHITECTURE.md`). **Ne les relis pas à chaque prompt**. Ne les ouvre que si tu es face à un problème d'architecture structurant, un pattern inconnu, ou si l'utilisateur te le demande. Pour coder au quotidien, fie-toi à `STATE.md` et au concept en cours.
+## Noyau méthodologique IPCRAE (obligatoire)
+- `templates/prompts/core_ai_functioning.md`
+- `templates/prompts/core_ai_workflow_ipcra.md`
+- `templates/prompts/core_ai_memory_method.md`
+
+## Spécialisation par agent
+Si la tâche correspond à un domaine précis, charger l'agent dédié (`agent_<domaine>.md`) **après** le noyau commun.
+
+> Règle : ne charger architecture/mémoire globale qu'en cas de besoin structurant.
 
 {{context}}
 ---

@@ -164,29 +164,41 @@ EOF
 echo "✅ Créé : $CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md"
 
 # 6. Création des fichiers de règles universels pour les agents IA
-# On utilise les noms de fichiers spécifiques aux agents utilisés par l'utilisateur.
-# Antigravity lit .antigravity ou .ai-instructions.md
-# Claude regarde .claude.md ou .clinerules
+# ⚠ Stratégie: ne PAS dupliquer le cerveau global dans chaque repo.
+# On écrit un "prompt routeur" court qui pointe vers les sources de vérité.
+# Option debug: si IPCRAE_EMBED_PROMPTS=true, on ajoute un snapshot inline.
 RULES_CONTENT=$(cat << EOF
 # Project-Specific AI Instructions
 
-## Ordre de lecture obligatoire pour l'agent
+## Routage de contexte (source de vérité)
+Lis les fichiers ci-dessous directement (ne pas supposer de copie locale à jour):
 1) docs/conception/00_VISION.md
 2) docs/conception/01_AI_RULES.md
 3) docs/conception/02_ARCHITECTURE.md
-4) .ipcrae-project/local-notes/ (notes locales projet)
-5) .ipcrae-memory/memory/ (mémoire globale, source de vérité)
-6) .ipcrae-memory/Archives/ + .ipcrae-memory/Journal/ (historique global)
+4) docs/conception/03_IPCRAE_CONTEXT_LINKS.md
+5) .ipcrae-project/local-notes/ (contexte temporaire)
+6) .ipcrae-project/memory/ (décisions propres au repo)
+7) .ipcrae-memory/.ipcrae/context.md (méthodo globale)
+8) .ipcrae-memory/.ipcrae/instructions.md (règles globales)
+9) .ipcrae-memory/memory/ (connaissance durable multi-projets)
 
-$(cat "$IPCRAE_ROOT/.ipcrae/context.md" 2>/dev/null || echo "Contexte introuvable.")
----
-$(cat "$IPCRAE_ROOT/.ipcrae/instructions.md" 2>/dev/null || echo "Instructions introuvables.")
----
-$(cat "$CONCEPTION_DIR/01_AI_RULES.md" 2>/dev/null || echo "Règles introuvables.")
----
-$(cat "$CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md" 2>/dev/null || echo "Liens de contexte introuvables.")
+## Règles de mémoire
+- Réutilisable multi-projets => écrire dans .ipcrae-memory/memory/
+- Spécifique à CE repo => écrire dans .ipcrae-project/memory/
+- Volatile (todo/debug) => écrire dans .ipcrae-project/local-notes/
+
+## Anti-bloat
+Ne pas relire tout le cerveau global à chaque requête.
+Charger d'abord le contexte local/projet, puis ouvrir le global seulement si besoin structurant.
 EOF
 )
+
+if [ "${IPCRAE_EMBED_PROMPTS:-false}" = "true" ]; then
+  RULES_CONTENT+="\n\n---\n# Snapshot debug (peut devenir obsolète)\n"
+  RULES_CONTENT+="$(cat "$IPCRAE_ROOT/.ipcrae/context.md" 2>/dev/null || echo "Contexte global introuvable.")"
+  RULES_CONTENT+="\n---\n"
+  RULES_CONTENT+="$(cat "$IPCRAE_ROOT/.ipcrae/instructions.md" 2>/dev/null || echo "Instructions globales introuvables.")"
+fi
 
 echo "$RULES_CONTENT" > ".ai-instructions.md" && echo "✅ Créé : .ai-instructions.md"
 echo "$RULES_CONTENT" > ".antigravity" && echo "✅ Créé : .antigravity"
