@@ -1,20 +1,46 @@
 # Process — [Nom]
 
-## Déclencheur (quand lancer ce process ?)
+## 1) Fréquence + déclencheur
+- **Temporalité** : daily | weekly | monthly | on-trigger | manuel
+- **Déclencheur précis** :
+- **Temps actuel (baseline)** :
+
+## 2) Inputs
+### Inputs dynamiques (variables à chaque exécution)
 -
 
-## Entrées (inputs nécessaires)
+### Inputs statiques (références, règles, templates)
 -
 
-## Checklist
+## 3) Étapes (checklist exécutable)
 - [ ]
 - [ ]
 
-## Sorties (outputs attendus)
--
+## 4) Output attendu
+- **Format attendu** :
+- **Destination du fichier** :
 
-## Definition of Done
--
+### Exemple “bon output”
+```markdown
+...
+```
 
-## Agent IA recommandé
-- (ex: agent_devops, agent_finance)
+### Exemple “mauvais output”
+```markdown
+...
+```
+
+## 5) Méthode (critères qualité + interdits)
+- **Critères qualité** :
+- **Style attendu** :
+- **Interdits** :
+
+## 6) Décision d’exécution (arbre agent vs automatisation)
+- **Mode** : agent-supervisé | auto-validation | automatisation-pure
+- **Niveau de supervision** :
+- **Validation humaine obligatoire ?** oui/non
+
+## 7) Dernière exécution
+- **Date** :
+- **Résumé** :
+- **Fichier produit** :

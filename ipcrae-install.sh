@@ -275,13 +275,48 @@ Les projets non autorisés par la phase sont en pause.'
 
 [ ! -f "Process/index.md" ] && write_safe "Process/index.md" '# Process — Index
 
-## Processus récurrents
-- [[Process - Revue hebdo]]
-- [[Process - Budget mensuel]]
-- [[Process - Backup et maintenance]]
+Source de vérité process-first : [[map]].
 
-## Créer un process
-Copier Process/_template_process.md et remplir.'
+## Démarrage rapide
+1. Cartographier les process dans [[map]] (daily/weekly/monthly/on-trigger/manuel).
+2. Créer les fiches dans `Process/<frequence>/<slug>.md` depuis [[_template_process]].
+3. Prioriser les quick wins dans [[priorites]] (impact × facilité).
+4. Exécuter : `ipcrae process run <slug>`.'
+
+[ ! -f "Process/map.md" ] && write_safe "Process/map.md" '# Process Map — Source de vérité
+
+## Daily
+- 
+
+## Weekly
+- 
+
+## Monthly
+- 
+
+## On-trigger
+- 
+
+## Manuel
+- '
+
+[ ! -f "Process/priorites.md" ] && write_safe "Process/priorites.md" '# Priorités Process — Impact × Facilité
+
+| Process | Fréquence | Temps actuel / semaine | Impact (1-5) | Facilité (1-5) | Score (I×F) | Décision (agent/auto) | Statut |
+|---|---|---:|---:|---:|---:|---|---|
+|  |  |  |  |  |  |  | todo |
+
+## Top 10 process chronophages
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+9. 
+10. '
 
 [ ! -f "Inbox/waiting-for.md" ] && write_safe "Inbox/waiting-for.md" '# Waiting-for — Éléments en attente
 
