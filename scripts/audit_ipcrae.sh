@@ -73,9 +73,15 @@ vault_last_commit_age_hours() {
 phase_is_real() {
   local f="$IPCRAE_ROOT/Phases/index.md"
   [[ -f "$f" ]] || return 1
-  # Rejette si contient seulement des placeholders ou est très court
+  # Stratégie 1 : un [[lien]] pointe vers un fichier de phase existant et non vide
+  local linked
+  while IFS= read -r linked; do
+    local phase_file="$IPCRAE_ROOT/Phases/${linked}.md"
+    [[ -f "$phase_file" && -s "$phase_file" ]] && return 0
+  done < <(grep -oP '\[\[\K[^\]]+' "$f" 2>/dev/null)
+  # Stratégie 2 : fallback — au moins 3 lignes de contenu non-header non-vides
   local lines
-  lines=$(grep -v "^#\|^---\|^$\|\[\[" "$f" 2>/dev/null | wc -l)
+  lines=$(grep -v "^#\|^---\|^$" "$f" 2>/dev/null | wc -l)
   [[ "$lines" -ge 3 ]]
 }
 
@@ -135,19 +141,19 @@ audit_section1() {
   fi
 
   # 1.2 CLAUDE.md synchronisé avec context.md (2 pts)
+  # Logique directionnelle : CLAUDE.md doit être >= context.md (plus récent ou égal)
+  # Tolérance 600s : context.md peut être légèrement plus récent (race condition ipcrae sync)
   local ctx="$IPCRAE_ROOT/.ipcrae/context.md"
   if [[ -f "$claude_md" && -f "$ctx" ]]; then
     local age_claude age_ctx
     age_claude=$(stat -c %Y "$claude_md" 2>/dev/null || echo 0)
     age_ctx=$(stat -c %Y "$ctx" 2>/dev/null || echo 0)
-    local diff=$(( age_claude - age_ctx ))
-    [[ "$diff" -lt 0 ]] && diff=$(( -diff ))
-    # Tolérance 10 min (600s)
-    if [[ "$diff" -le 600 ]]; then
+    local lag=$(( age_ctx - age_claude ))  # positif si context.md plus récent (désynchronisé)
+    if [[ "$lag" -le 600 ]]; then
       check_line ok "CLAUDE.md synchronisé avec context.md" 2 2
       s=$(( s + 2 ))
     else
-      check_line ko "CLAUDE.md synchronisé avec context.md" 0 2 "CLAUDE.md désynchronisé → lancer: ipcrae sync"
+      check_line ko "CLAUDE.md synchronisé avec context.md" 0 2 "CLAUDE.md désynchronisé (context.md plus récent de ${lag}s) → lancer: ipcrae sync"
       IMPORTANTS=$(( IMPORTANTS + 1 ))
     fi
   else
