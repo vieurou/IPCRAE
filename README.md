@@ -346,9 +346,11 @@ HOME="$TMP_HOME" bash ipcrae-install.sh -y "$TMP_VAULT"
 ```
 
 ### Améliorations Futures (Roadmap Technique)
-- Ajouter un mode `--dry-run` pour l'installateur.
-- Ajouter une suite de tests shell (`bats`).
+- ~~Ajouter un mode `--dry-run` pour l'installateur.~~ ✅ livré
+- Ajouter une suite de tests shell (`bats`) — en cours.
 - Uniformiser la création des repositories avec `git init -b main`.
+
+> Roadmap complète → `Projets/IPCRAE/tracking.md` dans le vault (source de vérité).
 
 ---
 
@@ -397,8 +399,7 @@ ipcrae-prompt-optimize claude "Créer une weekly actionable"
 Recommandation : utiliser `ipcrae-prompt-optimize` avant chaque délégation, puis `ipcrae-agent-bridge` pour comparer rapidement les sorties quand l'enjeu est critique.
 
 ### Améliorations utiles à ajouter ensuite
-1. **Cache de réponses** (`.ipcrae/cache/`) avec hash prompt+contexte pour éviter de reconsommer des tokens.
-2. **Scoring automatique des réponses agents** (exactitude, actionnabilité, coût).
-3. **Mode consensus** : synthèse automatique des 2 meilleurs agents.
-4. **Routage intelligent** par type de tâche (debug, archi, rédaction, revue sécurité).
+
+> Ces items sont suivis dans `Projets/IPCRAE/tracking.md` (Backlog long terme) dans le vault.
+> Ne pas dupliquer ici pour éviter la désynchronisation.
 
