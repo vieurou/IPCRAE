@@ -38,8 +38,25 @@ print_help() {
 
 # Fonction pour activer le mode
 activate_mode() {
-    local agent="${1:-kilo-code}"
-    local frequency="${2:-quotidien}"
+    local agent="kilo-code"
+    local frequency="quotidien"
+
+    # Parser les arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent)
+                agent="$2"
+                shift 2
+                ;;
+            --frequency)
+                frequency="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}Activation du Mode Auto-Amélioration${NC}"
@@ -62,7 +79,20 @@ activate_mode() {
 
 # Fonction pour désactiver le mode
 deactivate_mode() {
-    local agent="${1:-kilo-code}"
+    local agent="kilo-code"
+
+    # Parser les arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent)
+                agent="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}Désactivation du Mode Auto-Amélioration${NC}"
@@ -82,7 +112,20 @@ deactivate_mode() {
 
 # Fonction pour vérifier l'état
 check_status() {
-    local agent="${1:-kilo-code}"
+    local agent="kilo-code"
+
+    # Parser les arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent)
+                agent="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}État du Mode Auto-Amélioration${NC}"
@@ -97,7 +140,20 @@ check_status() {
 
 # Fonction pour voir l'historique
 show_history() {
-    local agent="${1:-kilo-code}"
+    local agent="kilo-code"
+
+    # Parser les arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent)
+                agent="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}Historique des Audits - $agent${NC}"
@@ -109,7 +165,20 @@ show_history() {
 
 # Fonction pour générer un rapport
 generate_report() {
-    local agent="${1:-kilo-code}"
+    local agent="kilo-code"
+
+    # Parser les arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent)
+                agent="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}Rapport d'Auto-Amélioration - $agent${NC}"
