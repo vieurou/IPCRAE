@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
 # IPCRAE Étendu v3.3 — Lanceur multi-provider
-# Commandes : start, work, daily, weekly, monthly, close, sync,
+# Commandes : start, work, sprint, daily, weekly, monthly, close, sync,
 #             zettel, moc, health, review, launch, menu
 # Providers : Claude, Gemini, Codex, (Kilo via VS Code)
 # ═══════════════════════════════════════════════════════════════
@@ -374,6 +374,183 @@ cmd_start() {
   printf 'Weekly: %s\n' "$(iso_week)"
   [ -f "Phases/index.md" ] && printf 'Phase index: Phases/index.md\n'
   [ -f "Journal/Weekly/$(date +%G)/$(iso_week).md" ] || cmd_weekly
+}
+
+# ── Sprint autonome ───────────────────────────────────────────
+# Collecte les tâches non terminées (projet courant en priorité),
+# affiche la liste et lance l'agent en boucle autonome.
+cmd_sprint() {
+  local orig_cwd="$PWD"
+  need_root
+  local project="" domain="" max_tasks=3 dry_run=false confirm=true
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --project)   project="${2:-}"; shift ;;
+      --domain)    domain="${2:-}"; shift ;;
+      --max-tasks) max_tasks="${2:-3}"; shift ;;
+      --dry-run)   dry_run=true ;;
+      --auto)      confirm=false ;;
+      --confirm)   confirm=true ;;
+      -*) logerr "Option inconnue pour sprint: $1"; return 1 ;;
+    esac
+    shift
+  done
+
+  # ── 1. Détecter le projet courant (depuis CWD d'origine) ─
+  if [ -z "$project" ]; then
+    # Chercher .ipcrae-project/project.md en remontant depuis CWD d'origine
+    local dir="$orig_cwd"
+    while [ "$dir" != "/" ]; do
+      if [ -f "${dir}/.ipcrae-project/project.md" ]; then
+        project=$(grep -E '^slug:' "${dir}/.ipcrae-project/project.md" 2>/dev/null \
+          | head -1 | awk '{print $2}' | tr -d '"' || true)
+        [ -z "$project" ] && project=$(basename "$dir")
+        break
+      fi
+      dir=$(dirname "$dir")
+    done
+    # Fallback : nom du CWD d'origine si un hub Projets/ correspond
+    if [ -z "$project" ]; then
+      local cwd_name
+      cwd_name=$(basename "$orig_cwd")
+      [ -d "${IPCRAE_ROOT}/Projets/${cwd_name}" ] && project="$cwd_name"
+    fi
+  fi
+
+  # ── 2. Détecter le domaine ────────────────────────────────
+  if [ -z "$domain" ] && [ -n "$project" ]; then
+    local proj_idx="${IPCRAE_ROOT}/Projets/${project}/index.md"
+    if [ -f "$proj_idx" ]; then
+      domain=$(grep -E '^domain:|^domaine:' "$proj_idx" 2>/dev/null \
+        | head -1 | awk -F': ' '{print $2}' | tr -d '"' || true)
+    fi
+  fi
+  [ -z "$domain" ] && domain="devops"
+
+  # ── 3. Collecter les tâches (section-aware) ───────────────
+  collect_tasks_from_section() {
+    local file="$1" section_pattern="$2"
+    [ -f "$file" ] || return 0
+    awk -v pat="$section_pattern" '
+      /^## / { in_section = ($0 ~ pat) }
+      in_section && /^- \[ \]/ { sub(/^- \[ \] /, ""); print }
+    ' "$file" 2>/dev/null
+  }
+
+  local -a tasks=()
+
+  # Priorité 1 : projet courant — In Progress
+  if [ -n "$project" ]; then
+    local tracking="${IPCRAE_ROOT}/Projets/${project}/tracking.md"
+    while IFS= read -r line; do
+      [ -n "$line" ] && tasks+=("$line")
+    done < <(collect_tasks_from_section "$tracking" "In Progress")
+
+    # Priorité 2 : projet courant — Backlog court terme
+    while IFS= read -r line; do
+      [ -n "$line" ] && tasks+=("$line")
+    done < <(collect_tasks_from_section "$tracking" "Backlog")
+  fi
+
+  # Priorité 3 : phases actives (si pas assez de tâches projet)
+  if [ "${#tasks[@]}" -lt "$max_tasks" ]; then
+    local phase_idx="${IPCRAE_ROOT}/Phases/index.md"
+    while IFS= read -r line; do
+      [ -n "$line" ] && tasks+=("$line")
+    done < <(collect_tasks_from_section "$phase_idx" "Actions|Next|En cours")
+  fi
+
+  # Priorité 4 (global, pas de projet détecté) : tous les tracking In Progress
+  if [ -z "$project" ] && [ "${#tasks[@]}" -lt "$max_tasks" ]; then
+    local tf
+    while IFS= read -r tf; do
+      while IFS= read -r line; do
+        [ -n "$line" ] && tasks+=("$line")
+      done < <(collect_tasks_from_section "$tf" "In Progress")
+    done < <(find "${IPCRAE_ROOT}/Projets" -name "tracking.md" 2>/dev/null)
+  fi
+
+  # ── 4. Limiter à max-tasks ────────────────────────────────
+  local -a selected=()
+  local i=0
+  for t in "${tasks[@]}"; do
+    [ "$i" -ge "$max_tasks" ] && break
+    selected+=("$t")
+    i=$((i + 1))
+  done
+
+  # ── 5. Affichage ──────────────────────────────────────────
+  section "Sprint IPCRAE"
+  printf 'Projet  : %b%s%b\n' "$BOLD" "${project:-(global)}" "$NC"
+  printf 'Domaine : %s\n' "$domain"
+  printf 'Tâches  : %d/%d collectées (max %d)\n' "${#selected[@]}" "${#tasks[@]}" "$max_tasks"
+  printf '\n'
+
+  if [ "${#selected[@]}" -eq 0 ]; then
+    logwarn "Aucune tâche [ ] trouvée. Vérifier les tracking.md / Phases/index.md."
+    return 0
+  fi
+
+  local n=1
+  for t in "${selected[@]}"; do
+    printf '  %b[%d]%b %s\n' "$YELLOW" "$n" "$NC" "$t"
+    n=$((n + 1))
+  done
+  printf '\n'
+
+  # ── 6. Dry-run → stop ────────────────────────────────────
+  if [ "$dry_run" = true ]; then
+    loginfo "Dry-run : sprint affiché, aucune IA lancée."
+    return 0
+  fi
+
+  # ── 7. Confirmation ───────────────────────────────────────
+  if [ "$confirm" = true ]; then
+    prompt_yes_no "Lancer le sprint avec ces ${#selected[@]} tâches ?" "y" || {
+      loginfo "Sprint annulé."
+      return 0
+    }
+  fi
+
+  # ── 8. Construire le prompt sprint ────────────────────────
+  local task_list=""
+  local idx=1
+  for t in "${selected[@]}"; do
+    task_list="${task_list}${idx}. ${t}
+"
+    idx=$((idx + 1))
+  done
+
+  local template="${IPCRAE_ROOT}/.ipcrae/prompts/prompt_sprint.md"
+  local sprint_prompt
+  if [ -f "$template" ]; then
+    sprint_prompt=$(sed \
+      -e "s|{{project}}|${project:-(global)}|g" \
+      -e "s|{{domain}}|${domain}|g" \
+      -e "s|{{max_tasks}}|${max_tasks}|g" \
+      -e "s|{{task_list}}|${task_list}|g" \
+      "$template")
+  else
+    sprint_prompt="SPRINT AUTONOME IPCRAE
+Projet : ${project:-(global)} | Domaine : ${domain} | Max tâches : ${max_tasks}
+
+TÂCHES À EXÉCUTER (dans cet ordre) :
+${task_list}
+SOURCES DE CONTEXTE :
+- \$IPCRAE_ROOT/Projets/${project}/memory.md
+- \$IPCRAE_ROOT/memory/${domain}.md
+- \$IPCRAE_ROOT/Projets/${project}/tracking.md
+
+PROTOCOLE : pour chaque tâche, annoncer [n/total], exécuter, marquer [x] dans tracking.md, ajouter décision datée dans memory/${domain}.md.
+RAPPORT FINAL : tâches faites, tâches restantes, prochaine action recommandée.
+RÈGLE : si bloqué sur une tâche, passer et continuer."
+  fi
+
+  # ── 9. Lancer l'IA ───────────────────────────────────────
+  local provider
+  provider="$(get_default_provider)"
+  launch_with_prompt "$provider" "$sprint_prompt"
 }
 
 cmd_work() {
@@ -1016,6 +1193,7 @@ Commandes:
   capture "texte"          Capturer une idée rapide dans Inbox
   start [--project --phase] Initialiser le contexte de session
   work "objectif"          Lancer l'agent avec contexte minimisé
+  sprint [OPTIONS]         Sprint autonome : collecte tâches + lance l'IA
   close <domaine>          Clôturer la session (mémoire + context + tags)
   sync                     Régénérer CLAUDE.md, GEMINI.md, AGENTS.md, Kilo
   list                     Lister les providers disponibles
@@ -1049,6 +1227,9 @@ Exemples:
   ipcrae consolidate devops # compacte la mémoire DevOps
   ipcrae update             # mise à jour système
   ipcrae doctor -v          # diagnostic complet
+  ipcrae sprint --dry-run   # afficher les tâches sans lancer l'IA
+  ipcrae sprint --project IPCRAE --max-tasks 1 --dry-run
+  ipcrae sprint --auto      # lancer sans confirmation (mode CI)
   ipcrae DevOps             # mode expert DevOps
   ipcrae sync               # régénérer fichiers provider
   ipcrae index              # rebuild du cache tags
@@ -1087,6 +1268,7 @@ main() {
     capture)           cmd_capture "${cmd_args[*]:-}" ;;
     start)             cmd_start "${cmd_args[@]:-}" ;;
     work)              cmd_work "${cmd_args[*]:-}" ;;
+    sprint)            cmd_sprint "${cmd_args[@]:-}" ;;
     close)             cmd_close "${cmd_args[@]:-}" ;;
     sync)              sync_providers ;;
     sync-git)          cmd_sync_git ;;
