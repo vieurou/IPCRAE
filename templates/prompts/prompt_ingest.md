@@ -125,6 +125,18 @@ Contenu obligatoire :
 - Lacunes détectées
 - Prochaine action concrète
 
+**T5.2 — Créer le tag Git d'ingestion sur le vault**
+
+```bash
+GIT_DIR="{{ipcrae_root}}/.git" GIT_WORK_TREE="{{ipcrae_root}}" \
+  git tag -a "ingestion-{{project_name}}-{{date_compact}}" \
+  -m "Ingestion du projet {{project_name}} dans le cerveau IPCRAE"
+```
+
+(`{{date_compact}}` = format `YYYYMMDD`, ex: `20260221`)
+
+Ce tag permet de retrouver l'état du cerveau juste après l'ajout de ce projet :
+`git show ingestion-{{project_name}}-{{date_compact}}`
 ---
 
 ### BLOC 6 — AUTO-AUDIT [TOUJOURS EN DERNIER]
@@ -161,6 +173,7 @@ Si des lacunes ont été détectées dans ce workflow, les lister explicitement 
 - [ ] `Knowledge/` — ≥1 note avec frontmatter complet
 - [ ] `Zettelkasten/_inbox/` — ≥2 notes atomiques
 - [ ] `Journal/Daily/{{year}}/{{date}}.md` — entrée présente
+- [ ] Tag Git vault créé : `ingestion-{{project_name}}-{{date_compact}}`
 
 ## RÈGLE D'OR
 Exécute cette queue de façon séquentielle, bloc par bloc. Annonce chaque tâche avant de l'exécuter. Un fichier cerveau créé vaut plus que 10 fichiers du projet analysés. La traçabilité (journal) est inviolable.
