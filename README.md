@@ -215,6 +215,10 @@ Objectif : ne jamais perdre une idée.
 - Commande : `ipcrae close devops --project mon-projet`
 - L'IA résume la session, extrait la sève dans `memory/<domaine>.md` et purge le reste.
 
+### 7.6 Workflows Avancés (Nouvelle Idée & Projets)
+Pour des guides pas-à-pas sur la création de projets, l'intégration de projets existants, ou le traitement automatique d'une nouvelle idée, consultez le document détaillé :
+👉 **[docs/workflows.md](docs/workflows.md)**
+
 ---
 
 ## 8) Zettelkasten (Notes atomiques)
