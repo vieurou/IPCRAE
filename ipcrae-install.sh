@@ -216,6 +216,7 @@ script_version: "${SCRIPT_VERSION}"
 method_version: "${METHOD_VERSION}"
 default_provider: claude
 auto_git_sync: true
+auto_git_push: false
 
 providers:
   claude:
@@ -275,13 +276,48 @@ Les projets non autorisés par la phase sont en pause.'
 
 [ ! -f "Process/index.md" ] && write_safe "Process/index.md" '# Process — Index
 
-## Processus récurrents
-- [[Process - Revue hebdo]]
-- [[Process - Budget mensuel]]
-- [[Process - Backup et maintenance]]
+Source de vérité process-first : [[map]].
 
-## Créer un process
-Copier Process/_template_process.md et remplir.'
+## Démarrage rapide
+1. Cartographier les process dans [[map]] (daily/weekly/monthly/on-trigger/manuel).
+2. Créer les fiches dans `Process/<frequence>/<slug>.md` depuis [[_template_process]].
+3. Prioriser les quick wins dans [[priorites]] (impact × facilité).
+4. Exécuter : `ipcrae process run <slug>`.'
+
+[ ! -f "Process/map.md" ] && write_safe "Process/map.md" '# Process Map — Source de vérité
+
+## Daily
+- 
+
+## Weekly
+- 
+
+## Monthly
+- 
+
+## On-trigger
+- 
+
+## Manuel
+- '
+
+[ ! -f "Process/priorites.md" ] && write_safe "Process/priorites.md" '# Priorités Process — Impact × Facilité
+
+| Process | Fréquence | Temps actuel / semaine | Impact (1-5) | Facilité (1-5) | Score (I×F) | Décision (agent/auto) | Statut |
+|---|---|---:|---:|---:|---:|---|---|
+|  |  |  |  |  |  |  | todo |
+
+## Top 10 process chronophages
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+9. 
+10. '
 
 [ ! -f "Inbox/waiting-for.md" ] && write_safe "Inbox/waiting-for.md" '# Waiting-for — Éléments en attente
 
@@ -551,6 +587,12 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
       logwarn "Script ipcrae-index introuvable."
     fi
 
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" ]; then
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$HOME/bin/ipcrae-tag-index"
+      execute chmod +x "$HOME/bin/ipcrae-tag-index"
+      loginfo "✓ Script optionnel installé: ipcrae-tag-index"
+    fi
+
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
       execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
       execute chmod +x "$HOME/bin/ipcrae-tag"
@@ -626,6 +668,7 @@ else
     printf 'default_provider: "%s"\n' "$default_prov" >> ".ipcrae/config.yaml"
   fi
   grep -q '^auto_git_sync:' ".ipcrae/config.yaml" 2>/dev/null || printf 'auto_git_sync: true\n' >> ".ipcrae/config.yaml"
+  grep -q '^auto_git_push:' ".ipcrae/config.yaml" 2>/dev/null || printf 'auto_git_push: false\n' >> ".ipcrae/config.yaml"
 fi
 loginfo "Provider par défaut configuré sur : $default_prov"
 
