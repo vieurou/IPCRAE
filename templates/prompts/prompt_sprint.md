@@ -23,3 +23,6 @@ RAPPORT FINAL :
 - Prochaine action recommandée
 
 RÈGLE : si une tâche est bloquée, la passer et continuer. Jamais de blocage total.
+
+CLÔTURE OBLIGATOIRE (après toutes les tâches) :
+→ Suivre Process/session-close.md (commit vault + push brain.git + tag session)
