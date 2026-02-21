@@ -29,6 +29,15 @@ Ajout de trois briques:
 ### 4) Pont avec les instructions projet
 - `init_AI_INSTRUCTIONS.md` inclut explicitement le noyau méthodologique et l'ordre de chargement anti-bloat.
 
+### 5) Intégration Knowledge + tags (tag-first)
+- Les prompts de base incluent désormais explicitement la stratégie de recherche tag-first (`ipcrae tag` → `ipcrae index` → `ipcrae search`).
+- Le frontmatter YAML est posé comme source de vérité pour la taxonomie (`tags`, `project`, `domain`, `status`, `sources`).
+- Les agents sont guidés pour promouvoir la connaissance réutilisable vers `Knowledge/` plutôt que d'enfouir ces infos dans des notes projet.
+
+### 6) Pré-traitement systématique des demandes utilisateur
+- Avant exécution, la demande brute est transformée en **prompt optimisé** enrichi par le contexte projet + cerveau (Knowledge/memory) + contraintes de sortie.
+- L'exécution se fait sur ce prompt optimisé, pas sur la demande brute, pour réduire les oublis de contexte et améliorer la qualité des réponses.
+
 ## Bénéfices attendus
 - **Moins de dérive comportementale** entre agents.
 - **Meilleure gestion mémoire** compatible IPCRAE (local/projet/global).
