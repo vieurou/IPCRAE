@@ -4,15 +4,18 @@
 1. **Ingest**
    - Lire : vision projet, règles IA projet, état local (`STATE`/notes).
    - Identifier : type de tâche (feature, bug, archi, recherche, consolidation).
-2. **Plan**
+2. **Prompt Optimization (OBLIGATOIRE)**
+   - Transformer la demande utilisateur en prompt enrichi (contexte projet + mémoire/Knowledge + contraintes + format attendu).
+   - Si disponible, utiliser `ipcrae-prompt-optimize` comme base puis adapter au cas réel.
+3. **Plan**
    - Définir 1 objectif principal + critères de done.
    - Découper en micro-étapes testables.
-3. **Construire**
+4. **Construire**
    - Produire le minimum viable correct.
    - Maintenir une traçabilité des décisions (quoi/pourquoi).
-4. **Review**
+5. **Review**
    - Vérifier qualité, risques, impacts croisés (projet, phase, objectifs).
-5. **Consolider (OBLIGATOIRE)**
+6. **Consolider (OBLIGATOIRE)**
    - **TU DOIS** promouvoir le durable vers la mémoire globale (`memory/`).
    - Laisser le temporaire en local puis archiver/supprimer selon cadence.
    - *Règle absolue : Ne jamais fermer une feature sans documenter sa trace dans le cerveau du projet ou le cerveau global.*

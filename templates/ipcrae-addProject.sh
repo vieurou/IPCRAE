@@ -138,30 +138,46 @@ EOF
 echo "✅ Créé : $CONCEPTS_DIR/_TEMPLATE_CONCEPT.md"
 
 # 5. Guide de lecture pour l'IA (priorité local + global)
-cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md"
-# IPCRAE Context Links (Local + Global)
+cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRAE_BRIDGE.md"
+# IPCRAE Bridge — Contrat CDE explicite
 
-## Priorité de lecture recommandée
-1. Contexte local projet : `docs/conception/00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`
-2. Notes projet locales : `.ipcrae-project/local-notes/` (contexte temporaire de ce repo)
-3. Central Hub du Projet : `.ipcrae-memory/Projets/$(basename "$PWD")/` (Tracking GTD, Objectifs)
-4. Mémoire globale : `.ipcrae-memory/memory/` (source de vérité durable de domaine)
-5. Historique global : `.ipcrae-memory/Archives/` et `.ipcrae-memory/Journal/`
+## Ce que l'IA lit/écrit dans `.ipcrae-memory/`
+- Lire: `.ipcrae/context.md`, `.ipcrae/instructions.md`, `memory/<domaine>.md`, `Projets/<projet>/`.
+- Écrire: uniquement les apprentissages réutilisables et stables (multi-projets), jamais les brouillons/debug.
 
-## Règle d'or et Anti-Pollution (Mémoire Isolée)
-- **IL EST STRICTEMENT INTERDIT** d'écrire des contraintes matérielles ou choix techniques propres à CE PROJET dans la mémoire globale (`.ipcrae-memory/memory/`).
-- La mémoire globale est réservée aux connaissances **réutilisables** (concepts universels, comparaisons d'outils, bonnes pratiques).
-- Les décisions et la stack technique propres à **CE PROJET** doivent aller dans `.ipcrae-project/memory/`.
-- Le global (`.ipcrae-memory/*`) reste la source de vérité durable pour le *domaine*.
-- Le local (`.ipcrae-project/local-notes/`) sert au contexte court terme (todo, debug).
+## Ce que l'IA écrit dans `.ipcrae-project/local-notes/`
+- Notes volatiles: todo techniques, logs de debug, hypothèses temporaires.
+- Ce contenu n'est pas une source de vérité durable.
 
-## Cadence recommandée
-- Fin de session: trier `local-notes/`.
-- Fin de feature: promouvoir les décisions durables vers `.ipcrae-memory/memory/`.
-- Revue hebdo: archiver le bruit, conserver les apprentissages réutilisables.
+## Ce qui est exporté vers `~/IPCRAE/Projets/<projet>/`
+- `index.md`: état global, liens, contexte de pilotage.
+- `tracking.md`: next actions et milestones.
+- `memory.md`: synthèse projet consolidée.
+
+## Ce qui est transformé en `Knowledge/` (stable)
+- How-to/runbook/pattern réutilisable, taggé avec frontmatter YAML.
+- Minimum attendu:
+
+```yaml
+---
+type: knowledge
+tags: [devops, exemple]
+project: $(basename "$PWD")
+domain: devops
+status: stable
+sources:
+  - path: docs/conception/02_ARCHITECTURE.md
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+```
+
+## Règle d'or
+- Build/test ne dépendent jamais du cerveau global.
+- IA/conception/doctor CDE: mode normal si cerveau présent, mode dégradé sinon.
 EOF
 
-echo "✅ Créé : $CONCEPTION_DIR/03_IPCRAE_CONTEXT_LINKS.md"
+echo "✅ Créé : $CONCEPTION_DIR/03_IPCRAE_BRIDGE.md"
 
 # 6. Création des fichiers de règles universels pour les agents IA
 # ⚠ Stratégie: ne PAS dupliquer le cerveau global dans chaque repo.
@@ -175,7 +191,7 @@ Lis les fichiers ci-dessous directement (ne pas supposer de copie locale à jour
 1) docs/conception/00_VISION.md
 2) docs/conception/01_AI_RULES.md
 3) docs/conception/02_ARCHITECTURE.md
-4) docs/conception/03_IPCRAE_CONTEXT_LINKS.md
+4) docs/conception/03_IPCRAE_BRIDGE.md
 5) .ipcrae-project/local-notes/ (contexte temporaire)
 6) .ipcrae-project/memory/ (décisions propres au repo)
 7) .ipcrae-memory/.ipcrae/context.md (méthodo globale)
