@@ -88,6 +88,103 @@ is_truthy() {
   esac
 }
 
+# ── Remotes cerveau + projets ──────────────────────────────
+get_brain_remote() {
+  # Priorité : variable d'env > config > remote git existant
+  local r="${IPCRAE_BRAIN_REMOTE:-}"
+  if [ -z "$r" ] && [ -f "$IPCRAE_CONFIG" ]; then
+    r=$(grep -E '^brain_remote:' "$IPCRAE_CONFIG" 2>/dev/null \
+      | head -1 | awk -F'"' '{print $2}' || true)
+    [ -z "$r" ] && r=$(grep -E '^brain_remote:' "$IPCRAE_CONFIG" 2>/dev/null \
+      | head -1 | awk '{print $2}' | tr -d "'" || true)
+  fi
+  printf '%s' "$r"
+}
+
+get_project_remote() {
+  local slug="$1"
+  [ -z "$slug" ] && return 0
+  [ -f "$IPCRAE_CONFIG" ] || return 0
+  # Cherche `  <slug>: "url"` dans la section project_remotes
+  grep -A50 '^project_remotes:' "$IPCRAE_CONFIG" 2>/dev/null \
+    | grep -E "^\s+${slug}:" | head -1 \
+    | awk -F'"' '{print $2}' || true
+}
+
+# S'assure que origin pointe vers brain_remote ; configure si absent/différent
+ensure_brain_remote() {
+  [ -d "${IPCRAE_ROOT}/.git" ] || return 0
+  local wanted
+  wanted="$(get_brain_remote)"
+  [ -z "$wanted" ] && return 0
+
+  local current
+  current=$(git -C "${IPCRAE_ROOT}" remote get-url origin 2>/dev/null || true)
+
+  if [ -z "$current" ]; then
+    git -C "${IPCRAE_ROOT}" remote add origin "$wanted" \
+      && loginfo "Remote brain ajouté: $wanted" \
+      || logwarn "Impossible d'ajouter le remote brain."
+  elif [ "$current" != "$wanted" ]; then
+    git -C "${IPCRAE_ROOT}" remote set-url origin "$wanted" \
+      && loginfo "Remote brain mis à jour: $wanted" \
+      || logwarn "Impossible de mettre à jour le remote brain."
+  fi
+}
+
+# ── Commande ipcrae remote ────────────────────────────────
+cmd_remote() {
+  local subcmd="${1:-list}"
+  shift || true
+
+  case "$subcmd" in
+    set-brain)
+      local url="${1:-}"
+      [ -z "$url" ] && { logerr "Usage: ipcrae remote set-brain <url>"; return 1; }
+      need_root
+      # Mettre à jour config.yaml
+      if grep -q '^brain_remote:' "$IPCRAE_CONFIG" 2>/dev/null; then
+        sed -i "s|^brain_remote:.*|brain_remote: \"${url}\"|" "$IPCRAE_CONFIG"
+      else
+        printf 'brain_remote: "%s"\n' "$url" >> "$IPCRAE_CONFIG"
+      fi
+      ensure_brain_remote
+      loginfo "brain_remote configuré: $url"
+      ;;
+    set-project)
+      local slug="${1:-}" url="${2:-}"
+      [ -z "$slug" ] || [ -z "$url" ] && { logerr "Usage: ipcrae remote set-project <slug> <url>"; return 1; }
+      need_root
+      # Insérer ou mettre à jour dans la section project_remotes
+      if grep -q "^\s\+${slug}:" "$IPCRAE_CONFIG" 2>/dev/null; then
+        sed -i "s|^\(\s*\)${slug}:.*|\1${slug}: \"${url}\"|" "$IPCRAE_CONFIG"
+      elif grep -q '^project_remotes:' "$IPCRAE_CONFIG" 2>/dev/null; then
+        sed -i "/^project_remotes:/a\\  ${slug}: \"${url}\"" "$IPCRAE_CONFIG"
+      else
+        printf '\nproject_remotes:\n  %s: "%s"\n' "$slug" "$url" >> "$IPCRAE_CONFIG"
+      fi
+      loginfo "Remote projet '${slug}' configuré: $url"
+      ;;
+    list)
+      need_root
+      printf '%bRemotes IPCRAE%b\n' "$BOLD" "$NC"
+      local brain
+      brain="$(get_brain_remote)"
+      printf '  Cerveau (brain_remote) : %s\n' "${brain:-(non configuré)}"
+      printf '  Git origin actuel      : %s\n' \
+        "$(git -C "${IPCRAE_ROOT}" remote get-url origin 2>/dev/null || echo '(absent)')"
+      printf '\n  Projets (project_remotes) :\n'
+      if grep -q '^project_remotes:' "$IPCRAE_CONFIG" 2>/dev/null; then
+        awk '/^project_remotes:/{p=1;next} p && /^[^ ]/{exit} p && /^\s+\S+:/{print "    " $0}' \
+          "$IPCRAE_CONFIG" || true
+      else
+        printf '    (aucun)\n'
+      fi
+      ;;
+    *) logerr "Sous-commande inconnue: $subcmd (set-brain|set-project|list)"; return 1 ;;
+  esac
+}
+
 auto_git_sync_event() {
   local reason="${1:-update}"
 
@@ -107,6 +204,9 @@ auto_git_sync_event() {
     return 0
   fi
 
+  # S'assurer que origin est configuré depuis brain_remote
+  ensure_brain_remote
+
   (
     cd "${IPCRAE_ROOT}"
     git add -A
@@ -119,7 +219,8 @@ auto_git_sync_event() {
     if git remote | grep -q '^origin$'; then
       git push || logwarn "Auto-push échoué (commit local conservé)."
     else
-      logwarn "Auto-commit fait, mais aucun remote 'origin' configuré (push ignoré)."
+      logwarn "Auto-commit fait, mais brain_remote non configuré dans .ipcrae/config.yaml (push ignoré)."
+      logwarn "  → ipcrae remote set-brain <url>"
     fi
   )
 }
@@ -1195,6 +1296,9 @@ Commandes:
   work "objectif"          Lancer l'agent avec contexte minimisé
   sprint [OPTIONS]         Sprint autonome : collecte tâches + lance l'IA
   close <domaine>          Clôturer la session (mémoire + context + tags)
+  remote list              Afficher les remotes git configurés (cerveau + projets)
+  remote set-brain <url>  Configurer le remote du cerveau dans config.yaml
+  remote set-project <s> <url>  Configurer le remote d'un projet
   sync                     Régénérer CLAUDE.md, GEMINI.md, AGENTS.md, Kilo
   list                     Lister les providers disponibles
   zettel [titre]           Créer une note atomique Zettelkasten
@@ -1269,6 +1373,7 @@ main() {
     start)             cmd_start "${cmd_args[@]:-}" ;;
     work)              cmd_work "${cmd_args[*]:-}" ;;
     sprint)            cmd_sprint "${cmd_args[@]:-}" ;;
+    remote)            cmd_remote "${cmd_args[@]:-}" ;;
     close)             cmd_close "${cmd_args[@]:-}" ;;
     sync)              sync_providers ;;
     sync-git)          cmd_sync_git ;;
