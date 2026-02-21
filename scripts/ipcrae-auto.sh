@@ -1,6 +1,10 @@
 #!/bin/bash
 # Commande IPCRAE pour le mode auto-amélioration
 
+# Résolution du répertoire d'installation (fonctionne depuis ~/bin comme depuis scripts/)
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IPCRAE_AUTO_CORE="${SELF_DIR}/ipcrae-auto-core"
+
 # Couleurs pour l'output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -67,7 +71,7 @@ activate_mode() {
     echo -e "${BLUE}Date:${NC} $(date -Iseconds)\n"
 
     # Activer le mode
-    ./scripts/auto_audit.sh activate --agent "$agent" --frequency "$frequency"
+    "$IPCRAE_AUTO_CORE" activate --agent "$agent" --frequency "$frequency"
 
     echo -e "\n${GREEN}✓ Mode auto-amélioration activé pour $agent${NC}\n"
     echo -e "${BLUE}Informations importantes:${NC}"
@@ -102,7 +106,7 @@ deactivate_mode() {
     echo -e "${BLUE}Date:${NC} $(date -Iseconds)\n"
 
     # Désactiver le mode
-    ./scripts/auto_audit.sh deactivate --agent "$agent"
+    "$IPCRAE_AUTO_CORE" deactivate --agent "$agent"
 
     echo -e "\n${GREEN}✓ Mode auto-amélioration désactivé pour $agent${NC}\n"
     echo -e "${BLUE}Informations importantes:${NC}"
@@ -135,7 +139,7 @@ check_status() {
     echo -e "${BLUE}Date:${NC} $(date -Iseconds)\n"
 
     # Vérifier l'état
-    ./scripts/auto_audit.sh status --agent "$agent"
+    "$IPCRAE_AUTO_CORE" status --agent "$agent"
 }
 
 # Fonction pour voir l'historique
@@ -160,7 +164,7 @@ show_history() {
     echo -e "${CYAN}========================================${NC}\n"
 
     # Voir l'historique
-    ./scripts/auto_audit.sh history --agent "$agent"
+    "$IPCRAE_AUTO_CORE" history --agent "$agent"
 }
 
 # Fonction pour générer un rapport
@@ -187,7 +191,7 @@ generate_report() {
     echo -e "${BLUE}Date du rapport:${NC} $(date -Iseconds)\n"
 
     # Générer le rapport
-    ./scripts/auto_audit.sh report --agent "$agent"
+    "$IPCRAE_AUTO_CORE" report --agent "$agent"
 }
 
 # Fonction principale
@@ -213,7 +217,7 @@ main() {
             generate_report "$2"
             ;;
         auto-audit)
-            ./scripts/auto_audit.sh "$2" "$3" "$4"
+            "$IPCRAE_AUTO_CORE" "$2" "$3" "$4"
             ;;
         *)
             print_help
