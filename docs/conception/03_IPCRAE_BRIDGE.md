@@ -1,36 +1,36 @@
 # IPCRAE Bridge — Contrat CDE explicite
 
-## 1) Lecture/écriture dans `.ipcrae-memory/`
-- Lire : `.ipcrae/context.md`, `.ipcrae/instructions.md`, `memory/<domaine>.md`, `Projets/<projet>/`.
-- Écrire : uniquement des connaissances transverses, stables et réutilisables.
-- Ne jamais y pousser du debug local, des secrets, ni des brouillons de feature.
+## Ce que l'IA lit/écrit dans `.ipcrae-memory/`
+- Lire: `.ipcrae/context.md`, `.ipcrae/instructions.md`, `memory/<domaine>.md`, `Projets/<projet>/`.
+- Écrire: uniquement les apprentissages réutilisables et stables (multi-projets), jamais les brouillons/debug.
 
-## 2) Local projet : `.ipcrae-project/local-notes/`
-- Usage : notes volatiles (debug, checklist, hypothèses, traces de session).
-- Ces notes sont temporaires et doivent être consolidées ou supprimées.
+## Ce que l'IA écrit dans `.ipcrae-project/local-notes/`
+- Notes volatiles: todo techniques, logs de debug, hypothèses temporaires.
+- Ce contenu n'est pas une source de vérité durable.
 
-## 3) Export vers `~/IPCRAE/Projets/<projet>/`
-- `index.md` : état global et contexte.
-- `tracking.md` : next actions et milestones.
-- `memory.md` : synthèse projet consolidée.
+## Ce qui est exporté vers `~/IPCRAE/Projets/<projet>/`
+- `index.md`: état global, liens, contexte de pilotage.
+- `tracking.md`: next actions et milestones.
+- `memory.md`: synthèse projet consolidée.
 
-## 4) Promotion vers `Knowledge/` (stable)
-Promouvoir les patterns/how-to/runbooks réutilisables avec frontmatter canonique :
+## Ce qui est transformé en `Knowledge/` (stable)
+- How-to/runbook/pattern réutilisable, taggé avec frontmatter YAML.
+- Minimum attendu:
 
 ```yaml
 ---
 type: knowledge
-tags: [devops, tls, traefik, reverse-proxy]
-project: ipcrae
+tags: [devops, exemple]
+project: $(basename "$PWD")
 domain: devops
 status: stable
 sources:
   - path: docs/conception/02_ARCHITECTURE.md
-created: 2026-02-21
-updated: 2026-02-21
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
 ---
 ```
 
-## 5) Règle d'or d'exécution
-- Cerveau requis pour IA, conception, audits, doctor CDE.
-- Build/test/CI restent non bloquants : si cerveau absent, mode dégradé avec warning.
+## Règle d'or
+- Build/test ne dépendent jamais du cerveau global.
+- IA/conception/doctor CDE: mode normal si cerveau présent, mode dégradé sinon.

@@ -543,6 +543,12 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     else
       logwarn "Optionnel non installé: ipcrae-tag (template manquant)"
     fi
+
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" ]; then
+      cp "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" "$HOME/bin/ipcrae-uninstall"
+      chmod +x "$HOME/bin/ipcrae-uninstall"
+      loginfo "✓ Script de purge installé: ipcrae-uninstall"
+    fi
   else
     logwarn "Dossier templates/scripts introuvable, installation des scripts avancés omise."
   fi
