@@ -1,4 +1,4 @@
-# Contexte Global — IPCRAE v3.2
+# Contexte Global — IPCRAE v3.3
 
 ## Pourquoi ce système
 - La mémoire des chats est bruitée → la vérité est dans des fichiers locaux versionnables.
@@ -24,7 +24,7 @@
 - Zéro tolérance pour les infos non vérifiées
 - Hands-on, apprendre par la pratique
 
-## Structure IPCRAE v3.2
+## Structure IPCRAE v3.3
 
 | Dossier | Rôle |
 |---------|------|
@@ -68,7 +68,7 @@ Chaque domaine a sa propre mémoire dans `memory/` :
 - `memory/devops.md`, `memory/electronique.md`, `memory/musique.md`, etc.
 - Contient : contraintes, décisions passées, erreurs apprises, raccourcis.
 - L'agent concerné lit prioritairement sa mémoire domaine pour réduire le bruit.
-- Mise à jour via `ipcrae close`.
+- Mise à jour via `ipcrae close <domaine> --project <slug>` (canonique post-session).
 
 ## Méthodologie GTD adaptée
 
@@ -103,7 +103,9 @@ Item → Actionnable ?
 | Daily | Chaque matin | 5 min | `ipcrae daily` |
 | Weekly | Dimanche | 30 min | `ipcrae weekly` |
 | Monthly | 1er du mois | 1h | `ipcrae monthly` |
-| Close | Fin de session IA | 5 min | `ipcrae close` |
+| Start | Début de session IA | 2 min | `ipcrae start --project <slug> --phase <phase>` |
+| Work | Exécution focalisée | variable | `ipcrae work "<objectif>"` |
+| Close | Fin de session IA | 5 min | `ipcrae close <domaine> --project <slug>` |
 
 ## Phase(s) active(s)
 → Voir `Phases/index.md` (source de priorités).

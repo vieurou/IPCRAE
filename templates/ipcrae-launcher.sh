@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# IPCRAE Étendu v3.2 — Lanceur multi-provider
-# Commandes : daily, weekly, monthly, close, sync, zettel, moc,
-#             health, review, launch, menu
+# IPCRAE Étendu v3.3 — Lanceur multi-provider
+# Commandes : start, work, daily, weekly, monthly, close, sync,
+#             zettel, moc, health, review, launch, menu
 # Providers : Claude, Gemini, Codex, (Kilo via VS Code)
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
-SCRIPT_VERSION="3.2.0"
-METHOD_VERSION="3.2"
+SCRIPT_VERSION="3.3.0"
+METHOD_VERSION="3.3"
 IPCRAE_ROOT="${IPCRAE_ROOT:-${HOME}/IPCRAE}"
 IPCRAE_CONFIG="${IPCRAE_ROOT}/.ipcrae/config.yaml"
 VAULT_NAME="$(basename "$IPCRAE_ROOT")"
@@ -257,16 +257,160 @@ launch_ai() {
 # ── Close session ─────────────────────────────────────────────
 cmd_close() {
   need_root
-  local domain="${1:-}"
-  local provider
-  provider="$(get_default_provider)"
-  local prompt="CLÔTURE DE SESSION :
-1) Synthétiser les avancées du jour.
-2) Mettre à jour memory/${domain}.md si pertinent.
-3) Préparer la transition pour demain."
-  launch_with_prompt "$provider" "$prompt"
+  local domain=""
+  local project=""
+  local note=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --project) project="${2:-}"; shift ;;
+      --note) note="${2:-}"; shift ;;
+      -*) logerr "Option inconnue pour close: $1"; return 1 ;;
+      *)
+        if [ -z "$domain" ]; then domain="$1"
+        elif [ -z "$note" ]; then note="$1"
+        fi ;;
+    esac
+    shift
+  done
+
+  [ -z "$domain" ] && { logerr 'Usage: ipcrae close <domaine> [--project <slug>] [--note "résumé"]'; return 1; }
+
+  local memory_file="${IPCRAE_ROOT}/memory/${domain}.md"
+  if [ ! -f "$memory_file" ]; then
+    logwarn "memory/${domain}.md absent, création."
+    mkdir -p "${IPCRAE_ROOT}/memory"
+    printf '# Mémoire — %s
+
+' "$domain" > "$memory_file"
+  fi
+
+  local changed
+  changed="$(git -C "$IPCRAE_ROOT" status --short 2>/dev/null | awk '{print $2}' | head -20 || true)"
+  local timestamp
+  timestamp="$(date +'%Y-%m-%d %H:%M')"
+
+  {
+    printf '
+## %s - Session close
+' "$timestamp"
+    printf '**Contexte** : domaine=%s' "$domain"
+    [ -n "$project" ] && printf ', project=%s' "$project"
+    printf '
+'
+    printf '**Décision** : consolidation de fin de session.
+'
+    if [ -n "$note" ]; then
+      printf '**Résultat** : %s
+' "$note"
+    elif [ -n "$changed" ]; then
+      printf '**Résultat** : fichiers touchés récents:
+'
+      printf '%s
+' "$changed" | sed 's/^/- /'
+    else
+      printf '**Résultat** : session clôturée, pas de delta détecté.
+'
+    fi
+  } >> "$memory_file"
+
+  python3 - "$IPCRAE_ROOT" "$domain" "$project" <<'PYCTX'
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
+root = Path(sys.argv[1])
+domain = sys.argv[2]
+project = sys.argv[3]
+ctx = root / '.ipcrae' / 'context.md'
+if not ctx.exists():
+    raise SystemExit(0)
+
+text = ctx.read_text(encoding='utf-8')
+now = datetime.now().strftime('%Y-%m-%d %H:%M')
+block = (
+    '## Working set (dynamique)\n\n'
+    f'- Dernière clôture: {now}\n'
+    f'- Domaine actif: {domain}\n'
+    f'- Projet actif: {project or "(non défini)"}\n'
+    '- Phase active: voir Phases/index.md\n\n'
+    '## Projets actifs\n\n'
+    f'- {project or "(à renseigner)"}\n\n'
+)
+
+pattern = re.compile(r'## Working set \(dynamique\).*?(?=\n## |\Z)', re.S)
+if pattern.search(text):
+    text = pattern.sub(block.rstrip('\n'), text)
+else:
+    if not text.endswith('\n'):
+        text += '\n'
+    text += '\n' + block
+
+ctx.write_text(text, encoding='utf-8')
+PYCTX
+
+  cmd_index
+  loginfo "Clôture dynamique effectuée: memory/${domain}.md + context.md + cache tags"
   auto_git_sync_event "close session"
 }
+
+
+cmd_start() {
+  need_root
+  local project=""
+  local phase=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --project) project="${2:-}"; shift ;;
+      --phase) phase="${2:-}"; shift ;;
+    esac
+    shift
+  done
+
+  section "Start session"
+  [ -n "$project" ] && printf 'Projet: %s\n' "$project"
+  [ -n "$phase" ] && printf 'Phase: %s\n' "$phase"
+  printf 'Weekly: %s\n' "$(iso_week)"
+  [ -f "Phases/index.md" ] && printf 'Phase index: Phases/index.md\n'
+  [ -f "Journal/Weekly/$(date +%G)/$(iso_week).md" ] || cmd_weekly
+}
+
+cmd_work() {
+  need_root
+  local objective="${1:-}"
+  [ -z "$objective" ] && { logerr 'Usage: ipcrae work "<objectif>"'; return 1; }
+  local provider
+  provider="$(get_default_provider)"
+
+  local tags_hint=""
+  if [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ]; then
+    tags_hint="$(python3 - "$objective" <<'PYWORK'
+import json, re, sys
+from pathlib import Path
+objective = sys.argv[1].lower()
+tokens = {t for t in re.findall(r'[a-z0-9-]{3,}', objective)}
+idx = json.loads(Path('.ipcrae/cache/tag-index.json').read_text(encoding='utf-8'))
+tags = idx.get('tags', {})
+matches = [t for t in tags if t in tokens or any(tok in t for tok in tokens)]
+print(', '.join(sorted(matches)[:8]))
+PYWORK
+)"
+  fi
+
+  local prompt
+  prompt="MODE WORK IPCRAE (contexte minimisé):
+Objectif: ${objective}
+Sources de vérité:
+1) .ipcrae/context.md
+2) .ipcrae/instructions.md
+3) memory/<domaine>.md et notes Knowledge/Zettelkasten
+Tags pertinents: ${tags_hint:-aucun}
+
+Travaille uniquement sur l'objectif et propose un plan d'action concret."
+  launch_with_prompt "$provider" "$prompt"
+}
+
 
 # ── Capture ───────────────────────────────────────────────────
 cmd_capture() {
@@ -481,6 +625,27 @@ cmd_doctor() {
     fi
   done
 
+  printf '\n%bInvariants v3.3%b\n' "$YELLOW" "$NC"
+  [ -f "$IPCRAE_ROOT/.ipcrae/cache/tag-index.json" ] && printf '  ✓ .ipcrae/cache/tag-index.json\n' || printf '  ✗ .ipcrae/cache/tag-index.json\n'
+
+  local ctx ins body
+  ctx="$IPCRAE_ROOT/.ipcrae/context.md"
+  ins="$IPCRAE_ROOT/.ipcrae/instructions.md"
+  if [ -f "$ctx" ] && [ -f "$ins" ]; then
+    body="$(cat "$ctx"; printf '\n\n---\n\n'; cat "$ins")"
+    for t in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
+      local f="${t%%:*}" n="${t##*:}" tmp
+      tmp="$(mktemp)"
+      printf '# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' "$n" "$METHOD_VERSION" "$body" > "$tmp"
+      if [ -f "$IPCRAE_ROOT/$f" ] && cmp -s "$tmp" "$IPCRAE_ROOT/$f"; then
+        printf '  ✓ %s à jour\n' "$f"
+      else
+        printf '  ✗ %s non synchronisé (lancer: ipcrae sync)\n' "$f"
+      fi
+      rm -f "$tmp"
+    done
+  fi
+
   printf "\n%bContrat d'injection de contexte (CDE)%b\n" "$YELLOW" "$NC"
   [ -d "docs/conception" ] && printf '  ✓ docs/conception/\n' || printf '  ✗ docs/conception/\n'
   [ -f "docs/conception/03_IPCRAE_BRIDGE.md" ] && printf '  ✓ docs/conception/03_IPCRAE_BRIDGE.md\n' || printf '  ✗ docs/conception/03_IPCRAE_BRIDGE.md\n'
@@ -506,6 +671,10 @@ cmd_doctor() {
 
 cmd_index() {
   need_root
+  if [ -x "${IPCRAE_ROOT}/Scripts/ipcrae-index.sh" ]; then
+    "${IPCRAE_ROOT}/Scripts/ipcrae-index.sh" "$IPCRAE_ROOT"
+    return 0
+  fi
   mkdir -p "${IPCRAE_ROOT}/.ipcrae/cache"
 
   python3 - <<'PYIDX'
@@ -559,6 +728,10 @@ cmd_tag() {
   need_root
   local needle="${1:-}"
   [ -z "$needle" ] && { logerr "Usage: ipcrae tag <tag>"; return 1; }
+  if [ -x "${IPCRAE_ROOT}/Scripts/ipcrae-tag.sh" ]; then
+    "${IPCRAE_ROOT}/Scripts/ipcrae-tag.sh" "$needle"
+    return $?
+  fi
   [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ] || cmd_index
   python3 - "$needle" <<'PYTAG'
 import json, sys
@@ -813,7 +986,7 @@ cmd_menu() {
       10) cmd_consolidate; break ;;
       11) cmd_update; break ;;
       12) cmd_sync_git; break ;;
-      13) cmd_close "${extra:-}"; break ;;
+      13) read -r -p "Domaine: " _d; cmd_close "$_d"; break ;;
       14) cmd_health; break ;;
       15) cmd_doctor; break ;;
       16) cmd_index; break ;;
@@ -841,7 +1014,9 @@ Commandes:
   weekly                   Créer/ouvrir la weekly ISO en cours
   monthly                  Créer/ouvrir la revue mensuelle
   capture "texte"          Capturer une idée rapide dans Inbox
-  close                    Clôturer la session (maj mémoire domaine)
+  start [--project --phase] Initialiser le contexte de session
+  work "objectif"          Lancer l'agent avec contexte minimisé
+  close <domaine>          Clôturer la session (mémoire + context + tags)
   sync                     Régénérer CLAUDE.md, GEMINI.md, AGENTS.md, Kilo
   list                     Lister les providers disponibles
   zettel [titre]           Créer une note atomique Zettelkasten
@@ -883,19 +1058,21 @@ EOF
 
 # ── Main ──────────────────────────────────────────────────────
 main() {
-  local provider="" cmd="" extra=""
+  local provider="" cmd=""
+  local -a cmd_args=()
 
   while [ $# -gt 0 ]; do
     case "$1" in
       -p|--provider) provider="${2:-}"; shift ;;
       -h|--help)     usage; exit 0 ;;
-      -V|--version)  printf 'IPCRAE Launcher script v%s (method v%s)\n' "$SCRIPT_VERSION" "$METHOD_VERSION"; exit 0 ;;
-      -*)            # Options attachées à une commande (ex: --prep)
-        if [ -n "$cmd" ]; then extra="$1"
+      -V|--version)  printf 'IPCRAE Launcher script v%s (method v%s)
+' "$SCRIPT_VERSION" "$METHOD_VERSION"; exit 0 ;;
+      -*)
+        if [ -n "$cmd" ]; then cmd_args+=("$1")
         else logerr "Option inconnue: $1"; usage; exit 1; fi ;;
       *)
         if [ -z "$cmd" ]; then cmd="$1"
-        else extra="$1"; fi ;;
+        else cmd_args+=("$1"); fi ;;
     esac
     shift
   done
@@ -903,34 +1080,38 @@ main() {
   [ -z "$provider" ] && provider="$(get_default_provider)"
 
   case "${cmd:-menu}" in
-    menu)            cmd_menu ;;
-    daily)           cmd_daily "$extra" ;;
-    weekly)          cmd_weekly ;;
-    monthly)         cmd_monthly ;;
-    capture)         cmd_capture "${extra:-}" ;;
-    close)           cmd_close "${extra:-}" ;;
-    sync)            sync_providers ;;
-    sync-git)        cmd_sync_git ;;
-    migrate-safe)    cmd_migrate_safe ;;
-    list)            list_providers ;;
-    zettel)          cmd_zettel "$extra" ;;
-    moc)             cmd_moc "$extra" ;;
-    health)          cmd_health ;;
-    doctor)          cmd_doctor "$extra" ;;
-    index)           cmd_index ;;
-    tag)             cmd_tag "$extra" ;;
-    search)          cmd_search "$extra" ;;
-    review)          cmd_review "$extra" "$provider" ;;
-    update)          cmd_update ;;
-    consolidate)     cmd_consolidate "$extra" ;;
-    phase|phases)    need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
-    process|processes) cmd_process "$extra" ;;
+    menu)              cmd_menu ;;
+    daily)             cmd_daily "${cmd_args[@]:-}" ;;
+    weekly)            cmd_weekly ;;
+    monthly)           cmd_monthly ;;
+    capture)           cmd_capture "${cmd_args[*]:-}" ;;
+    start)             cmd_start "${cmd_args[@]:-}" ;;
+    work)              cmd_work "${cmd_args[*]:-}" ;;
+    close)             cmd_close "${cmd_args[@]:-}" ;;
+    sync)              sync_providers ;;
+    sync-git)          cmd_sync_git ;;
+    migrate-safe)      cmd_migrate_safe ;;
+    list)              list_providers ;;
+    zettel)            cmd_zettel "${cmd_args[*]:-}" ;;
+    moc)               cmd_moc "${cmd_args[*]:-}" ;;
+    health)            cmd_health ;;
+    doctor)            cmd_doctor "${cmd_args[0]:-}" ;;
+    index)             cmd_index ;;
+    tag)               cmd_tag "${cmd_args[0]:-}" ;;
+    search)            cmd_search "${cmd_args[*]:-}" ;;
+    review)            cmd_review "${cmd_args[0]:-}" "$provider" ;;
+    update)            cmd_update ;;
+    consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
+    phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
+    process|processes) cmd_process "${cmd_args[*]:-}" ;;
     *)
-      # Texte libre = mode expert
       need_root; show_dashboard
-      printf '%b🤖 Provider: %s | 🎯 Expert: %s%b\n\n' "$BOLD" "$provider" "$cmd" "$NC"
+      printf '%b🤖 Provider: %s | 🎯 Expert: %s%b
+
+' "$BOLD" "$provider" "$cmd" "$NC"
       launch_ai "$provider" "$cmd" ;;
   esac
 }
+
 
 main "$@"

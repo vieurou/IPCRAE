@@ -5,8 +5,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-SCRIPT_VERSION="3.2.0"
-METHOD_VERSION="3.2"
+SCRIPT_VERSION="3.3.0"
+METHOD_VERSION="3.3"
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'
 RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 AUTO_YES=false
@@ -436,7 +436,9 @@ ipcrae daily         # daily note
 ipcrae daily --prep  # daily pré-rédigée par l'\''IA
 ipcrae weekly        # weekly ISO
 ipcrae monthly       # revue mensuelle
-ipcrae close         # clôture session (maj mémoire domaine)
+ipcrae start --project <slug> --phase <phase> # initialise le contexte
+ipcrae work "objectif" # lance agent avec contexte minimisé
+ipcrae close <domaine> --project <slug> # consolidation dynamique
 ipcrae sync          # régénère CLAUDE.md, GEMINI.md, AGENTS.md, Kilo
 ipcrae zettel "titre" # créer note atomique Zettelkasten
 ipcrae moc "thème"   # créer/ouvrir Map of Content
@@ -455,7 +457,7 @@ if prompt_yes_no "Générer CLAUDE.md, GEMINI.md, AGENTS.md, Kilo ?" "y"; then
   body="$(cat .ipcrae/context.md; printf '\n\n---\n\n'; cat .ipcrae/instructions.md)"
   for t in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
     f="${t%%:*}"; n="${t##*:}"
-    printf '# Instructions pour %s — IPCRAE v3\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' "$n" "$body" > "$f"
+    printf '# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' "$n" "$METHOD_VERSION" "$body" > "$f"
     loginfo "$f"
   done
   mkdir -p .kilocode/rules
@@ -525,6 +527,22 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$HOME/bin/ipcrae-prompt-optimize"
     chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize"
     loginfo "✓ Scripts token/multi-agent installés (ipcrae-tokenpack, ipcrae-agent-bridge, ipcrae-prompt-optimize)"
+
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" ]; then
+      cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"
+      chmod +x "$HOME/bin/ipcrae-index"
+      loginfo "✓ Script optionnel installé: ipcrae-index"
+    else
+      logwarn "Optionnel non installé: ipcrae-index (template manquant)"
+    fi
+
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
+      cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
+      chmod +x "$HOME/bin/ipcrae-tag"
+      loginfo "✓ Script optionnel installé: ipcrae-tag"
+    else
+      logwarn "Optionnel non installé: ipcrae-tag (template manquant)"
+    fi
   else
     logwarn "Dossier templates/scripts introuvable, installation des scripts avancés omise."
   fi
