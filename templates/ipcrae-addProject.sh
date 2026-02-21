@@ -323,7 +323,29 @@ fi
 
 echo "🎉 Projet intégré à IPCRAE avec succès !"
 
-# 11. Analyse initiale par l'IA (Auto-ingestion)
+# 11. Tags Git annotés (jalons d'intégration)
+DATE_COMPACT="$(date +%Y%m%d)"
+TAG_VAULT="integration-${PROJECT_NAME}-${DATE_COMPACT}"
+TAG_PROJECT="ipcrae-integrated-${DATE_COMPACT}"
+
+# Tag vault (jalon : ce projet est maintenant dans le cerveau)
+if GIT_DIR="$IPCRAE_ROOT/.git" GIT_WORK_TREE="$IPCRAE_ROOT" \
+   git tag -a "$TAG_VAULT" -m "Intégration du projet ${PROJECT_NAME} dans le cerveau IPCRAE" 2>/dev/null; then
+    echo "✅ Tag vault créé : $TAG_VAULT"
+else
+    echo "ℹ️  Tag vault déjà présent ou vault non git : $TAG_VAULT (skipped)"
+fi
+
+# Tag projet (jalon : ce repo est maintenant géré par IPCRAE)
+if git rev-parse --git-dir > /dev/null 2>&1; then
+    if git tag -a "$TAG_PROJECT" -m "Projet intégré à IPCRAE (initialisation CDE) — ${DATE_CREATION}" 2>/dev/null; then
+        echo "✅ Tag projet créé : $TAG_PROJECT"
+    else
+        echo "ℹ️  Tag projet déjà présent : $TAG_PROJECT (skipped)"
+    fi
+fi
+
+# 12. Analyse initiale par l'IA (Auto-ingestion)
 echo ""
 read -r -p "🤖 Veux-tu lancer l'agent IA maintenant pour analyser le code et auto-remplir les templates ? [O/n] " run_ai
 run_ai=${run_ai:-o}

@@ -447,11 +447,13 @@ cmd_close() {
   local domain=""
   local project=""
   local note=""
+  local dry_run=false
 
   while [ $# -gt 0 ]; do
     case "$1" in
       --project) project="${2:-}"; shift ;;
       --note) note="${2:-}"; shift ;;
+      --dry-run) dry_run=true ;;
       -*) logerr "Option inconnue pour close: $1"; return 1 ;;
       *)
         if [ -z "$domain" ]; then domain="$1"
@@ -461,7 +463,20 @@ cmd_close() {
     shift
   done
 
-  [ -z "$domain" ] && { logerr 'Usage: ipcrae close <domaine> [--project <slug>] [--note "résumé"]'; return 1; }
+  [ -z "$domain" ] && { logerr 'Usage: ipcrae close <domaine> [--project <slug>] [--note "résumé"] [--dry-run]'; return 1; }
+
+  if [ "$dry_run" = true ]; then
+    loginfo "[DRY-RUN] ipcrae close ${domain}$([ -n "$project" ] && echo " --project ${project}")"
+    printf '\n--- Entrée mémoire qui serait ajoutée à memory/%s.md ---\n' "$domain"
+    printf '## %s - Session close\n' "$(date +'%Y-%m-%d %H:%M')"
+    printf '**Contexte** : domaine=%s%s\n' "$domain" "$([ -n "$project" ] && echo ", project=${project}" || true)"
+    printf '**Décision** : consolidation de fin de session.\n'
+    printf '\n--- Fichiers qui seraient commités ---\n'
+    git -C "$IPCRAE_ROOT" status --short 2>/dev/null || printf '(aucun)\n'
+    printf '\n--- Tag qui serait créé ---\n'
+    printf 'session-%s-%s\n' "$(date +%Y%m%d)" "$domain"
+    return 0
+  fi
 
   local memory_file="${IPCRAE_ROOT}/memory/${domain}.md"
   if [ ! -f "$memory_file" ]; then
