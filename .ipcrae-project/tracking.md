@@ -8,6 +8,31 @@ created: 2026-02-21
 updated: 2026-02-21
 ---
 
+## Session claude — 2026-02-21 soir (PR #19)
+
+### [x] Fix ipcrae-auto.sh — arg passing + agent par défaut
+- **Commande** : `${@:2}` au lieu de `$2/$3/$4`, agent `kilo-code` → `claude`, check existence `ipcrae-auto-core`
+- **PR** : #19
+
+### [x] Fix auto_audit.sh — arg parsing deux passes
+- **Commande** : COMMAND en passe 1 (premier arg non-flag), flags en passe 2, timestamp sécurisé
+- **PR** : #19
+
+### [x] Réécriture audit_ipcrae.sh — audit réel vault 0-40 pts
+- **Résultat** : 4 sections, vérifications shell réelles sur `$IPCRAE_ROOT`, gaps avec commandes
+- **Score premier run** : 34/40 (85%)
+- **PR** : #19
+
+### [x] Réécriture apply_ipcrae_corrections.sh — corrections réelles
+- **Résultat** : 3 niveaux (auto/guidées/manuelles), mode `--auto` non-interactif
+- **PR** : #19
+
+### [x] Réécriture template_auto_amelioration.md — prompt style IPCRAE
+- **Résultat** : 4 blocs séquentiels, 9 critères DoD mesurables
+- **PR** : #19
+
+### [x] PR #19 mergée sur master — scripts réinstallés dans ~/bin/
+
 # Tracking IPCRAE - Tâches en cours
 
 ## 📊 Statistiques Globales
