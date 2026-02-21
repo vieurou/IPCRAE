@@ -537,6 +537,57 @@ else:
     text += '\n' + block
 
 ctx.write_text(text, encoding='utf-8')
+
+if project:
+    pctx = root / 'Projets' / project / 'context.md'
+    pctx.parent.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+    if pctx.exists():
+        ptext = pctx.read_text(encoding='utf-8')
+    else:
+        ptext = (
+            f'# Context projet — {project}
+
+'
+            '## Vision
+- (à maintenir)
+
+'
+            '## État actuel
+- (à maintenir)
+
+'
+            '## KPIs
+- (à maintenir)
+
+'
+            '## Prochaines actions
+- [ ]
+
+'
+            '## Accès ressources
+- docs/conception/
+' + f'- Projets/{project}/
+
+'
+        )
+    update_block = (
+        '## Session
+'
+        f'- Dernière mise à jour: {stamp}
+'
+        f'- Domaine: {domain}
+'
+        '- Source: ipcrae close
+'
+    )
+    if re.search(r'## Session\n.*?(?=\n## |\Z)', ptext, re.S):
+        ptext = re.sub(r'## Session\n.*?(?=\n## |\Z)', update_block.rstrip('\n'), ptext, flags=re.S)
+    else:
+        if not ptext.endswith('\n'):
+            ptext += '\n'
+        ptext += '\n' + update_block
+    pctx.write_text(ptext, encoding='utf-8')
 PYCTX
 
   cmd_index
@@ -1570,6 +1621,27 @@ cmd_process_next() {
   ' "$pfile"     | sort -t$'	' -k1,1nr     | head -3     | awk -F'	' '{printf "- %s (score=%s, statut=%s)\n", $2, $1, $3}'
 }
 
+cmd_process_gc() {
+  need_root
+  local ttl_days="${1:-180}"
+  [[ "$ttl_days" =~ ^[0-9]+$ ]] || { logerr "Usage: ipcrae process gc [ttl-days]"; return 1; }
+
+  section "Process GC (TTL=${ttl_days} jours)"
+  local now epoch_limit
+  now="$(date +%s)"
+  epoch_limit=$(( now - ttl_days*86400 ))
+
+  find "${IPCRAE_ROOT}/Process" -maxdepth 3 -type f -name '*.md'     ! -name 'map.md' ! -name 'priorites.md' ! -name '_template_process.md'     | while read -r f; do
+        mtime="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)"
+        if [ "$mtime" -lt "$epoch_limit" ]; then
+          local age_days
+          age_days=$(( (now-mtime)/86400 ))
+          printf '⚠ Process stale: %s (age=%sj)
+' "${f#${IPCRAE_ROOT}/}" "$age_days"
+        fi
+      done
+}
+
 cmd_inbox_process() {
   need_root
   if [ "${1:-}" = "--dry-run" ]; then
@@ -1601,6 +1673,9 @@ cmd_process() {
       ;;
     next)
       cmd_process_next
+      ;;
+    gc)
+      cmd_process_gc "$@"
       ;;
     *)
       local nom="$sub"
@@ -1827,6 +1902,7 @@ Commandes:
   process priorites        Ouvrir la matrice impact × facilité
   process run <slug>       Exécuter une fiche process (agent supervisé)
   process run --dry-run <slug>  Afficher le plan d'exécution sans produire de sortie
+  process gc [ttl-days]    Signaler les process obsolètes (TTL, défaut: 180j)
   process next             Proposer les 3 prochains quick wins
   inbox --process          Lancer le process inbox-triage
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
