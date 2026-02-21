@@ -559,6 +559,31 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
       logwarn "Script ipcrae-tag introuvable."
     fi
 
+    # Tags system (new v3.2.1)
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" ]; then
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$HOME/bin/ipcrae-tag-index"
+      execute chmod +x "$HOME/bin/ipcrae-tag-index"
+      loginfo "✓ Script tag-index installé: ipcrae-tag-index"
+    else
+      logwarn "tag-index template missing"
+    fi
+
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
+      execute chmod +x "$HOME/bin/ipcrae-tag"
+      loginfo "✓ Script tag installé: ipcrae-tag"
+    else
+      logwarn "tag template missing"
+    fi
+
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" ]; then
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"
+      execute chmod +x "$HOME/bin/ipcrae-index"
+      loginfo "✓ Script index installé: ipcrae-index"
+    else
+      logwarn "index template missing"
+    fi
+
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" ]; then
       execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" "$HOME/bin/ipcrae-uninstall"
       execute chmod +x "$HOME/bin/ipcrae-uninstall"
