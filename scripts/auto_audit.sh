@@ -16,6 +16,7 @@ VERBOSE="false"
 FORCE="false"
 
 # Parser les arguments
+COMMAND=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --agent)
@@ -34,6 +35,14 @@ while [[ $# -gt 0 ]]; do
             FORCE="true"
             shift
             ;;
+        -h|--help)
+            COMMAND="--help"
+            shift
+            ;;
+        status|activate|deactivate|history|report)
+            COMMAND="$1"
+            shift
+            ;;
         *)
             shift
             ;;
@@ -44,6 +53,16 @@ done
 CONFIG_FILE=".ipcrae-project/memory/agent_auto_amelioration_config.md"
 HISTORY_FILE=".ipcrae-project/memory/agent_auto_amelioration_history.md"
 LAST_AUDIT_FILE=".ipcrae-project/memory/last_audit_${AGENT}.txt"
+
+# Fonction pour retirer les codes ANSI
+strip_ansi() {
+    sed -r 's/\x1B\[[0-9;]*[A-Za-z]//g'
+}
+
+# Fonction pour extraire le score global depuis une sortie d'audit
+extract_score_from_output() {
+    strip_ansi | grep -Eo 'Score Global: [0-9]+/[0-9]+' | tail -1 | awk '{print $3}'
+}
 
 # Fonction pour afficher l'en-tête
 print_header() {
@@ -108,15 +127,20 @@ check_new_audit_needed() {
 run_audit() {
     echo -e "${BLUE}📊 Lancement de l'audit IPCRAE...${NC}\n"
 
+    local audit_output_file
+    audit_output_file=$(mktemp)
+
     # Exécuter le script d'audit
     if [ "$VERBOSE" = "true" ]; then
-        ./scripts/audit_ipcrae.sh
+        ./scripts/audit_ipcrae.sh | tee "$audit_output_file"
     else
-        ./scripts/audit_ipcrae.sh | grep -E "^(📊|🔴|🟡|🟢|Score|Critiques|Importants|Mineurs)"
+        ./scripts/audit_ipcrae.sh | tee "$audit_output_file" | grep -E "^(📊|🔴|🟡|🟢|Score|Critiques|Importants|Mineurs|RECOMMANDATIONS)"
     fi
 
     # Sauvegarder le résultat
-    local audit_score=$(grep "Score Global:" ./scripts/audit_ipcrae.sh 2>/dev/null | tail -1 | grep -oP '\d+/\d+' | head -1)
+    local audit_score
+    audit_score=$(extract_score_from_output < "$audit_output_file")
+    audit_score=${audit_score:-0/40}
     local current_time=$(date +%s)
 
     echo "$current_time" > "$LAST_AUDIT_FILE"
@@ -125,11 +149,13 @@ run_audit() {
     # Ajouter à l'historique
     if [ -f "$HISTORY_FILE" ]; then
         echo -e "\n--- Audit $(date -d @$current_time '+%Y-%m-%d %H:%M') ---" >> "$HISTORY_FILE"
-        grep "Score Global:" ./scripts/audit_ipcrae.sh 2>/dev/null | tail -1 >> "$HISTORY_FILE"
+        echo "Score Global: $audit_score" >> "$HISTORY_FILE"
     else
         echo -e "\n--- Audit $(date -d @$current_time '+%Y-%m-%d %H:%M') ---" > "$HISTORY_FILE"
-        grep "Score Global:" ./scripts/audit_ipcrae.sh 2>/dev/null | tail -1 >> "$HISTORY_FILE"
+        echo "Score Global: $audit_score" >> "$HISTORY_FILE"
     fi
+
+    rm -f "$audit_output_file"
 
     echo -e "\n${GREEN}✓ Audit terminé et sauvegardé${NC}\n"
 }
@@ -191,15 +217,17 @@ generate_report() {
     # Afficher le score
     if [ -f "$LAST_AUDIT_FILE.score" ]; then
         local last_score=$(cat "$LAST_AUDIT_FILE.score")
-        local current_score=$(grep "Score Global:" ./scripts/audit_ipcrae.sh 2>/dev/null | tail -1 | grep -oP '\d+/\d+' | head -1 || echo "0/40")
+        local current_score
+        current_score=$(./scripts/audit_ipcrae.sh 2>/dev/null | extract_score_from_output)
+        current_score=${current_score:-0/40}
 
         echo -e "${BLUE}Score initial:${NC} $last_score"
         echo -e "${GREEN}Score actuel:${NC} $current_score"
 
         if [ "$last_score" != "0/40" ]; then
-            local points=$(( $(echo $current_score | grep -oP '\d+' | head -1) - $(echo $last_score | grep -oP '\d+' | head -1) ))
+            local points=$(( $(echo "$current_score" | grep -oP '\d+' | head -1) - $(echo "$last_score" | grep -oP '\d+' | head -1) ))
             local percentage=$(( points * 100 / 40 ))
-            echo -e "${GREEN}Amélioration:${NC} +$points points (+$percentage%)"
+            echo -e "${GREEN}Amélioration:${NC} ${points} points (${percentage}%)"
         fi
     fi
 
@@ -251,7 +279,7 @@ main() {
             ;;
         activate)
             echo -e "${BLUE}Activation du mode auto-amélioration pour $AGENT...${NC}\n"
-            touch "$LAST_AUDIT_FILE"
+            date +%s > "$LAST_AUDIT_FILE"
             echo -e "${GREEN}✓ Mode activé pour $AGENT${NC}\n"
             echo -e "${BLUE}Prochain audit: $(date -d '+1 day' '+%Y-%m-%d')${NC}\n"
             ;;
@@ -296,4 +324,4 @@ main() {
 }
 
 # Exécuter la fonction principale
-main "$@"
+main "$COMMAND"
