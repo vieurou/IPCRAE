@@ -1,4 +1,4 @@
-# 🧠 IPCRAE Étendu (v3.2)
+# 🧠 IPCRAE Étendu (méthode v3.2 / scripts v3.2.0)
 
 > **I**nbox · **P**rojets · **C**asquettes · **R**essources · **A**rchives
 > Un système de gestion de vie complet, piloté par l'IA, 100% local, versionnable et CLI-friendly.
@@ -36,6 +36,7 @@ Extensions “Étendu” :
 - **Process/** : procédures récurrentes (checklists, Definition of Done).
 - **Objectifs/** : vision annuelle / trimestrielle / Someday/Maybe.
 - **Zettelkasten/** : notes atomiques permanentes (pensée digérée).
+- **Knowledge/** : connaissances opérationnelles réutilisables (how-to, runbooks, patterns).
 - **memory/** : mémoire IA par domaine (décisions, erreurs, heuristiques).
 - **Agents/** : rôles IA spécialisés (devops, électronique, musique, maison, santé, finance).
 
@@ -62,6 +63,11 @@ IPCRAE_ROOT/
 │   ├── _inbox/
 │   ├── permanents/
 │   └── MOC/
+├── Knowledge/
+│   ├── howto/
+│   ├── runbooks/
+│   ├── patterns/
+│   └── MOC/
 ├── Journal/
 │   ├── Daily/YYYY/
 │   ├── Weekly/YYYY/
@@ -83,7 +89,8 @@ IPCRAE_ROOT/
 
 ### Règle “brut vs digéré”
 - `Ressources/` = **brut** (extraits, liens, docs, notes littérales).
-- `Zettelkasten/permanents/` = **digéré** (une idée = une note, écrite dans tes mots, liée à d’autres notes).
+- `Zettelkasten/permanents/` = **digéré atomique** (une idée = une note).
+- `Knowledge/` = **opérationnel réutilisable** (how-to, runbooks, patterns), taggé avec frontmatter YAML.
 
 ---
 
@@ -122,6 +129,11 @@ Pour un cerveau existant déjà en prod, utiliser la migration safe :
 ```bash
 ipcrae migrate-safe
 ```
+### 4.4 Versioning (méthode vs scripts)
+- **METHOD_VERSION** : version documentaire de la méthode (README, conventions, contrat CDE).
+- **SCRIPT_VERSION** : version des scripts shell (`ipcrae-install.sh`, `ipcrae`).
+- Tant que non aligné, documenter explicitement l'écart (aucune ambiguïté en release notes).
+
 Algorithme appliqué :
 1. Backup complet du vault (archive `tar.gz`) avant toute modification.
 2. Merge non destructif des prompts (`.ipcrae/prompts/`) : fichier absent généré, fichier différent gardé en `.new-<timestamp>`.
@@ -145,6 +157,15 @@ Le système est désormais en couches (`.ipcrae/prompts/`) :
 4. `agent_<domaine>.md` : spécialisation métier.
 
 *Rechargez ces fichiers générés (CLAUDE.md, etc.) avec `ipcrae sync`.*
+
+### Pré-traitement des demandes (obligatoire)
+Avant de traiter une demande utilisateur, l'IA doit **reconstruire un prompt optimisé** enrichi par :
+- le contexte projet (`docs/conception/*`, hub projet),
+- la mémoire/Knowledge pertinente (`memory/`, `Knowledge/`, tags),
+- les contraintes techniques et le format de sortie attendu.
+
+Puis seulement exécuter ce prompt optimisé.
+
 
 ---
 
@@ -238,6 +259,9 @@ Par défaut (`auto_git_sync: true`), IPCRAE va auto-commit & push vos nouvelles 
 
 - `ipcrae sync` : Régénère le contexte statique.
 - `ipcrae health` : Affiche l'Inbox "stale", les strikes daily et la charge mentale actuelle.
+- `ipcrae index` : reconstruit le cache tags (`.ipcrae/cache/tag-index.json`).
+- `ipcrae tag <tag>` : liste les fichiers liés à un tag.
+- `ipcrae search <mots|tags>` : recherche avec cache tags + fallback grep.
 - `ipcrae review project` : Rétrospective d'un projet guidée.
 
 ---
@@ -258,6 +282,8 @@ La méthode est stable si :
 ## 14) Précisions techniques et Robustesse
 
 ### Notes sur l'installateur
+- Certaines fonctionnalités sont **optionnelles** selon la présence des templates (`templates/prompts`, `templates/scripts`) : l'installateur affiche un warning et continue en mode dégradé.
+- Le lien `.ipcrae-memory` dans un repo projet est un artefact local CDE : à ignorer en VCS (ou à documenter explicitement pour un repo de démo).
 - La fonction `write_safe` accepte **2 modes d'écriture** :
   1. `write_safe "chemin" "contenu"` (argument inline)
   2. `write_safe "chemin" <<'EOF' ... EOF` (heredoc via stdin)
@@ -266,7 +292,7 @@ La méthode est stable si :
 ### Troubleshooting (Dépannage)
 - **`ipcrae` introuvable** : l'installateur place le binaire dans `$HOME/bin`. Faites `export PATH=$HOME/bin:$PATH` et ajoutez-le à votre `.bashrc`.
 - **Lien symbolique `.ipcrae-memory` cassé** : vérifiez de n'avoir pas déplacé `<projet_local>` ou la variable `$IPCRAE_ROOT`. Relancez `ipcrae-addProject` localement.
-- **Contexte IA incomplet** : lancer `ipcrae sync` puis `ipcrae doctor`.
+- **Contexte IA incomplet** : lancer `ipcrae sync` puis `ipcrae doctor` (validation du contrat d'injection de contexte incluse).
 - **Fichiers `.ipcrae/*` absents** : vérifier la validité de `$IPCRAE_ROOT`.
 
 ### Vérification QA Rapide (pour Devs)
