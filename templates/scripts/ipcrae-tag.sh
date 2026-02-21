@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/IPCRAE}"
-CACHE_FILE="$IPCRAE_ROOT/.ipcrae/cache/tag-index.json"
-TAG="${1:?Usage: ipcrae tag <tag> [grep-pattern]}"
-GREP="${2:-}"
+TAG="${1:-}"
+ROOT="${IPCRAE_ROOT:-$PWD}"
+[ -z "$TAG" ] && { echo "Usage: ipcrae-tag <tag>" >&2; exit 1; }
+cd "$ROOT"
 
-if [[ ! -f "$CACHE_FILE" ]]; then
-  echo "❌ Cache absent → ipcrae index"
-  exit 1
+if [ -f .ipcrae/cache/tag-index.json ]; then
+  if python3 - "$TAG" <<'PY'
+import json, sys
+from pathlib import Path
+needle = sys.argv[1]
+idx = json.loads(Path('.ipcrae/cache/tag-index.json').read_text(encoding='utf-8'))
+files = idx.get('tags', {}).get(needle, [])
+if not files:
+    raise SystemExit(1)
+for f in files:
+    print(f)
+PY
+  then
+    exit 0
+  fi
 fi
 
-jq -r --arg tag "$TAG" '.tags[$tag] // empty | .[]' "$CACHE_FILE" | \
-if [[ -n "$GREP" ]]; then
-  xargs grep -l "$GREP"
-else
-  cat
-fi | head -10 | nl -w2 -s': '
-
-echo "($(wc -l <(jq -r --arg tag "$TAG" '.tags[$tag] // empty | .[]' "$CACHE_FILE"))) fichiers)"
-chmod +x ipcrae-tag.sh
+rg -n --glob '*.md' "(^|[[:space:],\[])(tags:[^\n]*\b${TAG}\b|${TAG})([[:space:],\]]|$)" Knowledge Zettelkasten 2>/dev/null || {
+  echo "Aucun résultat pour le tag: $TAG" >&2
+  exit 1
+}
