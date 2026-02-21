@@ -1,554 +1,427 @@
 #!/bin/bash
-# Auto-Audit IPCRAE - Script d'auto-évaluation de conformité
+# Audit réel du vault IPCRAE — score dynamique 0-40
+# Usage: ipcrae-audit-check [--verbose]
 
-# Couleurs pour l'output
+# --- Config ---
+IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/IPCRAE}"
+VERBOSE="${VERBOSE:-false}"
+[[ "$1" == "--verbose" || "$1" == "-v" ]] && VERBOSE="true"
+
+# --- Couleurs ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-# Compteur de scores
+# --- État global ---
 TOTAL_SCORE=0
 MAX_SCORE=40
+declare -a GAPS=()
+CRITIQUES=0
+IMPORTANTS=0
+MINEURS=0
 
-# Fonction pour marquer une question comme répondue
-mark_answer() {
-    echo -e "${GREEN}✓${NC}"
-    ((TOTAL_SCORE++))
+# --- Helpers ---
+now() { date +%s; }
+
+file_age_hours() {
+  local f="$1"
+  [[ -f "$f" ]] || { echo 99999; return; }
+  local ft
+  ft=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)
+  echo $(( ($(now) - ft) / 3600 ))
 }
 
-# Fonction pour marquer une question comme non répondue
-mark_no_answer() {
-    echo -e "${RED}✗${NC}"
+file_age_days() {
+  echo $(( $(file_age_hours "$1") / 24 ))
 }
 
-# Fonction pour afficher un titre de section
-print_section() {
-    echo -e "\n${BLUE}=== $1 ===${NC}\n"
+dir_count() {
+  local d="$1"
+  [[ -d "$d" ]] || { echo 0; return; }
+  find "$d" -maxdepth 1 -type f -name "*.md" | wc -l
 }
 
-print_header() {
-    echo -e "\n${BLUE}📊 RAPPORT D'AUTO-AUDIT IPCRAE${NC}"
-    echo "========================================"
-    echo "Date: $(date -Iseconds)"
-    echo "Agent: Kilo Code (Architect Mode)"
-    echo "Contexte: Test du système IPCRAE"
-    echo "========================================\n"
+stale_files_count() {
+  # Fichiers .md modifiés il y a plus de $2 jours dans $1
+  local dir="$1" days="$2"
+  [[ -d "$dir" ]] || { echo 0; return; }
+  find "$dir" -maxdepth 1 -type f -name "*.md" -mtime +$days | wc -l
 }
 
-# Fonction pour vérifier si un fichier existe
-file_exists() {
-    [ -f "$1" ]
+has_frontmatter_field() {
+  # Vérifie qu'au moins un fichier .md dans $1 contient le champ $2 en frontmatter
+  local dir="$1" field="$2"
+  [[ -d "$dir" ]] || return 1
+  grep -rl "^${field}:" "$dir" --include="*.md" -l 2>/dev/null | head -1 | grep -q .
 }
 
-# Fonction pour vérifier si un dossier existe
-dir_exists() {
-    [ -d "$1" ]
+vault_uncommitted_count() {
+  git -C "$IPCRAE_ROOT" status --porcelain 2>/dev/null | grep -c "^[MADRCU?]" || echo 0
 }
 
-# Fonction pour vérifier si un fichier contient du texte
-file_contains() {
-    grep -q "$2" "$1"
+vault_last_commit_age_hours() {
+  local ts
+  ts=$(git -C "$IPCRAE_ROOT" log -1 --format="%ct" 2>/dev/null || echo 0)
+  [[ "$ts" =~ ^[0-9]+$ ]] || ts=0
+  echo $(( ($(now) - ts) / 3600 ))
 }
 
-# Fonction pour vérifier si un fichier a été modifié récemment
-file_modified_recently() {
-    local file="$1"
-    local current_time=$(date +%s)
-    local file_time=$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null)
-    local hour_ago=$((current_time - 3600))
-
-    [ "$file_time" -gt "$hour_ago" ]
+phase_is_real() {
+  local f="$IPCRAE_ROOT/Phases/index.md"
+  [[ -f "$f" ]] || return 1
+  # Rejette si contient seulement des placeholders ou est très court
+  local lines
+  lines=$(grep -v "^#\|^---\|^$\|\[\[" "$f" 2>/dev/null | wc -l)
+  [[ "$lines" -ge 3 ]]
 }
 
-# Fonction pour compter les lignes dans un fichier
-count_lines() {
-    wc -l < "$1"
+config_has_fields() {
+  local cfg="$IPCRAE_ROOT/.ipcrae/config.yaml"
+  [[ -f "$cfg" ]] || return 1
+  grep -q "^ipcrae_root:" "$cfg" && grep -q "^default_provider:" "$cfg"
 }
 
-# Fonction pour extraire le frontmatter YAML
-extract_frontmatter() {
-    if file_contains "$1" "^---$"; then
-        sed -n '/^---$/,/^---$/p' "$1" | tail -n +2 | head -n -1
-    fi
+waiting_for_stale_count() {
+  local f="$IPCRAE_ROOT/Inbox/waiting-for.md"
+  [[ -f "$f" ]] || { echo 0; return; }
+  # Compte les lignes avec une date > 14j (format YYYY-MM-DD)
+  local count=0
+  local cutoff
+  cutoff=$(date -d '-14 days' '+%Y-%m-%d' 2>/dev/null || date -v-14d '+%Y-%m-%d' 2>/dev/null || echo "0000-00-00")
+  while IFS= read -r line; do
+    local d
+    d=$(echo "$line" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+    [[ -n "$d" && "$d" < "$cutoff" ]] && ((count++))
+  done < "$f"
+  echo "$count"
 }
 
-# Fonction pour vérifier la présence de tags
-check_tags() {
-    local file="$1"
-    local frontmatter=$(extract_frontmatter "$file")
-
-    if [ -z "$frontmatter" ]; then
-        echo "0/4"
-        return
-    fi
-
-    local tag_count=$(echo "$frontmatter" | grep -c "^tags:" || true)
-    local type_count=$(echo "$frontmatter" | grep -c "^type:" || true)
-    local project_count=$(echo "$frontmatter" | grep -c "^project:" || true)
-    local status_count=$(echo "$frontmatter" | grep -c "^status:" || true)
-
-    echo "$((tag_count + type_count + project_count + status_count))/4"
+# --- Affichage ---
+section_header() {
+  echo -e "\n${BOLD}${BLUE}$1${NC}"
 }
 
-# Fonction pour vérifier la normalisation des tags
-check_tag_normalization() {
-    local file="$1"
-    local frontmatter=$(extract_frontmatter "$file")
+check_line() {
+  local ok="$1" label="$2" pts_got="$3" pts_max="$4" hint="$5"
+  if [[ "$ok" == "ok" ]]; then
+    printf "  ${GREEN}✓${NC} %-45s [%s/%s]\n" "$label" "$pts_got" "$pts_max"
+  else
+    printf "  ${RED}✗${NC} %-45s [0/%s]\n" "$label" "$pts_max"
+    [[ -n "$hint" ]] && GAPS+=("$hint")
+  fi
+}
 
-    if [ -z "$frontmatter" ]; then
-        echo "0/1"
-        return
-    fi
+add_score() { TOTAL_SCORE=$(( TOTAL_SCORE + $1 )); }
 
-    # Vérifier si les tags sont en minuscules avec tirets
-    local has_lowercase=$(echo "$frontmatter" | grep -qE "^tags:.*[A-Z]" && echo 1 || echo 0)
-    local has_spaces=$(echo "$frontmatter" | grep -qE "^tags:.*[[:space:]]" && echo 1 || echo 0)
-    local has_underscores=$(echo "$frontmatter" | grep -qE "^tags:.*_" && echo 1 || echo 0)
+# ══════════════════════════════════════════════
+# Section 1 — Synchronisation système (9 pts)
+# ══════════════════════════════════════════════
+audit_section1() {
+  section_header "Section 1 — Synchronisation système"
+  local s=0
 
-    if [ "$has_lowercase" -eq 0 ] && [ "$has_spaces" -eq 0 ] && [ "$has_underscores" -eq 0 ]; then
-        echo "1/1"
+  # 1.1 CLAUDE.md présent et non vide (1 pt)
+  local claude_md="$IPCRAE_ROOT/CLAUDE.md"
+  if [[ -f "$claude_md" && -s "$claude_md" ]]; then
+    check_line ok "CLAUDE.md présent et non vide" 1 1
+    s=$(( s + 1 ))
+  else
+    check_line ko "CLAUDE.md présent et non vide" 0 1 "CLAUDE.md absent ou vide → lancer: ipcrae sync"
+    CRITIQUES=$(( CRITIQUES + 1 ))
+  fi
+
+  # 1.2 CLAUDE.md synchronisé avec context.md (2 pts)
+  local ctx="$IPCRAE_ROOT/.ipcrae/context.md"
+  if [[ -f "$claude_md" && -f "$ctx" ]]; then
+    local age_claude age_ctx
+    age_claude=$(stat -c %Y "$claude_md" 2>/dev/null || echo 0)
+    age_ctx=$(stat -c %Y "$ctx" 2>/dev/null || echo 0)
+    local diff=$(( age_claude - age_ctx ))
+    [[ "$diff" -lt 0 ]] && diff=$(( -diff ))
+    # Tolérance 10 min (600s)
+    if [[ "$diff" -le 600 ]]; then
+      check_line ok "CLAUDE.md synchronisé avec context.md" 2 2
+      s=$(( s + 2 ))
     else
-        echo "0/1"
+      check_line ko "CLAUDE.md synchronisé avec context.md" 0 2 "CLAUDE.md désynchronisé → lancer: ipcrae sync"
+      IMPORTANTS=$(( IMPORTANTS + 1 ))
     fi
+  else
+    check_line ko "CLAUDE.md synchronisé avec context.md" 0 2 "context.md introuvable → créer .ipcrae/context.md"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
+
+  # 1.3 tag-index.json présent et < 24h (2 pts)
+  local tag_index="$IPCRAE_ROOT/.ipcrae/cache/tag-index.json"
+  local age_h
+  age_h=$(file_age_hours "$tag_index")
+  if [[ "$age_h" -lt 24 ]]; then
+    check_line ok "tag-index.json présent et < 24h" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "tag-index.json présent et < 24h (${age_h}h)" 0 2 "tag-index.json stale (${age_h}h) → lancer: ipcrae index"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 1.4 config.yaml valide (2 pts)
+  if config_has_fields; then
+    check_line ok "config.yaml valide (ipcrae_root + default_provider)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "config.yaml valide (ipcrae_root + default_provider)" 0 2 "config.yaml invalide ou absent → vérifier .ipcrae/config.yaml"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
+
+  # 1.5 Mode auto-amélioration activé (2 pts)
+  local auto_dir="$IPCRAE_ROOT/.ipcrae/auto"
+  if ls "$auto_dir"/last_audit_*.txt 2>/dev/null | grep -q .; then
+    check_line ok "Mode auto-amélioration actif (last_audit_*.txt)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Mode auto-amélioration actif (last_audit_*.txt)" 0 2 "Auto-amélioration non activée → lancer: ipcrae-auto auto-activate --agent claude"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/9${NC}"
+  add_score "$s"
 }
 
-# Fonction pour vérifier la présence de provenance projet
-check_project_origin() {
-    local file="$1"
-    local frontmatter=$(extract_frontmatter "$file")
+# ══════════════════════════════════════════════
+# Section 2 — Rythme de capture (8 pts)
+# ══════════════════════════════════════════════
+audit_section2() {
+  section_header "Section 2 — Rythme de capture"
+  local s=0
 
-    if [ -z "$frontmatter" ]; then
-        echo "0/1"
-        return
-    fi
+  # 2.1 Daily du jour ou hier (3 pts)
+  local today yesterday daily_dir
+  today=$(date '+%Y-%m-%d')
+  yesterday=$(date -d 'yesterday' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d' 2>/dev/null || echo "")
+  daily_dir="$IPCRAE_ROOT/Journal/Daily"
+  if [[ -d "$daily_dir/$today" || -f "$daily_dir/${today}.md" || -d "$daily_dir/$yesterday" || -f "$daily_dir/${yesterday}.md" ]]; then
+    check_line ok "Daily du jour ou hier présente" 3 3
+    s=$(( s + 3 ))
+  else
+    check_line ko "Daily du jour ou hier présente" 0 3 "Daily manquante → lancer: ipcrae daily"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
 
-    if echo "$frontmatter" | grep -q "^project:"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
+  # 2.2 Weekly ISO en cours (2 pts)
+  local week_label weekly_dir
+  week_label=$(date '+%Y-W%V')
+  weekly_dir="$IPCRAE_ROOT/Journal/Weekly"
+  if find "$weekly_dir" -name "*${week_label}*" 2>/dev/null | grep -q .; then
+    check_line ok "Weekly ISO ${week_label} présente" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Weekly ISO ${week_label} présente" 0 2 "Weekly manquante → lancer: ipcrae weekly"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 2.3 Inbox/ : 0 fichiers stale > 7j (2 pts)
+  local stale_inbox
+  stale_inbox=$(stale_files_count "$IPCRAE_ROOT/Inbox" 7)
+  if [[ "$stale_inbox" -eq 0 ]]; then
+    check_line ok "Inbox/ : 0 fichiers stale > 7j" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Inbox/ : ${stale_inbox} fichier(s) stale > 7j" 0 2 "${stale_inbox} fichier(s) Inbox stale → clarifier avec GTD: capturer ou supprimer"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 2.4 Waiting-for.md : aucun item > 14j (1 pt)
+  local stale_wf
+  stale_wf=$(waiting_for_stale_count)
+  if [[ "$stale_wf" -eq 0 ]]; then
+    check_line ok "Waiting-for.md : aucun item > 14j" 1 1
+    s=$(( s + 1 ))
+  else
+    check_line ko "Waiting-for.md : ${stale_wf} item(s) > 14j" 0 1 "${stale_wf} item(s) waiting-for expirés → relancer ou clore"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/8${NC}"
+  add_score "$s"
 }
 
-# Fonction pour vérifier la présence de date de création/mise à jour
-check_dates() {
-    local file="$1"
-    local frontmatter=$(extract_frontmatter "$file")
+# ══════════════════════════════════════════════
+# Section 3 — Mémoire & Knowledge (10 pts)
+# ══════════════════════════════════════════════
+audit_section3() {
+  section_header "Section 3 — Mémoire & Knowledge"
+  local s=0
 
-    if [ -z "$frontmatter" ]; then
-        echo "0/2"
-        return
-    fi
+  # 3.1 memory/<domaine>.md actif mis à jour < 7j (3 pts)
+  local mem_dir="$IPCRAE_ROOT/memory"
+  local recent_mem=0
+  if [[ -d "$mem_dir" ]]; then
+    while IFS= read -r f; do
+      local age
+      age=$(file_age_days "$f")
+      [[ "$age" -le 7 ]] && recent_mem=1 && break
+    done < <(find "$mem_dir" -maxdepth 1 -type f -name "*.md" ! -name "MEMORY.md" 2>/dev/null)
+  fi
+  if [[ "$recent_mem" -eq 1 ]]; then
+    check_line ok "memory/<domaine>.md actif mis à jour < 7j" 3 3
+    s=$(( s + 3 ))
+  else
+    check_line ko "memory/<domaine>.md actif mis à jour < 7j" 0 3 "Mémoire domaine non mise à jour → lancer: ipcrae close <domaine>"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
 
-    local created_count=$(echo "$frontmatter" | grep -c "^created:" || true)
-    local updated_count=$(echo "$frontmatter" | grep -c "^updated:" || true)
+  # 3.2 Projets actifs listés dans context.md (2 pts)
+  local ctx="$IPCRAE_ROOT/.ipcrae/context.md"
+  if [[ -f "$ctx" ]] && grep -q "Projets en cours\|projets actifs\|## Projets" "$ctx" 2>/dev/null; then
+    check_line ok "Projets actifs dans context.md" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Projets actifs dans context.md" 0 2 "context.md sans section projets → mettre à jour .ipcrae/context.md"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
 
-    echo "$((created_count + updated_count))/2"
+  # 3.3 Knowledge/ : ≥ 1 note avec frontmatter complet type+tags+domain (3 pts)
+  local know_dir="$IPCRAE_ROOT/Knowledge"
+  local know_ok=0
+  if [[ -d "$know_dir" ]]; then
+    while IFS= read -r f; do
+      if grep -q "^type:" "$f" 2>/dev/null && grep -q "^tags:" "$f" 2>/dev/null && grep -q "^domain:" "$f" 2>/dev/null; then
+        know_ok=1
+        break
+      fi
+    done < <(find "$know_dir" -type f -name "*.md" 2>/dev/null)
+  fi
+  if [[ "$know_ok" -eq 1 ]]; then
+    check_line ok "Knowledge/ : ≥1 note avec frontmatter complet" 3 3
+    s=$(( s + 3 ))
+  else
+    check_line ko "Knowledge/ : ≥1 note avec frontmatter complet" 0 3 "Aucune note Knowledge avec frontmatter type+tags+domain → créer via: ipcrae zettel"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 3.4 Zettelkasten/_inbox/ : < 15 notes non migrées (2 pts)
+  local zettel_inbox="$IPCRAE_ROOT/Zettelkasten/_inbox"
+  local inbox_count
+  inbox_count=$(dir_count "$zettel_inbox")
+  if [[ "$inbox_count" -lt 15 ]]; then
+    check_line ok "Zettelkasten/_inbox/ : ${inbox_count} note(s) (< 15)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Zettelkasten/_inbox/ : ${inbox_count} notes (≥ 15)" 0 2 "${inbox_count} notes Zettel en attente → migrer vers permanents/"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/10${NC}"
+  add_score "$s"
 }
 
-# Fonction pour vérifier la présence de décisions traçables
-check_decision_tracking() {
-    local file="$1"
+# ══════════════════════════════════════════════
+# Section 4 — Git & Workflow (13 pts)
+# ══════════════════════════════════════════════
+audit_section4() {
+  section_header "Section 4 — Git & Workflow"
+  local s=0
 
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
+  # 4.1 Vault : 0 fichiers modifiés non commités (4 pts — CRITIQUE)
+  local uncommitted
+  uncommitted=$(vault_uncommitted_count)
+  if [[ "$uncommitted" -eq 0 ]]; then
+    check_line ok "Vault : 0 fichiers non commités" 4 4
+    s=$(( s + 4 ))
+  else
+    check_line ko "Vault : ${uncommitted} fichier(s) non commité(s)" 0 4 "Vault non commité (${uncommitted} fichiers) → lancer: ipcrae sync-git ou git commit"
+    CRITIQUES=$(( CRITIQUES + 1 ))
+  fi
 
-    # Vérifier si le fichier contient des décisions traçables
-    if file_contains "$file" "contexte → décision → preuve → prochain pas" || \
-       file_contains "$file" "quoi/pourquoi" || \
-       file_contains "$file" "motif:" || \
-       file_contains "$file" "raison:"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
+  # 4.2 Dernier commit vault < 48h (3 pts — CRITIQUE)
+  local commit_age_h
+  commit_age_h=$(vault_last_commit_age_hours)
+  if [[ "$commit_age_h" -lt 48 ]]; then
+    check_line ok "Dernier commit vault < 48h (${commit_age_h}h)" 3 3
+    s=$(( s + 3 ))
+  else
+    local commit_age_d=$(( commit_age_h / 24 ))
+    check_line ko "Dernier commit vault (${commit_age_d}j — dépasse 48h)" 0 3 "Vault non commité depuis ${commit_age_d}j → commiter maintenant"
+    CRITIQUES=$(( CRITIQUES + 1 ))
+  fi
+
+  # 4.3 Zettelkasten/permanents/ non vide (2 pts)
+  local perm_count
+  perm_count=$(dir_count "$IPCRAE_ROOT/Zettelkasten/permanents")
+  if [[ "$perm_count" -ge 1 ]]; then
+    check_line ok "Zettelkasten/permanents/ : ${perm_count} note(s)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Zettelkasten/permanents/ : vide" 0 2 "Permanents Zettelkasten vides → initier workflow de validation depuis _inbox/"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 4.4 Phases/index.md : phase active définie (2 pts)
+  if phase_is_real; then
+    check_line ok "Phases/index.md : phase active définie" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Phases/index.md : phase active absente ou placeholder" 0 2 "Phase non définie → créer depuis Process/templates/"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 4.5 Objectifs : vision.md OU quarterly présent et non vide (2 pts)
+  local obj_dir="$IPCRAE_ROOT/Objectifs"
+  local obj_ok=0
+  for f in "$obj_dir/vision.md" "$obj_dir"/quarterly-*.md "$obj_dir"/Vision.md; do
+    [[ -f "$f" && -s "$f" ]] && obj_ok=1 && break
+  done
+  if [[ "$obj_ok" -eq 1 ]]; then
+    check_line ok "Objectifs : vision.md / quarterly présent et non vide" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Objectifs : vision.md / quarterly absent ou vide" 0 2 "Objectifs manquants → créer Objectifs/vision.md ou quarterly"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/13${NC}"
+  add_score "$s"
 }
 
-# Fonction pour vérifier la classification mémoire
-check_memory_classification() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/3"
-        return
-    fi
-
-    local local_notes=0
-    local memory=0
-    local knowledge=0
-
-    # Vérifier les patterns de classification
-    if file_contains "$file" "\.ipcrae-project/local-notes/" || \
-       file_contains "$file" "brouillons" || \
-       file_contains "$file" "debug" || \
-       file_contains "$file" "todo"; then
-        local_notes=1
-    fi
-
-    if file_contains "$file" "\.ipcrae-project/memory/" || \
-       file_contains "$file" "contraintes" || \
-       file_contains "$file" "décisions"; then
-        memory=1
-    fi
-
-    if file_contains "$file" "\.ipcrae-memory/Knowledge/" || \
-       file_contains "$file" "how-to" || \
-       file_contains "$file" "runbooks" || \
-       file_contains "$file" "patterns"; then
-        knowledge=1
-    fi
-
-    echo "$((local_notes + memory + knowledge))/3"
-}
-
-# Fonction pour vérifier la présence de Git Commit
-check_git_commit() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_modified_recently "$file" && \
-       file_contains "$file" "git add" && \
-       file_contains "$file" "git commit"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de tracking
-check_tracking() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "\[x\]" && \
-       file_contains "$file" "tracking"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de micro-étapes
-check_micro_steps() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "étapes:" || \
-       file_contains "$file" "étape 1:" || \
-       file_contains "$file" "étape 2:" || \
-       file_contains "$file" "étape 3:"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de vérifications
-check_verifications() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "tests:" || \
-       file_contains "$file" "risques:" || \
-       file_contains "$file" "rollback:" || \
-       file_contains "$file" "validation:"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de traçabilité
-check_traceability() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "contexte →" || \
-       file_contains "$file" "prochain pas:" || \
-       file_contains "$file" "next step:"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de Prompt Optimization
-check_prompt_optimization() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "prompt optimisé" || \
-       file_contains "$file" "prompt enrichi" || \
-       file_contains "$file" "contexte projet" || \
-       file_contains "$file" "mémoire"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de Git Commit après modifications
-check_git_commit_after_modifications() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    # Vérifier si le fichier a été modifié et s'il y a un commit correspondant
-    if file_modified_recently "$file" && \
-       file_contains "$file" "git add" && \
-       file_contains "$file" "git commit"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de documentation dans le cerveau
-check_memory_documentation() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "\.ipcrae-project/memory/" || \
-       file_contains "$file" "\.ipcrae-memory/memory/"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de suivi du tracking
-check_tracking_update() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "\[x\]" && \
-       file_contains "$file" "tracking"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction pour vérifier la présence de prochain pas
-check_next_step() {
-    local file="$1"
-
-    if ! file_exists "$file"; then
-        echo "0/1"
-        return
-    fi
-
-    if file_contains "$file" "prochain pas:" || \
-       file_contains "$file" "next step:" || \
-       file_contains "$file" "prochain action:"; then
-        echo "1/1"
-    else
-        echo "0/1"
-    fi
-}
-
-# Fonction principale d'audit
+# ══════════════════════════════════════════════
+# Main
+# ══════════════════════════════════════════════
 main() {
-    print_header
+  local date_label
+  date_label=$(date '+%Y-%m-%d')
 
-    # Section 1: Fonctionnement IA
-    print_section "1. Fonctionnement IA (Core AI Functioning) - 9/9"
+  echo -e "\n${BOLD}${CYAN}━━ Audit IPCRAE — ${date_label} ━━${NC}"
+  echo -e "${CYAN}Vault: ${IPCRAE_ROOT}${NC}"
 
-    echo -n "Transformer chaque demande en résultat actionnable: "
-    mark_answer
+  audit_section1
+  audit_section2
+  audit_section3
+  audit_section4
 
-    echo -n "Protéger la mémoire long terme contre le bruit court terme: "
-    mark_answer
+  # Résumé
+  local pct=$(( TOTAL_SCORE * 100 / MAX_SCORE ))
+  local color_score
+  if [[ "$pct" -ge 80 ]]; then color_score="$GREEN"
+  elif [[ "$pct" -ge 60 ]]; then color_score="$YELLOW"
+  else color_score="$RED"
+  fi
 
-    echo -n "Rendre chaque décision traçable (contexte → décision → preuve → prochain pas): "
-    mark_answer
+  echo -e "\n${BOLD}${color_score}Score Global: ${TOTAL_SCORE}/${MAX_SCORE} (${pct}%)${NC}"
+  echo -e "Critiques: ${RED}${CRITIQUES}${NC}  Importants: ${YELLOW}${IMPORTANTS}${NC}  Mineurs: ${CYAN}${MINEURS}${NC}"
 
-    echo -n "Clarifier l'intention avant d'agir: "
-    mark_answer
+  if [[ "${#GAPS[@]}" -gt 0 ]]; then
+    echo -e "\n${BOLD}GAPS DÉTECTÉS:${NC}"
+    for gap in "${GAPS[@]}"; do
+      echo -e "  ${YELLOW}⚠${NC} $gap"
+    done
+  fi
 
-    echo -n "Optimiser le prompt utilisateur (OBLIGATOIRE): "
-    mark_answer
-
-    echo -n "Diagnostiquer le contexte minimal: "
-    mark_no_answer
-
-    echo -n "Agir avec étapes vérifiables: "
-    mark_no_answer
-
-    echo -n "Valider avec tests/risques/rollback: "
-    mark_no_answer
-
-    echo -n "Mémoriser durable vs temporaire: "
-    mark_no_answer
-
-    # Section 2: Mémoire IPCRAE
-    print_section "2. Mémoire IPCRAE (Memory Method) - 8/8"
-
-    echo -n "Utilisation de la matrice de décision mémoire: "
-    mark_answer
-
-    echo -n "Information valable > 1 projet ? → Knowledge/: "
-    mark_answer
-
-    echo -n "Information spécifique stack/projet ? → memory/: "
-    mark_answer
-
-    echo -n "Information volatile ? → local-notes/: "
-    mark_answer
-
-    echo -n "Frontmatter YAML avec tags: "
-    check_tags ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Tags normalisés (minuscules, tirets, pas d'espaces): "
-    check_tag_normalization ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Provenance projet via project:: "
-    check_project_origin ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Hygiène mémoire (éviter doublons): "
-    mark_answer
-
-    # Section 3: Workflow IPCRAE
-    print_section "3. Workflow IPCRAE (Agile + GTD) - 10/10"
-
-    echo -n "Pipeline complet: Ingest → Prompt Opt → Plan → Construire → Review → Consolidate: "
-    mark_answer
-
-    echo -n "Prompt Optimization (OBLIGATOIRE): "
-    check_prompt_optimization ".ai-instructions.md"
-    mark_answer
-
-    echo -n "1 objectif principal + critères de done: "
-    mark_answer
-
-    echo -n "Micro-étapes testables: "
-    check_micro_steps ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Traçabilité des décisions (quoi/pourquoi): "
-    check_decision_tracking ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Vérification qualité, risques, impacts croisés: "
-    check_verifications ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Consolidation et Commit (OBLIGATOIRE): "
-    check_git_commit_after_modifications ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Promotion du durable vers mémoire globale: "
-    mark_answer
-
-    echo -n "Documentation de toutes les features terminées: "
-    mark_answer
-
-    echo -n "Git commit sur tous les fichiers modifiés: "
-    check_git_commit_after_modifications ".ai-instructions.md"
-    mark_answer
-
-    # Section 4: Définition de Done IA
-    print_section "4. Définition de Done IA (STRICTE) - 13/13"
-
-    echo -n "Livrable répond à la demande: "
-    mark_answer
-
-    echo -n "Vérifications exécutées ou absence justifiée: "
-    mark_answer
-
-    echo -n "Documentation dans le système de fichiers: "
-    mark_answer
-
-    echo -n "Classification correcte (local/projet/global): "
-    check_memory_classification ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Mise à jour du tracking ([x] dans tracking.md): "
-    check_tracking_update ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Tous les fichiers modifiés commités: "
-    check_git_commit_after_modifications ".ai-instructions.md"
-    mark_answer
-
-    echo -n "Prochain pas nommé: "
-    check_next_step ".ai-instructions.md"
-    mark_answer
-
-    # Calcul du score
-    echo -e "\n${BLUE}========================================${NC}"
-    echo -e "${BLUE}📊 RÉSULTAT DE L'AUDIT${NC}"
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "Score Global: ${GREEN}${TOTAL_SCORE}/${MAX_SCORE}${NC} ($(( TOTAL_SCORE * 100 / MAX_SCORE ))%)"
-    echo -e "Score Fonctionnement IA: ${GREEN}5/9${NC}"
-    echo -e "Score Mémoire: ${GREEN}4/8${NC}"
-    echo -e "Score Workflow: ${GREEN}3/10${NC}"
-    echo -e "Score Définition de Done: ${GREEN}6/13${NC}"
-    echo -e "${BLUE}========================================${NC}"
-
-    # Identifier les problèmes
-    echo -e "\n${RED}🔴 CRITIQUES (Doit corriger immédiatement):${NC}"
-    echo -e "1. Pas de Git commit après modifications"
-    echo -e "2. Pas de documentation dans le cerveau"
-    echo -e "3. Pas de suivi du tracking"
-
-    echo -e "\n${YELLOW}🟡 IMPORTANTS (Doit corriger):${NC}"
-    echo -e "1. Pas de traçabilité des décisions"
-    echo -e "2. Pas de vérifications complètes"
-    echo -e "3. Pas de micro-étapes testables"
-
-    echo -e "\n${GREEN}🟢 MINEURS (À améliorer):${NC}"
-    echo -e "1. Prochain pas non nommé"
-
-    echo -e "\n${BLUE}========================================${NC}"
-    echo -e "${BLUE}RECOMMANDATIONS:${NC}"
-    echo -e "1. Implémenter système d'auto-audit intégré"
-    echo -e "2. Ajouter vérifications automatiques IPCRAE"
-    echo -e "3. Créer scripts de validation IPCRAE"
-    echo -e "4. Intégrer IPCRAE dans les prompts système"
-    echo -e "${BLUE}========================================${NC}\n"
+  echo ""
+  # Code de retour : 0 si score >= 25, 1 sinon
+  [[ "$TOTAL_SCORE" -ge 25 ]]
 }
 
-# Exécuter le script
 main

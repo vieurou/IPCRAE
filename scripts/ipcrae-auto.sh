@@ -5,6 +5,12 @@
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IPCRAE_AUTO_CORE="${SELF_DIR}/ipcrae-auto-core"
 
+# Vérification que ipcrae-auto-core est disponible
+if [ ! -x "$IPCRAE_AUTO_CORE" ]; then
+  echo "Erreur: ipcrae-auto-core introuvable ou non exécutable dans $SELF_DIR" >&2
+  exit 1
+fi
+
 # Couleurs pour l'output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,28 +27,28 @@ print_help() {
     echo -e "${BLUE}Commandes disponibles:${NC}"
     echo -e "\n${BLUE}1. Activation du mode:${NC}"
     echo -e "   ipcrae auto-activate [agent] [frequence]"
-    echo -e "   Exemple: ipcrae auto-activate --agent kilo-code --frequency quotidien"
+    echo -e "   Exemple: ipcrae auto-activate --agent claude --frequency quotidien"
     echo -e "\n${BLUE}2. Désactivation du mode:${NC}"
     echo -e "   ipcrae auto-deactivate [agent]"
-    echo -e "   Exemple: ipcrae auto-deactivate --agent kilo-code"
+    echo -e "   Exemple: ipcrae auto-deactivate --agent claude"
     echo -e "\n${BLUE}3. Vérifier l'état du mode:${NC}"
     echo -e "   ipcrae auto-status [agent]"
-    echo -e "   Exemple: ipcrae auto-status --agent kilo-code"
+    echo -e "   Exemple: ipcrae auto-status --agent claude"
     echo -e "\n${BLUE}4. Voir l'historique des audits:${NC}"
     echo -e "   ipcrae auto-history [agent]"
-    echo -e "   Exemple: ipcrae auto-history --agent kilo-code"
+    echo -e "   Exemple: ipcrae auto-history --agent claude"
     echo -e "\n${BLUE}5. Générer un rapport:${NC}"
     echo -e "   ipcrae auto-report [agent]"
-    echo -e "   Exemple: ipcrae auto-report --agent kilo-code"
+    echo -e "   Exemple: ipcrae auto-report --agent claude"
     echo -e "\n${BLUE}6. Lancer un audit manuel:${NC}"
     echo -e "   ipcrae auto-audit [agent] [frequence] [verbose]"
-    echo -e "   Exemple: ipcrae auto-audit --agent kilo-code --verbose"
+    echo -e "   Exemple: ipcrae auto-audit --agent claude --verbose"
     echo -e "\n${CYAN}========================================${NC}\n"
 }
 
 # Fonction pour activer le mode
 activate_mode() {
-    local agent="kilo-code"
+    local agent="claude"
     local frequency="quotidien"
 
     # Parser les arguments
@@ -83,7 +89,7 @@ activate_mode() {
 
 # Fonction pour désactiver le mode
 deactivate_mode() {
-    local agent="kilo-code"
+    local agent="claude"
 
     # Parser les arguments
     while [[ $# -gt 0 ]]; do
@@ -116,7 +122,7 @@ deactivate_mode() {
 
 # Fonction pour vérifier l'état
 check_status() {
-    local agent="kilo-code"
+    local agent="claude"
 
     # Parser les arguments
     while [[ $# -gt 0 ]]; do
@@ -144,7 +150,7 @@ check_status() {
 
 # Fonction pour voir l'historique
 show_history() {
-    local agent="kilo-code"
+    local agent="claude"
 
     # Parser les arguments
     while [[ $# -gt 0 ]]; do
@@ -169,7 +175,7 @@ show_history() {
 
 # Fonction pour générer un rapport
 generate_report() {
-    local agent="kilo-code"
+    local agent="claude"
 
     # Parser les arguments
     while [[ $# -gt 0 ]]; do
@@ -202,22 +208,22 @@ main() {
             exit 0
             ;;
         auto-activate)
-            activate_mode "$2" "$3"
+            activate_mode "${@:2}"
             ;;
         auto-deactivate)
-            deactivate_mode "$2"
+            deactivate_mode "${@:2}"
             ;;
         auto-status)
-            check_status "$2"
+            check_status "${@:2}"
             ;;
         auto-history)
-            show_history "$2"
+            show_history "${@:2}"
             ;;
         auto-report)
-            generate_report "$2"
+            generate_report "${@:2}"
             ;;
         auto-audit)
-            "$IPCRAE_AUTO_CORE" "$2" "$3" "$4"
+            "$IPCRAE_AUTO_CORE" "${@:2}"
             ;;
         *)
             print_help
