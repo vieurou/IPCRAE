@@ -271,6 +271,12 @@ Cette commande initialise :
 ### Auto Git Sync
 Par défaut (`auto_git_sync: true`), IPCRAE va auto-commit vos nouvelles mémoires (captures, closes, daily) en background si le Vault est tracké. Le push automatique est désactivé par défaut (`auto_git_push: false`) et peut être activé explicitement via config ou `export IPCRAE_AUTO_GIT_PUSH=true`. Override commit via `export IPCRAE_AUTO_GIT=false`.
 
+### Mode dégradé (sans certaines dépendances)
+- Sans `rg` : `ipcrae search` bascule automatiquement sur `find + grep` (plus lent).
+- Sans `git` : pas d'auto-commit/push ni de tags de session Git.
+- Sans `python3` : index tags (`ipcrae index`) indisponible, enrichissement tags dans `work` désactivé, mise à jour dynamique avancée limitée.
+- Kill-switch sécurité : `IPCRAE_AUTO_GIT=0` désactive auto-commit/push (prioritaire sur la config).
+
 ### Outils de Refactoring IA
 - `ipcrae consolidate [domaine]` : Ferme la feature CDE d'un projet local, extrait l'intel vers `memory/` et purge les brouillons.
 - `ipcrae ingest [domaine]` : Scan IA profond d'un repo tiers inactif, rédige son readme technique et l'injecte dans le vault IPCRAE.
@@ -283,7 +289,7 @@ Par défaut (`auto_git_sync: true`), IPCRAE va auto-commit vos nouvelles mémoir
 - `ipcrae health` : Affiche l'Inbox "stale", les strikes daily et la charge mentale actuelle.
 - `ipcrae index` : reconstruit le cache tags (`.ipcrae/cache/tag-index.json`) à partir du frontmatter de `Knowledge/` et `Zettelkasten/`.
 - `ipcrae tag <tag>` : liste les fichiers liés à un tag.
-- `ipcrae search <mots|tags>` : recherche avec cache tags + fallback grep.
+- `ipcrae search <mots|tags>` : recherche avec cache tags + fallback `rg` puis `find+grep` si `rg` absent.
 - `ipcrae review project` : Rétrospective d'un projet guidée.
 - `ipcrae process map` : ouvre la cartographie process centrale.
 - `ipcrae process run <slug>` : exécute un process documenté.

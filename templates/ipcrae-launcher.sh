@@ -139,6 +139,20 @@ ensure_brain_remote() {
   fi
 }
 
+auto_git_stage_allowlist() {
+  local -a paths=(
+    "memory"
+    "Journal"
+    "Process"
+    ".ipcrae/context.md"
+    ".ipcrae/cache/tag-index.json"
+  )
+  local p
+  for p in "${paths[@]}"; do
+    [ -e "$p" ] && git add -A -- "$p"
+  done
+}
+
 # ── Commande ipcrae remote ────────────────────────────────
 cmd_remote() {
   local subcmd="${1:-list}"
@@ -216,7 +230,7 @@ auto_git_sync_event() {
 
   (
     cd "${IPCRAE_ROOT}"
-    git add -A
+    auto_git_stage_allowlist
     if git diff --cached --quiet; then
       return 0
     fi
@@ -230,7 +244,12 @@ auto_git_sync_event() {
     allow_push="${allow_push:-false}"
 
     if is_truthy "$allow_push"; then
-      if git symbolic-ref -q HEAD >/dev/null 2>&1 && git remote | grep -q '^origin$'; then
+      local origin_url wanted_url
+      origin_url=$(git remote get-url origin 2>/dev/null || true)
+      wanted_url=$(get_brain_remote)
+      if [ -n "$wanted_url" ] && [ -n "$origin_url" ] && [ "$origin_url" != "$wanted_url" ]; then
+        logwarn "Auto-push bloqué: origin != brain_remote (sécurité)."
+      elif git symbolic-ref -q HEAD >/dev/null 2>&1 && [ -n "$origin_url" ]; then
         git push || logwarn "Auto-push échoué (commit local conservé)."
       else
         logwarn "Auto-push ignoré (branche détachée ou remote origin absent)."
@@ -453,8 +472,10 @@ cmd_close() {
 ' "$domain" > "$memory_file"
   fi
 
-  local changed
-  changed="$(git -C "$IPCRAE_ROOT" status --short 2>/dev/null | awk '{print $2}' | head -20 || true)"
+  local changed=""
+  if command -v git >/dev/null 2>&1 && [ -d "${IPCRAE_ROOT}/.git" ]; then
+    changed="$(git -C "$IPCRAE_ROOT" status --short 2>/dev/null | awk '{print $2}' | head -20 || true)"
+  fi
   local timestamp
   timestamp="$(date +'%Y-%m-%d %H:%M')"
 
@@ -958,15 +979,31 @@ cmd_doctor() {
   section "Doctor — Environnement"
 
   local missing=0
-  for c in git find sed awk python3 curl iconv rg; do
+  printf '%bDépendances hard%b
+' "$YELLOW" "$NC"
+  for c in find sed awk python3 iconv; do
     if command -v "$c" >/dev/null 2>&1; then
-      [ "$verbose" = true ] && printf '  ✓ %s\n' "$c"
+      printf '  ✓ %s
+' "$c"
     else
-      printf '  ✗ %s (manquant)\n' "$c"
+      printf '  ✗ %s (manquant)
+' "$c"
       missing=$((missing + 1))
     fi
   done
-  [ "$verbose" = false ] && [ "$missing" -eq 0 ] && printf '  ✓ Dépendances système OK\n'
+
+  printf '
+%bDépendances soft%b
+' "$YELLOW" "$NC"
+  for c in git rg curl; do
+    if command -v "$c" >/dev/null 2>&1; then
+      printf '  ✓ %s
+' "$c"
+    else
+      printf '  ⚠ %s (optionnel, fonctionnalités réduites)
+' "$c"
+    fi
+  done
 
   printf '\n%bProviders%b\n' "$YELLOW" "$NC"
   for c in claude gemini codex; do
@@ -1028,7 +1065,7 @@ cmd_doctor() {
   [ -d "$hub_dir" ] && printf '  ✓ hub projet: %s\n' "${hub_dir#$IPCRAE_ROOT/}" || printf '  ⚠ hub projet manquant: %s\n' "${hub_dir#$IPCRAE_ROOT/}"
 
   if [ "$missing" -gt 0 ]; then
-    logwarn "Doctor: dépendances de base manquantes: $missing"
+    logwarn "Doctor: dépendances hard manquantes: $missing"
     return 1
   fi
   loginfo "Doctor: environnement de base OK"
@@ -1479,7 +1516,7 @@ cmd_sync_git() {
     loginfo "Synchronisation Git du Vault en cours..."
     (
       cd "${IPCRAE_ROOT}"
-      git add -A
+      auto_git_stage_allowlist
       git commit -m "Auto-sync $(date +"%Y-%m-%d %H:%M:%S")" || true
       
       # Vérifier si un dépôt distant ('origin') existe
