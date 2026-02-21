@@ -585,6 +585,145 @@ cmd_start() {
   [ -f "Journal/Weekly/$(date +%G)/$(iso_week).md" ] || cmd_weekly
 }
 
+cmd_session() {
+  need_root
+  local mode="run"
+  local project=""
+  local phase=""
+  local domain="devops"
+  local note=""
+  local run_audit=true
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      start|end|run) mode="$1" ;;
+      --project) project="${2:-}"; shift ;;
+      --phase) phase="${2:-}"; shift ;;
+      --domain) domain="${2:-}"; shift ;;
+      --note) note="${2:-}"; shift ;;
+      --skip-audit) run_audit=false ;;
+      -*) logerr "Option inconnue pour session: $1"; return 1 ;;
+      *) logerr "Argument inconnu pour session: $1"; return 1 ;;
+    esac
+    shift
+  done
+
+  local -a start_args=()
+  [ -n "$project" ] && start_args+=(--project "$project")
+  [ -n "$phase" ] && start_args+=(--phase "$phase")
+
+  local -a end_args=("$domain")
+  [ -n "$project" ] && end_args+=(--project "$project")
+  [ -n "$note" ] && end_args+=(--note "$note")
+
+  case "$mode" in
+    start)
+      cmd_start "${start_args[@]}"
+      if [ "$run_audit" = true ] && [ -x "scripts/audit_ipcrae.sh" ]; then
+        section "Audit de session (start)"
+        bash "scripts/audit_ipcrae.sh" || logwarn "audit_ipcrae.sh en warning (non bloquant)"
+      fi
+      ;;
+    end)
+      cmd_close "${end_args[@]}"
+      if [ "$run_audit" = true ] && [ -x "scripts/audit_non_regression.sh" ]; then
+        section "Audit de clôture"
+        bash "scripts/audit_non_regression.sh" || logwarn "audit_non_regression.sh en warning (non bloquant)"
+      fi
+      ;;
+    run)
+      cmd_start "${start_args[@]}"
+      [ "$run_audit" = true ] && [ -x "scripts/audit_ipcrae.sh" ] && bash "scripts/audit_ipcrae.sh" || true
+      cmd_close "${end_args[@]}"
+      [ "$run_audit" = true ] && [ -x "scripts/audit_non_regression.sh" ] && bash "scripts/audit_non_regression.sh" || true
+      ;;
+    *)
+      logerr "Mode session inconnu: $mode (start|end|run)"
+      return 1
+      ;;
+  esac
+}
+
+cmd_memory() {
+  need_root
+  local subcmd="${1:-}"; shift || true
+  case "$subcmd" in
+    gc)
+      local domain=""
+      local ttl_days=180
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --domain) domain="${2:-}"; shift ;;
+          --ttl-days) ttl_days="${2:-180}"; shift ;;
+          -*) logerr "Option inconnue pour memory gc: $1"; return 1 ;;
+        esac
+        shift
+      done
+      [ -z "$domain" ] && { logerr "Usage: ipcrae memory gc --domain <domaine> [--ttl-days 180]"; return 1; }
+
+      local src="memory/${domain}.md"
+      [ -f "$src" ] || { logerr "Mémoire introuvable: $src"; return 1; }
+
+      local today_epoch cutoff_epoch
+      today_epoch=$(date +%s)
+      cutoff_epoch=$(( today_epoch - ttl_days*86400 ))
+
+      local archive_dir="Archives/memory"
+      mkdir -p "$archive_dir"
+      local archive_file="${archive_dir}/${domain}-$(date +%Y%m%d)-ttl${ttl_days}.md"
+
+      python3 - "$src" "$archive_file" "$cutoff_epoch" <<'PYGC'
+import re, sys
+from datetime import datetime
+from pathlib import Path
+
+src = Path(sys.argv[1])
+dst = Path(sys.argv[2])
+cutoff = int(sys.argv[3])
+text = src.read_text(encoding='utf-8')
+
+header, body = "", text
+if text.startswith('---\n'):
+    m = re.search(r'^---\n.*?\n---\n', text, re.S)
+    if m:
+        header = m.group(0)
+        body = text[m.end():]
+
+pattern = re.compile(r'(^##\s+(\d{4}-\d{2}-\d{2})\s+-\s+.*?)(?=^##\s+\d{4}-\d{2}-\d{2}\s+-\s+|\Z)', re.M | re.S)
+old_blocks, keep_blocks = [], []
+
+for block, d in pattern.findall(body):
+    ts = int(datetime.strptime(d, '%Y-%m-%d').timestamp())
+    if ts < cutoff:
+        old_blocks.append(block.strip() + '\n')
+    else:
+        keep_blocks.append(block.strip() + '\n')
+
+if not old_blocks:
+    print('NOOP')
+    sys.exit(0)
+
+archive_content = f"# Archive mémoire TTL\n\n- Source: {src}\n- Date GC: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n" + '\n'.join(old_blocks).rstrip() + '\n'
+dst.write_text(archive_content, encoding='utf-8')
+
+new_body = '\n'.join(keep_blocks).rstrip() + ('\n' if keep_blocks else '\n')
+src.write_text((header + new_body).rstrip() + '\n', encoding='utf-8')
+print('MOVED')
+PYGC
+      if [ -f "$archive_file" ]; then
+        loginfo "GC mémoire terminé: ${src} -> ${archive_file} (TTL ${ttl_days} jours)"
+        cmd_index
+      else
+        loginfo "GC mémoire: aucune entrée à archiver (TTL ${ttl_days} jours)"
+      fi
+      ;;
+    *)
+      logerr "Usage: ipcrae memory gc --domain <domaine> [--ttl-days 180]"
+      return 1
+      ;;
+  esac
+}
+
 # ── Sprint autonome ───────────────────────────────────────────
 # Collecte les tâches non terminées (projet courant en priorité),
 # affiche la liste et lance l'agent en boucle autonome.
@@ -1668,6 +1807,7 @@ Commandes:
   work "objectif"          Lancer l'agent avec contexte minimisé
   sprint [OPTIONS]         Sprint autonome : collecte tâches + lance l'IA
   close <domaine>          Clôturer la session (mémoire + context + tags)
+  session [start|end|run]  Session tout-en-un (start/close + audits optionnels)
   remote list              Afficher les remotes git configurés (cerveau + projets)
   remote set-brain <url>  Configurer le remote du cerveau dans config.yaml
   remote set-project <s> <url>  Configurer le remote d'un projet
@@ -1690,6 +1830,7 @@ Commandes:
   process next             Proposer les 3 prochains quick wins
   inbox --process          Lancer le process inbox-triage
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
+  memory gc --domain <d> [--ttl-days N]  Archiver les entrées mémoire anciennes
   update                   Met à jour via git pull puis relance l'installateur
   sync-git                 Sauvegarde Git du vault entier (add, commit, push)
   migrate-safe             Upgrade IPCRAE sans perte (backup + merge non destructif)
@@ -1757,6 +1898,7 @@ main() {
     sprint)            cmd_sprint "${cmd_args[@]:-}" ;;
     remote)            cmd_remote "${cmd_args[@]:-}" ;;
     close)             cmd_close "${cmd_args[@]:-}" ;;
+    session)           cmd_session "${cmd_args[@]:-}" ;;
     sync)              sync_providers ;;
     sync-git)          cmd_sync_git ;;
     migrate-safe)      cmd_migrate_safe ;;
@@ -1771,6 +1913,7 @@ main() {
     review)            cmd_review "${cmd_args[0]:-}" "$provider" ;;
     update)            cmd_update ;;
     consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
+    memory)            cmd_memory "${cmd_args[@]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
     process|processes) cmd_process "${cmd_args[@]:-}" ;;
     inbox)             [ "${cmd_args[0]:-}" = "--process" ] && cmd_inbox_process "${cmd_args[@]:1}" || cmd_inbox_process ;;
