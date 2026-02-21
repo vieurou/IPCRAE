@@ -10,9 +10,35 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-AGENT="${1:-kilo-code}"
-FREQUENCY="${2:-quotidien}"
-VERBOSE="${3:-false}"
+AGENT="kilo-code"
+FREQUENCY="quotidien"
+VERBOSE="false"
+FORCE="false"
+
+# Parser les arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --agent)
+            AGENT="$2"
+            shift 2
+            ;;
+        --frequency)
+            FREQUENCY="$2"
+            shift 2
+            ;;
+        --verbose)
+            VERBOSE="true"
+            shift
+            ;;
+        --force)
+            FORCE="true"
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 # Fichiers de configuration
 CONFIG_FILE=".ipcrae-project/memory/agent_auto_amelioration_config.md"
@@ -46,6 +72,11 @@ check_mode_active() {
 
 # Fonction pour vérifier si un nouvel audit est nécessaire
 check_new_audit_needed() {
+    # Si force est activé, on force l'audit
+    if [ "$FORCE" = "true" ]; then
+        return 0
+    fi
+
     local last_audit=$(cat "$LAST_AUDIT_FILE" 2>/dev/null || echo "0")
     local current_time=$(date +%s)
     local interval=0
