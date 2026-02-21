@@ -5,7 +5,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-VERSION="3.1.0"
+SCRIPT_VERSION="3.2.0"
+METHOD_VERSION="3.2"
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'
 RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 AUTO_YES=false
@@ -106,7 +107,7 @@ while [ $# -gt 0 ]; do
     -y|--yes) AUTO_YES=true;;
     -d|--dry-run) DRY_RUN=true; AUTO_YES=true;;
     -h|--help) usage; exit 0;;
-    -V|--version) echo "IPCRAE Install v$VERSION"; exit 0;;
+    -V|--version) echo "IPCRAE Install script v$SCRIPT_VERSION (method v$METHOD_VERSION)"; exit 0;;
     -*) logerr "Option inconnue: $1"; usage; exit 1;;
     *)
       if [ -n "$IPCRAE_ROOT" ]; then
@@ -191,9 +192,9 @@ execute mkdir -p Ressources/Sante/{Nutrition,Sport,Sommeil}
 execute mkdir -p Ressources/Finance/{Budget,Investissement,Fiscalite}
 execute mkdir -p Ressources/Apprentissage/{Methodes,Cours,Certifications}
 execute mkdir -p Ressources/Autres .kilocode/rules
-# v3.1 : Zettelkasten + mémoire par domaine + prompts IA
+# v3.2 : Zettelkasten + memory par domaine + Knowledge + cache tags
 execute mkdir -p Zettelkasten/{_inbox,permanents,MOC}
-execute mkdir -p memory .ipcrae/prompts
+execute mkdir -p Knowledge/{howto,runbooks,patterns,MOC} memory .ipcrae/{prompts,cache}
 loginfo "Arborescence créée."
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -211,7 +212,8 @@ write_safe ".ipcrae/config.yaml" <<EOF_CONF
 # Généré le $(date +%Y-%m-%d)
 
 ipcrae_root: "${IPCRAE_ROOT}"
-version: "${VERSION}"
+script_version: "${SCRIPT_VERSION}"
+method_version: "${METHOD_VERSION}"
 default_provider: claude
 auto_git_sync: true
 
@@ -351,6 +353,50 @@ done
 <!-- Lister ici les MOC créés : [[MOC-devops]], [[MOC-electronique]]... -->
 -'
 
+[ ! -f "Knowledge/MOC/index.md" ] && write_safe "Knowledge/MOC/index.md" '# Knowledge — MOC Index
+
+## Convention tags (source de vérité)
+- Les tags sont définis dans le frontmatter YAML des notes Markdown.
+- Tags normalisés: minuscules, tirets, sans espaces.
+- Provenance projet via `project:` (et optionnellement `project:<slug>` dans `tags`).
+
+## Tags principaux
+- `devops` → [[Knowledge/howto/]]
+- `observability` → [[Knowledge/patterns/]]
+- `project:*` → [[Projets/index]]
+
+## Top notes par domaine
+- DevOps: (à compléter)
+- Produit: (à compléter)
+'
+
+[ ! -f "Knowledge/_template_knowledge.md" ] && write_safe "Knowledge/_template_knowledge.md" '---
+type: knowledge
+tags: [example-tag]
+project: mon-projet
+domain: devops
+status: draft
+sources:
+  - path: docs/conception/02_ARCHITECTURE.md
+created: 2026-02-21
+updated: 2026-02-21
+---
+
+# Titre
+
+## Contexte
+
+## Procédure / Décision
+
+## Vérification
+'
+
+[ ! -f ".ipcrae/cache/tag-index.json" ] && write_safe ".ipcrae/cache/tag-index.json" '{
+  "generated_at": "",
+  "version": "1",
+  "tags": {}
+}'
+
 # v3.1 : Zettelkasten template
 write_safe "Zettelkasten/_template.md" '---
 id: {{id}}
@@ -370,7 +416,7 @@ created: {{date}}
 ## Source
 - '
 
-write_safe "index.md" '# 🧠 IPCRAE v3.1 — Dashboard
+write_safe "index.md" '# 🧠 IPCRAE v3.2 — Dashboard
 
 ## Navigation
 | Fichier | Rôle |
@@ -381,6 +427,7 @@ write_safe "index.md" '# 🧠 IPCRAE v3.1 — Dashboard
 | [[Inbox/waiting-for]] | En attente |
 | [[memory/index]] | Mémoire IA par domaine |
 | [[Zettelkasten/MOC/index]] | Zettelkasten — Maps of Content |
+| [[Knowledge/MOC/index]] | Connaissance opérationnelle réutilisable |
 
 ## Commandes CLI
 ```
@@ -393,6 +440,8 @@ ipcrae close         # clôture session (maj mémoire domaine)
 ipcrae sync          # régénère CLAUDE.md, GEMINI.md, AGENTS.md, Kilo
 ipcrae zettel "titre" # créer note atomique Zettelkasten
 ipcrae moc "thème"   # créer/ouvrir Map of Content
+ipcrae index          # reconstruit le cache tags (.ipcrae/cache/tag-index.json)
+ipcrae tag devops     # liste les notes taggées
 ipcrae health        # diagnostic système
 ipcrae DevOps        # mode expert
 ipcrae -p gemini     # choisir le provider

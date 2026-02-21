@@ -24,6 +24,25 @@ Ce système fonctionne en 4 couches complémentaires :
 - Si terminal/fichiers/MCP sont disponibles : les utiliser avant d'émettre des hypothèses.
 - Toute affirmation critique doit être vérifiée, sinon marquée "non vérifiée en live".
 
+## Contrat Knowledge + tags (obligatoire)
+- Ne pas chercher la connaissance en parcourant chaque projet manuellement : prioriser la recherche par tags/index.
+- La source de vérité des tags est le frontmatter Markdown (pas les attributs filesystem).
+- Pour retrouver une connaissance :
+  1) `ipcrae tag <tag>` ;
+  2) `ipcrae index` si cache absent ;
+  3) `ipcrae search <mots|tags>` en fallback.
+- Toute nouvelle note réutilisable doit être écrite dans `Knowledge/` avec frontmatter canonique.
+
+
+## Pré-traitement obligatoire des demandes utilisateur
+- Avant toute exécution, reconstruire un prompt optimisé :
+  - objectif explicite,
+  - contexte projet utile,
+  - connaissances/mémoires pertinentes,
+  - contraintes techniques/sécurité,
+  - format de sortie et checks attendus.
+- Ne jamais répondre directement à une demande brute si ce pré-traitement n'a pas été fait.
+
 ## Contrat qualité
 - Zéro invention (commandes, API, chiffres sensibles).
 - Toujours fournir : option pragmatique + option robuste.

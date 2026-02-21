@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# IPCRAE Étendu v3.1 — Lanceur multi-provider
+# IPCRAE Étendu v3.2 — Lanceur multi-provider
 # Commandes : daily, weekly, monthly, close, sync, zettel, moc,
 #             health, review, launch, menu
 # Providers : Claude, Gemini, Codex, (Kilo via VS Code)
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
-VERSION="3.1.0"
+SCRIPT_VERSION="3.2.0"
+METHOD_VERSION="3.2"
 IPCRAE_ROOT="${IPCRAE_ROOT:-${HOME}/IPCRAE}"
 IPCRAE_CONFIG="${IPCRAE_ROOT}/.ipcrae/config.yaml"
 VAULT_NAME="$(basename "$IPCRAE_ROOT")"
@@ -167,8 +168,8 @@ sync_providers() {
 
   for target in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
     local file="${target%%:*}" name="${target##*:}"
-    printf '# Instructions pour %s — IPCRAE v3.1\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' \
-      "$name" "$body" > "${IPCRAE_ROOT}/${file}"
+    printf "# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n" \
+      "$name" "$METHOD_VERSION" "$body" > "${IPCRAE_ROOT}/${file}"
     printf '  ✓ %s\n' "$file"
   done
 
@@ -443,7 +444,7 @@ cmd_doctor() {
   need_root
   local verbose=false
   if [ "${1:-}" = "--verbose" ] || [ "${1:-}" = "-v" ]; then verbose=true; fi
-  
+
   section "Doctor — Environnement"
 
   local missing=0
@@ -480,11 +481,108 @@ cmd_doctor() {
     fi
   done
 
+  printf "\n%bContrat d'injection de contexte (CDE)%b\n" "$YELLOW" "$NC"
+  [ -d "docs/conception" ] && printf '  ✓ docs/conception/\n' || printf '  ✗ docs/conception/\n'
+  [ -f "docs/conception/03_IPCRAE_BRIDGE.md" ] && printf '  ✓ docs/conception/03_IPCRAE_BRIDGE.md\n' || printf '  ✗ docs/conception/03_IPCRAE_BRIDGE.md\n'
+
+  if [ -L ".ipcrae-memory" ]; then
+    printf '  ✓ .ipcrae-memory (symlink)\n'
+  else
+    printf '  ⚠ .ipcrae-memory absent ou non-symlink (mode dégradé)\n'
+  fi
+
+  local project_name hub_dir
+  project_name="$(basename "$PWD")"
+  hub_dir="${IPCRAE_ROOT}/Projets/${project_name}"
+  [ -d "$hub_dir" ] && printf '  ✓ hub projet: %s\n' "${hub_dir#$IPCRAE_ROOT/}" || printf '  ⚠ hub projet manquant: %s\n' "${hub_dir#$IPCRAE_ROOT/}"
+
   if [ "$missing" -gt 0 ]; then
     logwarn "Doctor: dépendances de base manquantes: $missing"
     return 1
   fi
   loginfo "Doctor: environnement de base OK"
+}
+
+
+cmd_index() {
+  need_root
+  mkdir -p "${IPCRAE_ROOT}/.ipcrae/cache"
+
+  python3 - <<'PYIDX'
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+
+root = Path('.').resolve()
+scan_dirs = [root / 'Knowledge', root / 'Zettelkasten']
+tags = {}
+for base in scan_dirs:
+    if not base.exists():
+        continue
+    for md in base.rglob('*.md'):
+        text = md.read_text(encoding='utf-8', errors='ignore')
+        lines = text.splitlines()
+        if not lines or lines[0].strip() != '---':
+            continue
+        front = []
+        for line in lines[1:]:
+            if line.strip() == '---':
+                break
+            front.append(line)
+        tag_line = next((l for l in front if l.strip().startswith('tags:')), '')
+        project_line = next((l for l in front if l.strip().startswith('project:')), '')
+        found = []
+        if '[' in tag_line and ']' in tag_line:
+            inner = tag_line.split('[',1)[1].rsplit(']',1)[0]
+            found.extend([t.strip().strip("\"'") for t in inner.split(',') if t.strip()])
+        if project_line:
+            project = project_line.split(':',1)[1].strip().strip("\"'")
+            if project:
+                found.append(f'project:{project}')
+        rel = md.relative_to(root).as_posix()
+        for t in found:
+            tags.setdefault(t, []).append(rel)
+for k in list(tags):
+    tags[k] = sorted(set(tags[k]))
+out = {
+    'generated_at': datetime.now(timezone.utc).isoformat(),
+    'version': '1',
+    'tags': dict(sorted(tags.items())),
+}
+Path('.ipcrae/cache/tag-index.json').write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+PYIDX
+
+  loginfo "Cache tags reconstruit: .ipcrae/cache/tag-index.json"
+}
+
+cmd_tag() {
+  need_root
+  local needle="${1:-}"
+  [ -z "$needle" ] && { logerr "Usage: ipcrae tag <tag>"; return 1; }
+  [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ] || cmd_index
+  python3 - "$needle" <<'PYTAG'
+import json, sys
+from pathlib import Path
+needle = sys.argv[1]
+idx = json.loads(Path('.ipcrae/cache/tag-index.json').read_text(encoding='utf-8'))
+files = idx.get('tags', {}).get(needle, [])
+if not files:
+    print(f"Aucun résultat pour le tag: {needle}")
+    raise SystemExit(1)
+for f in files:
+    print(f)
+PYTAG
+}
+
+cmd_search() {
+  need_root
+  local query="${1:-}"
+  [ -z "$query" ] && { logerr "Usage: ipcrae search <mots|tags>"; return 1; }
+  if [[ "$query" == *:* ]]; then
+    cmd_tag "$query" && return 0
+  fi
+  rg -n --glob '*.md' --glob '!Archives/**' "$query" Knowledge Zettelkasten memory docs 2>/dev/null \
+    || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
 }
 
 
@@ -685,7 +783,10 @@ cmd_menu() {
     "Close session" \
     "Health check" \
     "Doctor environnement" \
+    "Reconstruire index tags" \
+    "Chercher par tag" \
     "Sync providers" \
+    "Migration safe" \
     "Lister providers" \
     "Ouvrir Phases/index" \
     "Ouvrir Process/index" \
@@ -707,12 +808,14 @@ cmd_menu() {
       13) cmd_close "${extra:-}"; break ;;
       14) cmd_health; break ;;
       15) cmd_doctor; break ;;
-      16) sync_providers; break ;;
-      17) cmd_migrate_safe; break ;;
-      18) list_providers; break ;;
-      19) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      20) cmd_process; break ;;
-      21) exit 0 ;;
+      16) cmd_index; break ;;
+      17) read -r -p "Tag: " _tag; cmd_tag "$_tag"; break ;;
+      18) sync_providers; break ;;
+      19) cmd_migrate_safe; break ;;
+      20) list_providers; break ;;
+      21) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      22) cmd_process; break ;;
+      23) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -736,7 +839,10 @@ Commandes:
   zettel [titre]           Créer une note atomique Zettelkasten
   moc [thème]              Créer/ouvrir une Map of Content
   health                   Diagnostic du système IPCRAE
-  doctor [-v]              Vérifier dépendances + fichiers IPCRAE
+  doctor [-v]              Vérifier dépendances + contrat d'injection de contexte
+  index                    Reconstruit le cache tags (.ipcrae/cache/tag-index.json)
+  tag <tag>                Liste les fichiers liés à un tag
+  search <mots|tags>       Recherche (cache tags + fallback grep)
   review <type>            Revue adaptative (phase|project|quarter)
   phase|phases             Ouvrir Phases/index.md
   process [nom]            Créer/ouvrir un process ou l'index
@@ -762,6 +868,8 @@ Exemples:
   ipcrae doctor -v          # diagnostic complet
   ipcrae DevOps             # mode expert DevOps
   ipcrae sync               # régénérer fichiers provider
+  ipcrae index              # rebuild du cache tags
+  ipcrae tag devops         # lister les notes liées à un tag
 EOF
 }
 
@@ -773,7 +881,7 @@ main() {
     case "$1" in
       -p|--provider) provider="${2:-}"; shift ;;
       -h|--help)     usage; exit 0 ;;
-      -V|--version)  printf 'IPCRAE Launcher v%s\n' "$VERSION"; exit 0 ;;
+      -V|--version)  printf 'IPCRAE Launcher script v%s (method v%s)\n' "$SCRIPT_VERSION" "$METHOD_VERSION"; exit 0 ;;
       -*)            # Options attachées à une commande (ex: --prep)
         if [ -n "$cmd" ]; then extra="$1"
         else logerr "Option inconnue: $1"; usage; exit 1; fi ;;
@@ -801,6 +909,9 @@ main() {
     moc)             cmd_moc "$extra" ;;
     health)          cmd_health ;;
     doctor)          cmd_doctor "$extra" ;;
+    index)           cmd_index ;;
+    tag)             cmd_tag "$extra" ;;
+    search)          cmd_search "$extra" ;;
     review)          cmd_review "$extra" "$provider" ;;
     update)          cmd_update ;;
     consolidate)     cmd_consolidate "$extra" ;;
