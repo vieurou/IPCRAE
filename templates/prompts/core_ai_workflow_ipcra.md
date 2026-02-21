@@ -15,10 +15,11 @@
    - Maintenir une traçabilité des décisions (quoi/pourquoi).
 5. **Review**
    - Vérifier qualité, risques, impacts croisés (projet, phase, objectifs).
-6. **Consolider (OBLIGATOIRE)**
+6. **Consolider et Commiter (OBLIGATOIRE)**
    - **TU DOIS** promouvoir le durable vers la mémoire globale (`memory/`).
    - Laisser le temporaire en local puis archiver/supprimer selon cadence.
-   - *Règle absolue : Ne jamais fermer une feature sans documenter sa trace dans le cerveau du projet ou le cerveau global.*
+   - *Règle absolue 1 : Ne jamais fermer une feature sans documenter sa trace dans le cerveau du projet ou le cerveau global.*
+   - *Règle absolue 2 : **TU DOIS SYSTÉMATIQUEMENT** créer un `git commit` détaillé sur le dépôt du projet pour tes modifications de code ou de documentation.*
 
 ## Cadence recommandée
 - **Daily** : prochaine action claire + blocage principal.
@@ -31,4 +32,5 @@
 - **OBLIGATION ABSOLUE : Tu as EXPLICITEMENT documenté ton travail dans le système de fichiers, en respectant la matrice :**
   - Si c'est en cours (WIP, debug, todo) ➔ `.ipcrae-project/local-notes/`.
   - Si c'est une décision technique clé ou une fin de feature ➔ `.ipcrae-project/memory/` (spécifique) ou `.ipcrae-memory/memory/` (global).
+- **TOUS LES FICHIERS MODIFIÉS** dans le répertoire du projet ont été commités (`git add . && git commit -m "..."`).
 - Le prochain pas est nommé.
