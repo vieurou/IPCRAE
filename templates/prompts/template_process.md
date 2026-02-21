@@ -40,7 +40,13 @@
 - **Niveau de supervision** :
 - **Validation humaine obligatoire ?** oui/non
 
-## 7) Dernière exécution
+## 7) Paramètres d’exécution (agent spec)
+- **Agent** : agent_devops
+- **Context tags** : [project:ipcrae, process]
+- **Output path** : Journal/Daily/YYYY/YYYY-MM-DD-process-[slug].md
+- **Collector script (optionnel)** : Scripts/collectors/<script>.sh
+
+## 8) Dernière exécution
 - **Date** :
 - **Résumé** :
 - **Fichier produit** :

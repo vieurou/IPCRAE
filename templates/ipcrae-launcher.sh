@@ -88,6 +88,13 @@ is_truthy() {
   esac
 }
 
+read_config_bool() {
+  local key="$1" default="${2:-false}" val
+  val="$(read_config_value "$key")"
+  [ -z "$val" ] && val="$default"
+  is_truthy "$val"
+}
+
 # ── Remotes cerveau + projets ──────────────────────────────
 get_brain_remote() {
   # Priorité : variable d'env > config > remote git existant
@@ -216,11 +223,20 @@ auto_git_sync_event() {
 
     git commit -m "chore(ipcrae): ${reason} ($(date +'%Y-%m-%d %H:%M:%S'))" || return 0
 
-    if git remote | grep -q '^origin$'; then
-      git push || logwarn "Auto-push échoué (commit local conservé)."
+    local allow_push="${IPCRAE_AUTO_GIT_PUSH:-}"
+    if [ -z "$allow_push" ] && [ -f "$IPCRAE_CONFIG" ]; then
+      allow_push="$(read_config_value auto_git_push)"
+    fi
+    allow_push="${allow_push:-false}"
+
+    if is_truthy "$allow_push"; then
+      if git symbolic-ref -q HEAD >/dev/null 2>&1 && git remote | grep -q '^origin$'; then
+        git push || logwarn "Auto-push échoué (commit local conservé)."
+      else
+        logwarn "Auto-push ignoré (branche détachée ou remote origin absent)."
+      fi
     else
-      logwarn "Auto-commit fait, mais brain_remote non configuré dans .ipcrae/config.yaml (push ignoré)."
-      logwarn "  → ipcrae remote set-brain <url>"
+      loginfo "Auto-commit effectué (auto_git_push=false: push ignoré)."
     fi
   )
 }
@@ -1101,16 +1117,27 @@ cmd_search() {
   need_root
   local query="${1:-}"
   [ -z "$query" ] && { logerr "Usage: ipcrae search <mots|tags>"; return 1; }
+
+  local normalized="$query"
+  normalized="${normalized#\#}"
+
+  if [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ]; then
+    if cmd_tag "$normalized" >/dev/null 2>&1; then
+      cmd_tag "$normalized"
+      return 0
+    fi
+  fi
+
   if [[ "$query" == *:* ]]; then
     cmd_tag "$query" && return 0
   fi
 
   local -a targets=()
-  for d in Knowledge Zettelkasten memory docs; do
+  for d in Knowledge Zettelkasten memory docs Projets Process; do
     [ -d "$d" ] && targets+=("$d")
   done
 
-  [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs)."; return 1; }
+  [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs/Projets/Process)."; return 1; }
 
   rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
     || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
@@ -1241,6 +1268,12 @@ cmd_process_run() {
   local rel="${abs#${IPCRAE_ROOT}/}"
   section "Process run: ${rel}"
 
+  local agent context_tags output_path collector
+  agent=$(awk -F': ' '/^- \*\*Agent\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+  context_tags=$(awk -F': ' '/^- \*\*Context tags\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+  output_path=$(awk -F': ' '/^- \*\*Output path\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+  collector=$(awk -F': ' '/^- \*\*Collector script \(optionnel\)\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+
   local today_s y w
   today_s="$(today)"; y="$(year)"; w="$(iso_week)"
   local context_file="Journal/Daily/${y}/${today_s}.md"
@@ -1258,6 +1291,26 @@ cmd_process_run() {
 ' "$context_file"
   [ -f "$weekly_file" ] && printf '  - %s
 ' "$weekly_file"
+  [ -n "$agent" ] && printf 'Agent recommandé: %s
+' "$agent"
+  [ -n "$context_tags" ] && printf 'Context tags: %s
+' "$context_tags"
+  [ -n "$collector" ] && printf 'Collector: %s
+' "$collector"
+
+  if [ -n "$context_tags" ] && [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ]; then
+    printf 'Fichiers liés par tags:
+'
+    local tags_clean
+    tags_clean=$(printf '%s' "$context_tags" | tr -d '[]' | tr ',' '
+' | sed 's/^ *//;s/ *$//')
+    while IFS= read -r t; do
+      [ -z "$t" ] && continue
+      printf '  - [%s]
+' "$t"
+      cmd_tag "$t" 2>/dev/null | sed 's/^/    · /' || true
+    done <<< "$tags_clean"
+  fi
 
   if [ "$mode" = "dry-run" ]; then
     printf '
@@ -1267,9 +1320,17 @@ cmd_process_run() {
     return 0
   fi
 
-  local out_dir="Journal/Daily/${y}"
-  mkdir -p "$out_dir"
-  local out_file="${out_dir}/${today_s}-process-$(slugify "$slug").md"
+  local out_file=""
+  if [ -n "$output_path" ]; then
+    out_file="$output_path"
+    out_file="${out_file//YYYY-MM-DD/$today_s}"
+    out_file="${out_file//YYYY/$y}"
+    out_file="${out_file//\[slug\]/$(slugify "$slug")}"
+  else
+    local out_dir="Journal/Daily/${y}"
+    out_file="${out_dir}/${today_s}-process-$(slugify "$slug").md"
+  fi
+  mkdir -p "$(dirname "$out_file")"
 
   {
     printf '# Exécution process — %s
@@ -1291,7 +1352,7 @@ cmd_process_run() {
   tmp=$(mktemp)
   awk -v d="$(date +'%F %T')" -v f="$out_file" '
     BEGIN{in_last=0}
-    /^## 7\) Dernière exécution/{in_last=1; print; next}
+    /^## 8\) Dernière exécution/{in_last=1; print; next}
     /^## [0-9]\)/ && in_last==1 {in_last=0}
     {
       if (in_last==1) {
@@ -1585,7 +1646,8 @@ Commandes:
   <texte_libre>            Mode expert (ex: ipcrae DevOps)
 
 Variables utiles:
-  IPCRAE_AUTO_GIT=true     Auto-commit/push après nouvelles entrées mémoire
+  IPCRAE_AUTO_GIT=true     Active l'auto-commit après nouvelles entrées mémoire
+  IPCRAE_AUTO_GIT_PUSH=true Active le push auto (désactivé par défaut)
 
 Options:
   -p, --provider PROVIDER  Choisir le provider (claude|gemini|codex)

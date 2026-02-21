@@ -216,6 +216,7 @@ script_version: "${SCRIPT_VERSION}"
 method_version: "${METHOD_VERSION}"
 default_provider: claude
 auto_git_sync: true
+auto_git_push: false
 
 providers:
   claude:
@@ -586,6 +587,12 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
       logwarn "Script ipcrae-index introuvable."
     fi
 
+    if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" ]; then
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$HOME/bin/ipcrae-tag-index"
+      execute chmod +x "$HOME/bin/ipcrae-tag-index"
+      loginfo "✓ Script optionnel installé: ipcrae-tag-index"
+    fi
+
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
       execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
       execute chmod +x "$HOME/bin/ipcrae-tag"
@@ -661,6 +668,7 @@ else
     printf 'default_provider: "%s"\n' "$default_prov" >> ".ipcrae/config.yaml"
   fi
   grep -q '^auto_git_sync:' ".ipcrae/config.yaml" 2>/dev/null || printf 'auto_git_sync: true\n' >> ".ipcrae/config.yaml"
+  grep -q '^auto_git_push:' ".ipcrae/config.yaml" 2>/dev/null || printf 'auto_git_push: false\n' >> ".ipcrae/config.yaml"
 fi
 loginfo "Provider par défaut configuré sur : $default_prov"
 
