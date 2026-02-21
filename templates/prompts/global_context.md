@@ -58,6 +58,33 @@ Chaque domaine a sa propre mémoire dans `memory/` :
 - Contient : contraintes, décisions passées, erreurs apprises, raccourcis.
 - Mise à jour via `ipcrae close`.
 
+## Méthodologie GTD adaptée
+
+### Workflow quotidien
+```
+Capturer (Inbox) → Clarifier (actionnable?) → Organiser (Projet/Casquette/Ressources/Someday)
+                                             → Réfléchir (Daily/Weekly/Monthly)
+                                             → Agir (Next Actions)
+```
+
+### Protocole Inbox
+```
+Item → Actionnable ?
+├─ Non → Ressources, Someday/Maybe, ou Supprimer
+└─ Oui → < 2 min ?
+     ├─ Oui → Faire immédiatement
+     └─ Non → Projet (multi-étapes) ou Next Action → Casquette
+              Délégable ? → Inbox/waiting-for.md
+```
+
+### Priorités
+```
+🔴 Urgent + Important   → FAIRE maintenant
+🟠 Important             → PLANIFIER (phase/projet)
+🟡 Urgent seul           → DÉLÉGUER ou quick-win
+⚪ Ni l'un ni l'autre   → Someday/Maybe ou supprimer
+```
+
 ## Cycles de revue
 | Cycle | Quand | Durée | Commande |
 |-------|-------|-------|----------|
