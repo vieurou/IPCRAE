@@ -321,3 +321,17 @@ else
 fi
 
 echo "🎉 Projet intégré à IPCRAE avec succès !"
+
+# 11. Analyse initiale par l'IA (Auto-ingestion)
+echo ""
+read -r -p "🤖 Veux-tu lancer l'agent IA maintenant pour analyser le code et auto-remplir les templates ? [O/n] " run_ai
+run_ai=${run_ai:-o}
+
+if [[ "$run_ai" =~ ^[Oo]$ ]]; then
+    echo "Lancement de l'analyse initiale..."
+    if command -v ipcrae &> /dev/null; then
+        ipcrae work "Ceci est le premier scan d'ingestion de ce projet. 1. Analyse le code source présent dans ce répertoire pour comprendre son rôle et son architecture. 2. Édite les fichiers docs/conception/00_VISION.md et docs/conception/02_ARCHITECTURE.md pour remplacer les placeholders [À Remplir] par tes déductions. 3. Édite le fichier $HUB_DIR/index.md pour remplir le Domaine et la description. Fais un travail concis et termine en faisant un résumé."
+    else
+        echo "⚠️  Commande 'ipcrae' introuvable. Assure-toi qu'elle est dans le PATH."
+    fi
+fi
