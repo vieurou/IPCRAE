@@ -581,7 +581,15 @@ cmd_search() {
   if [[ "$query" == *:* ]]; then
     cmd_tag "$query" && return 0
   fi
-  rg -n --glob '*.md' --glob '!Archives/**' "$query" Knowledge Zettelkasten memory docs 2>/dev/null \
+
+  local -a targets=()
+  for d in Knowledge Zettelkasten memory docs; do
+    [ -d "$d" ] && targets+=("$d")
+  done
+
+  [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs)."; return 1; }
+
+  rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
     || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
 }
 
