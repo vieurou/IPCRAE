@@ -489,7 +489,9 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
   if [ -f "$SCRIPT_DIR/templates/ipcrae-launcher.sh" ]; then
     cp "$SCRIPT_DIR/templates/ipcrae-launcher.sh" "$HOME/bin/ipcrae"
     chmod +x "$HOME/bin/ipcrae"
-    sed -i "s|IPCRAE_ROOT=\"\${IPCRAE_ROOT:-\${HOME}/IPCRAE}\"|IPCRAE_ROOT=\"${IPCRAE_ROOT}\"|" "$HOME/bin/ipcrae"
+    # NE PAS hardcoder IPCRAE_ROOT dans le binaire : on exporte la variable d'env
+    # dans les shells (voir section "Variables d'environnement" ci-dessous).
+    # Le launcher utilise déjà ${IPCRAE_ROOT:-${HOME}/IPCRAE} comme fallback dynamique.
   else
     logerr "Template templates/ipcrae-launcher.sh introuvable !"
     exit 1
@@ -560,6 +562,23 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
     loginfo "Ajouté ~/bin au PATH dans ~/.bashrc. Redémarrez le terminal en tapant 'bash'."
   fi
+
+  # ── Variables d'environnement (portabilité multi-machine) ──────────────
+  # Exporter IPCRAE_ROOT dans .bashrc et .zshrc pour que tous les scripts
+  # et prompts puissent s'appuyer sur $IPCRAE_ROOT sans chemin en dur.
+  # Le launcher utilise déjà ${IPCRAE_ROOT:-${HOME}/IPCRAE} comme fallback,
+  # mais l'export garantit la portabilité sur toute machine avec un HOME différent.
+  for _shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [ -f "$_shell_rc" ] || continue
+    if grep -q 'export IPCRAE_ROOT=' "$_shell_rc" 2>/dev/null; then
+      # Mettre à jour si déjà présent (installation sur chemin non-standard)
+      sed -i "s|^export IPCRAE_ROOT=.*|export IPCRAE_ROOT=\"${IPCRAE_ROOT}\"|" "$_shell_rc"
+      loginfo "IPCRAE_ROOT mis à jour dans $_shell_rc"
+    else
+      printf 'export IPCRAE_ROOT="%s"\n' "$IPCRAE_ROOT" >> "$_shell_rc"
+      loginfo "IPCRAE_ROOT exporté dans $_shell_rc"
+    fi
+  done
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════
