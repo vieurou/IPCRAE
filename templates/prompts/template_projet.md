@@ -10,6 +10,10 @@
 
 ## Objectif (une phrase)
 
+## Context live (obligatoire)
+- Fichier: `context.md` (mettre à jour après chaque session via `ipcrae close`)
+- Contenu minimal: vision, état actuel, KPIs, prochaines actions, accès ressources
+
 ## Next actions
 - [ ]
 - [ ]

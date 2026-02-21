@@ -30,10 +30,11 @@
 ...
 ```
 
-## 5) Méthode (critères qualité + interdits)
-- **Critères qualité** :
+## 5) Méthode (obligatoire)
+- **Critères de qualité** :
+- **Ce qu'il faut toujours faire** :
+- **Ce qu'il faut éviter** :
 - **Style attendu** :
-- **Interdits** :
 
 ## 6) Décision d’exécution (arbre agent vs automatisation)
 - **Mode** : agent-supervisé | auto-validation | automatisation-pure

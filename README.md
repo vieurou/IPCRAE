@@ -21,7 +21,13 @@ IPCRAE est un système de gestion de travail et de vie (pro + perso) qui :
 
 ---
 
-## 2) Modèle mental : IPCRA + extensions
+## 2) Modèle 3 couches (Stockage / IA / Interface)
+
+- **Couche stockage** : le vault Markdown local (`Inbox/`, `Projets/`, `Process/`, `memory/`) reste la source de vérité.
+- **Couche IA** : `ipcrae-agent-bridge` route les demandes vers l'agent adapté (claude/gemini/codex) selon le type de tâche.
+- **Couche interface** : le CLI `ipcrae` orchestre les workflows (`start/work/close`, `process run`, `process gc`) en terminal.
+
+## 3) Modèle mental : IPCRA + extensions
 
 IPCRAE repose sur la structure IPCRA :
 - **Inbox/** : capture brute (idées, tâches, liens).
@@ -42,7 +48,7 @@ Extensions “Étendu” :
 
 ---
 
-## 3) Arborescence canonique du vault IPCRAE
+## 4) Arborescence canonique du vault IPCRAE
 
 Le vault IPCRAE (par défaut `~/IPCRAE`) contient au minimum :
 
@@ -56,8 +62,8 @@ IPCRAE_ROOT/
 ├── Inbox/
 │   ├── waiting-for.md      # Délégué / en attente
 │   └── capture-*.md        # Captures rapides
-├── Projets/                # Central Hubs pour chaque projet technique
-├── Casquettes/
+├── Projets/                # Hubs + context.md obligatoire par projet
+├── Casquettes/             # context.md obligatoire par casquette
 ├── Ressources/
 ├── Zettelkasten/
 │   ├── _inbox/
@@ -94,7 +100,7 @@ IPCRAE_ROOT/
 
 ---
 
-## 4) Quickstart & Installation
+## 5) Quickstart & Installation
 
 ### 4.1 Quickstart complet (Workflow recommandé)
 
@@ -143,7 +149,7 @@ Algorithme appliqué :
 
 ---
 
-## 5) Contrat IA et Prompts (v3.3)
+## 6) Contrat IA et Prompts (v3.3)
 
 ### Fichiers racines
 - **`.ipcrae/context.md`** : Identité, structure, projets en cours.
@@ -169,7 +175,7 @@ Puis seulement exécuter ce prompt optimisé.
 
 ---
 
-## 6) Mémoire IA par domaine (`memory/`)
+## 7) Mémoire IA par domaine (`memory/`)
 
 La mémoire IA sert à éviter de refaire les mêmes erreurs.
 - **Règle** : Une mémoire par domaine (devops, electronique, etc.) pour réduire le bruit.
@@ -187,7 +193,7 @@ La mémoire IA sert à éviter de refaire les mêmes erreurs.
 
 ---
 
-## 7) Workflows opérationnels (Rituels)
+## 8) Workflows opérationnels (Rituels)
 
 ### 7.0 Cycle canonique start → work → close
 - `ipcrae start --project <slug> --phase <phase>` : initialise le contexte de session.
@@ -221,9 +227,10 @@ Objectif : ne jamais perdre une idée.
 - `Process/map.md` devient la source de vérité (daily/weekly/monthly/on-trigger/manuel).
 - `Process/priorites.md` porte la matrice **Impact × Facilité** + statut d’exécution.
 - `ipcrae process run <slug>` exécute une fiche process avec contexte minimal.
-- Les fiches process peuvent déclarer des paramètres d’exécution (`Agent`, `Context tags`, `Output path`, `Collector script`) consommés par la commande `process run`.
+- Les fiches process doivent documenter une **méthode explicite** (critères qualité, à faire/à éviter, exemples bon/mauvais output) et peuvent déclarer des paramètres d’exécution (`Agent`, `Context tags`, `Output path`, `Collector script`) consommés par la commande `process run`.
 - `ipcrae process run --dry-run <slug>` affiche le plan sans exécuter.
 - `ipcrae process next` propose les 3 quick wins prioritaires.
+- `ipcrae process gc [ttl-days]` signale les fiches process obsolètes (défaut: 180 jours).
 - `ipcrae inbox --process` lance le process canonique `inbox-triage`.
 
 ### 7.6 Workflows Avancés (Nouvelle Idée & Projets)
@@ -232,7 +239,7 @@ Pour des guides pas-à-pas sur la création de projets, l'intégration de projet
 
 ---
 
-## 8) Zettelkasten (Notes atomiques)
+## 9) Zettelkasten (Notes atomiques)
 
 - **Création** : `ipcrae zettel "Titre"` (part dans `_inbox/`).
 - **Passage en permanent** : Dès que l'idée est unique, formulée dans vos mots, et liée (`[[Autre_Note]]`).
@@ -240,7 +247,7 @@ Pour des guides pas-à-pas sur la création de projets, l'intégration de projet
 
 ---
 
-## 9) Focus Method : Phases & Objectifs
+## 10) Focus Method : Phases & Objectifs
 
 `Phases/index.md` est une source de vérité sur la phase active.
 - **Règle** : une phase active = priorité > tout le reste.
@@ -248,7 +255,7 @@ Pour des guides pas-à-pas sur la création de projets, l'intégration de projet
 
 ---
 
-## 10) Mode “Projet Local” : CDE (Context Driven Engineering)
+## 11) Mode “Projet Local” : CDE (Context Driven Engineering)
 
 Référence conception: `docs/conception/00_OS_IA_3_COUCHES.md` (stockage/agent/interface + sources de vérité).
 
@@ -346,9 +353,9 @@ HOME="$TMP_HOME" bash ipcrae-install.sh -y "$TMP_VAULT"
 ```
 
 ### Améliorations Futures (Roadmap Technique)
-- Ajouter un mode `--dry-run` pour l'installateur.
-- Ajouter une suite de tests shell (`bats`).
-- Uniformiser la création des repositories avec `git init -b main`.
+- Ajouter un mode consensus multi-agents (synthèse auto des meilleures réponses).
+- Ajouter un scoring automatique des réponses agents (qualité/coût).
+- Ajouter des tests shell supplémentaires (`bats`) sur le routage du bridge.
 
 ---
 
@@ -371,8 +378,14 @@ ipcrae-tokenpack core
 # Génère un contexte compact pour un projet
 ipcrae-tokenpack project mon-projet
 
-# Interroge automatiquement les IA CLI disponibles (claude/gemini/codex)
+# Routage intelligent automatique vers le meilleur agent
 ipcrae-agent-bridge "Donne le plan de migration"
+
+# Comparaison multi-agents explicite (mode all)
+ipcrae-agent-bridge --all "Donne le plan de migration"
+
+# Forcer un provider
+ipcrae-agent-bridge --provider codex "Debug du pipeline"
 
 # Forcer un refresh (sans cache)
 ipcrae-agent-bridge --no-cache "Donne le plan de migration"
@@ -387,14 +400,14 @@ ipcrae-prompt-optimize claude "Créer une weekly actionable"
 ### Pourquoi ça consomme moins de tokens
 - Le contexte est tronqué et nettoyé (`ipcrae-tokenpack`) : suppression des lignes vides/commentaires + limite de taille.
 - Les prompts imposent une sortie **courte et actionnable** (contrat quick win + plan robuste).
-- Le bridge multi-agent évite les prompts longs manuels répétés, standardise le format de demande, et met en cache les réponses pour éviter les appels identiques.
+- Le bridge route automatiquement vers l’agent le plus pertinent, évite les prompts longs manuels répétés, standardise le format de demande, et met en cache les réponses pour éviter les appels identiques.
 
 ### Veille agents CLI et stratégie d'usage
 - **Claude CLI** : excellent pour architecture, arbitrages, risques.
 - **Gemini CLI** : bon en enchaînement terminal/outils.
 - **Codex CLI** : efficace pour patch minimal + validations techniques.
 
-Recommandation : utiliser `ipcrae-prompt-optimize` avant chaque délégation, puis `ipcrae-agent-bridge` pour comparer rapidement les sorties quand l'enjeu est critique.
+Recommandation : utiliser `ipcrae-prompt-optimize` avant chaque délégation, puis `ipcrae-agent-bridge` en routage auto (ou `--all` pour comparaison critique).
 
 ### Améliorations utiles à ajouter ensuite
 1. **Cache de réponses** (`.ipcrae/cache/`) avec hash prompt+contexte pour éviter de reconsommer des tokens.

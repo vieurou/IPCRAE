@@ -12,6 +12,8 @@ usage() {
 Usage: ipcrae-agent-bridge.sh [options] <question>
 
 Options:
+  --all                Query all available providers (legacy compare mode)
+  --provider <name>    Force provider (claude|gemini|codex)
   --no-cache           Disable cache read/write
   --ttl <seconds>      Cache TTL in seconds (default: 86400)
   --cache-dir <path>   Override cache directory
@@ -19,9 +21,42 @@ Options:
 
 Behavior:
 - Detects available AI CLIs among claude/gemini/codex.
+- Routes automatically to the best provider based on task intent.
 - Uses cached responses per (provider + prompt) when fresh.
 - Stores fresh responses to reduce repeated token usage.
 USAGE
+}
+
+score_provider_for_question() {
+  local provider="$1" question_lc="$2" score=0
+  case "$provider" in
+    codex)
+      [[ "$question_lc" =~ (debug|bug|test|refactor|shell|bash|script|infra|docker|ci|cd|logs|stacktrace|error|terminal|commande) ]] && score=$((score + 3))
+      ;;
+    claude)
+      [[ "$question_lc" =~ (architecture|arbitrage|strategy|stratégie|tradeoff|design|spec|spécification|decision|décision) ]] && score=$((score + 3))
+      ;;
+    gemini)
+      [[ "$question_lc" =~ (workflow|checklist|synthese|synthèse|résumé|resume|plan|étapes|etapes|automation|automatisation) ]] && score=$((score + 3))
+      ;;
+  esac
+  printf '%s' "$score"
+}
+
+pick_best_provider() {
+  local question_lc="$1"
+  shift
+  local candidates=("$@")
+  local best="${candidates[0]}" best_score=-1
+  local p s
+  for p in "${candidates[@]}"; do
+    s="$(score_provider_for_question "$p" "$question_lc")"
+    if [ "$s" -gt "$best_score" ]; then
+      best_score="$s"
+      best="$p"
+    fi
+  done
+  printf '%s' "$best"
 }
 
 hash_text() {
@@ -101,8 +136,19 @@ run_provider() {
 
 parse_args() {
   QUESTION=""
+  QUERY_ALL=false
+  FORCED_PROVIDER=""
   while [ $# -gt 0 ]; do
     case "$1" in
+      --all)
+        QUERY_ALL=true
+        shift
+        ;;
+      --provider)
+        [ $# -ge 2 ] || { echo "Missing value for --provider"; exit 1; }
+        FORCED_PROVIDER="$2"
+        shift 2
+        ;;
       --no-cache)
         USE_CACHE=false
         shift
@@ -153,6 +199,18 @@ done
 if [ "${#providers[@]}" -eq 0 ]; then
   echo "No supported AI CLI found (claude/gemini/codex)."
   exit 2
+fi
+
+if [ -n "$FORCED_PROVIDER" ]; then
+  if ! printf '%s\n' "${providers[@]}" | grep -qx "$FORCED_PROVIDER"; then
+    echo "Requested provider not available: $FORCED_PROVIDER"
+    exit 1
+  fi
+  providers=("$FORCED_PROVIDER")
+elif [ "$QUERY_ALL" = false ]; then
+  question_lc="$(printf '%s' "$QUESTION" | tr '[:upper:]' '[:lower:]')"
+  routed_provider="$(pick_best_provider "$question_lc" "${providers[@]}")"
+  providers=("$routed_provider")
 fi
 
 compact_prompt="IPCRAE mode. Réponse concise. Donne seulement actions + risques + prochaine commande.\nQuestion: ${QUESTION}"
