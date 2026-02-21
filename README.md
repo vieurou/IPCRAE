@@ -281,7 +281,7 @@ Par défaut (`auto_git_sync: true`), IPCRAE va auto-commit vos nouvelles mémoir
 
 - `ipcrae sync` : Régénère le contexte statique.
 - `ipcrae health` : Affiche l'Inbox "stale", les strikes daily et la charge mentale actuelle.
-- `ipcrae index` : reconstruit le cache tags (`.ipcrae/cache/tag-index.json`).
+- `ipcrae index` : reconstruit le cache tags (`.ipcrae/cache/tag-index.json`) à partir du frontmatter de `Knowledge/` et `Zettelkasten/`.
 - `ipcrae tag <tag>` : liste les fichiers liés à un tag.
 - `ipcrae search <mots|tags>` : recherche avec cache tags + fallback grep.
 - `ipcrae review project` : Rétrospective d'un projet guidée.

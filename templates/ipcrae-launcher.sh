@@ -958,7 +958,7 @@ cmd_doctor() {
   section "Doctor — Environnement"
 
   local missing=0
-  for c in git find sed awk python3 curl iconv; do
+  for c in git find sed awk python3 curl iconv rg; do
     if command -v "$c" >/dev/null 2>&1; then
       [ "$verbose" = true ] && printf '  ✓ %s\n' "$c"
     else
@@ -1139,8 +1139,13 @@ cmd_search() {
 
   [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs/Projets/Process)."; return 1; }
 
-  rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
-    || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  if command -v rg >/dev/null 2>&1; then
+    rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
+      || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  else
+    logwarn "rg absent: fallback via find+grep (plus lent)."
+    find "${targets[@]}" -type f -name '*.md' ! -path '*/Archives/*' -print0 2>/dev/null       | xargs -0 grep -n -- "$query"       || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  fi
 }
 
 
@@ -1428,10 +1433,18 @@ cmd_process() {
       [ -z "$slug" ] && slug="process"
       freq="manual"
       local abs="${IPCRAE_ROOT}/Process/${freq}/${slug}.md"
-      if [ ! -f "$abs" ] && [ -f "${IPCRAE_ROOT}/Process/_template_process.md" ]; then
-        cp "${IPCRAE_ROOT}/Process/_template_process.md" "$abs"
-        sed -i "s/\[Nom\]/${nom}/g" "$abs"
-        loginfo "Process créé: Process/${freq}/${slug}.md"
+      if [ ! -f "$abs" ]; then
+        local tpl="${IPCRAE_ROOT}/Process/_template_process.md"
+        [ -f "$tpl" ] || tpl="${IPCRAE_ROOT}/templates/prompts/template_process.md"
+        if [ -f "$tpl" ]; then
+          cp "$tpl" "$abs"
+          sed -i "s/\[Nom\]/${nom}/g" "$abs"
+          loginfo "Process créé: Process/${freq}/${slug}.md"
+        else
+          logwarn "Template process introuvable (_template_process.md)."
+          printf '# Process — %s
+' "$nom" > "$abs"
+        fi
       fi
       open_note "$abs" "Process/${freq}/${slug}.md"
       ;;

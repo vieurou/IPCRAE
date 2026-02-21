@@ -36,5 +36,7 @@ out=$(IPCRAE_ROOT="$ROOT" EDITOR=true bash templates/ipcrae-launcher.sh search p
 [[ "$out" == *"Knowledge/note.md"* ]]
 out=$(IPCRAE_ROOT="$ROOT" EDITOR=true bash templates/ipcrae-launcher.sh process run --dry-run inbox-triage)
 [[ "$out" == *"Agent recommandé: agent_devops"* ]]
+out=$(IPCRAE_ROOT="$ROOT" EDITOR=true bash templates/ipcrae-launcher.sh doctor --verbose)
+[[ "$out" == *"rg"* ]]
 
 echo "smoke ok"
