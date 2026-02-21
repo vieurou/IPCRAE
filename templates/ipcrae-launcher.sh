@@ -291,12 +291,63 @@ cmd_daily() {
   mkdir -p "${IPCRAE_ROOT}/Journal/Daily/${y}"
 
   if [ "$prep" = "--prep" ]; then
-    logerr "--prep nécessite une implémentation spécifique du prompt"
-    return 1
+    if [ ! -f "$abs" ]; then
+      local yd yrel wrel waiting_rel phase_rel
+      yd="$(yesterday)"
+      yrel=""
+      [ -n "$yd" ] && yrel="Journal/Daily/${y}/${yd}.md"
+      wrel="Journal/Weekly/$(date +%G)/$(iso_week).md"
+      waiting_rel="Inbox/waiting-for.md"
+      phase_rel="Phases/index.md"
+
+      {
+        printf '# Daily — %s
+
+' "$d"
+        printf '## Contexte automatique
+'
+        [ -n "$yrel" ] && printf -- '- Hier: [[%s]]
+' "$yrel"
+        printf -- '- Semaine: [[%s]]
+' "$wrel"
+        printf -- '- En attente: [[%s]]
+' "$waiting_rel"
+        printf -- '- Phase active: [[%s]]
+
+' "$phase_rel"
+        printf '## Top 3
+- [ ] 
+- [ ] 
+- [ ] 
+
+'
+        printf '## Next actions par casquette
+- [ ] 
+
+'
+        printf '## Décisions
+- 
+
+'
+        printf '## Journal
+- 
+'
+      } > "$abs"
+      loginfo "Daily préparée: $rel"
+      auto_git_sync_event "prepare daily ${rel}"
+    fi
+    open_note "$abs" "$rel"
+    return 0
   fi
 
   if [ ! -f "$abs" ]; then
-    printf '# Daily — %s\n\n## Top 3\n- [ ] \n- [ ] \n- [ ] \n' "$d" > "$abs"
+    printf '# Daily — %s
+
+## Top 3
+- [ ] 
+- [ ] 
+- [ ] 
+' "$d" > "$abs"
     loginfo "Daily créée: $rel"
     auto_git_sync_event "create daily ${rel}"
   fi
