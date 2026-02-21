@@ -54,7 +54,12 @@ file_contains() {
 
 # Fonction pour vérifier si un fichier a été modifié récemment
 file_modified_recently() {
-    [ "$(find "$1" -type f -printf '%T@\n' | sort -n | tail -1)" -gt "$(date -d '1 hour ago' +%s)" ]
+    local file="$1"
+    local current_time=$(date +%s)
+    local file_time=$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null)
+    local hour_ago=$((current_time - 3600))
+
+    [ "$file_time" -gt "$hour_ago" ]
 }
 
 # Fonction pour compter les lignes dans un fichier
