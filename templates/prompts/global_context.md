@@ -42,6 +42,17 @@
 | memory/ | Mémoire IA par domaine |
 | Agents/ | Rôles IA spécialisés |
 
+## Zettelkasten
+Principes :
+- **Atomicité** : une note = une seule idée, formulée dans tes mots.
+- **Liens** : chaque note doit être reliée à au moins une autre `[[note]]`.
+- **Émergence** : pas de hiérarchie rigide, la structure naît des connexions.
+- **Ressources/ vs Zettelkasten/** : Ressources = matière brute (extraits, refs), Zettelkasten = pensée digérée.
+
+Workflow : Inbox → Zettelkasten/_inbox/ (brouillon) → Zettelkasten/permanents/ (validé, lié).
+Navigation : Zettelkasten/MOC/ contient les Maps of Content (index thématiques).
+Commandes : `ipcrae zettel "titre"` (créer note) | `ipcrae moc "thème"` (créer/ouvrir MOC).
+
 ## Knowledge + tags (source de vérité)
 - Les tags sont portés par le frontmatter YAML des notes Markdown.
 - Champs recommandés : `type`, `tags`, `project`, `domain`, `status`, `sources`, `created`, `updated`.
@@ -56,6 +67,7 @@
 Chaque domaine a sa propre mémoire dans `memory/` :
 - `memory/devops.md`, `memory/electronique.md`, `memory/musique.md`, etc.
 - Contient : contraintes, décisions passées, erreurs apprises, raccourcis.
+- L'agent concerné lit prioritairement sa mémoire domaine pour réduire le bruit.
 - Mise à jour via `ipcrae close`.
 
 ## Méthodologie GTD adaptée
@@ -93,10 +105,19 @@ Item → Actionnable ?
 | Monthly | 1er du mois | 1h | `ipcrae monthly` |
 | Close | Fin de session IA | 5 min | `ipcrae close` |
 
-## IA — Commandes utiles
-- `ipcrae daily --prep`
-- `ipcrae health`
-- `ipcrae review phase|project|quarter`
-- `ipcrae index`
-- `ipcrae tag <tag>`
-- `ipcrae search <mots|tags>`
+## Phase(s) active(s)
+→ Voir `Phases/index.md` (source de priorités).
+
+## Projets en cours
+<!-- Mis à jour par `ipcrae close` -->
+- (à compléter)
+
+## IA — Commandes avancées
+- `ipcrae daily --prep` : l'IA prépare un brouillon de daily (sources : hier, weekly, waiting-for, phases).
+- `ipcrae zettel "titre"` : créer une note atomique Zettelkasten.
+- `ipcrae moc "thème"` : créer/ouvrir une Map of Content.
+- `ipcrae health` : diagnostic du système (inbox stale, waiting-for expirés).
+- `ipcrae review phase|project|quarter` : revue adaptative guidée par l'IA.
+- `ipcrae index` : reconstruire le cache tags.
+- `ipcrae tag <tag>` : retrouver les notes liées à un tag.
+- `ipcrae search <mots|tags>` : recherche hybride tags + texte.
