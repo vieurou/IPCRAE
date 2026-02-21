@@ -88,6 +88,13 @@ is_truthy() {
   esac
 }
 
+read_config_bool() {
+  local key="$1" default="${2:-false}" val
+  val="$(read_config_value "$key")"
+  [ -z "$val" ] && val="$default"
+  is_truthy "$val"
+}
+
 # ── Remotes cerveau + projets ──────────────────────────────
 get_brain_remote() {
   # Priorité : variable d'env > config > remote git existant
@@ -216,11 +223,20 @@ auto_git_sync_event() {
 
     git commit -m "chore(ipcrae): ${reason} ($(date +'%Y-%m-%d %H:%M:%S'))" || return 0
 
-    if git remote | grep -q '^origin$'; then
-      git push || logwarn "Auto-push échoué (commit local conservé)."
+    local allow_push="${IPCRAE_AUTO_GIT_PUSH:-}"
+    if [ -z "$allow_push" ] && [ -f "$IPCRAE_CONFIG" ]; then
+      allow_push="$(read_config_value auto_git_push)"
+    fi
+    allow_push="${allow_push:-false}"
+
+    if is_truthy "$allow_push"; then
+      if git symbolic-ref -q HEAD >/dev/null 2>&1 && git remote | grep -q '^origin$'; then
+        git push || logwarn "Auto-push échoué (commit local conservé)."
+      else
+        logwarn "Auto-push ignoré (branche détachée ou remote origin absent)."
+      fi
     else
-      logwarn "Auto-commit fait, mais brain_remote non configuré dans .ipcrae/config.yaml (push ignoré)."
-      logwarn "  → ipcrae remote set-brain <url>"
+      loginfo "Auto-commit effectué (auto_git_push=false: push ignoré)."
     fi
   )
 }
@@ -942,7 +958,7 @@ cmd_doctor() {
   section "Doctor — Environnement"
 
   local missing=0
-  for c in git find sed awk python3 curl iconv; do
+  for c in git find sed awk python3 curl iconv rg; do
     if command -v "$c" >/dev/null 2>&1; then
       [ "$verbose" = true ] && printf '  ✓ %s\n' "$c"
     else
@@ -1101,19 +1117,35 @@ cmd_search() {
   need_root
   local query="${1:-}"
   [ -z "$query" ] && { logerr "Usage: ipcrae search <mots|tags>"; return 1; }
+
+  local normalized="$query"
+  normalized="${normalized#\#}"
+
+  if [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ]; then
+    if cmd_tag "$normalized" >/dev/null 2>&1; then
+      cmd_tag "$normalized"
+      return 0
+    fi
+  fi
+
   if [[ "$query" == *:* ]]; then
     cmd_tag "$query" && return 0
   fi
 
   local -a targets=()
-  for d in Knowledge Zettelkasten memory docs; do
+  for d in Knowledge Zettelkasten memory docs Projets Process; do
     [ -d "$d" ] && targets+=("$d")
   done
 
-  [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs)."; return 1; }
+  [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs/Projets/Process)."; return 1; }
 
-  rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
-    || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  if command -v rg >/dev/null 2>&1; then
+    rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
+      || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  else
+    logwarn "rg absent: fallback via find+grep (plus lent)."
+    find "${targets[@]}" -type f -name '*.md' ! -path '*/Archives/*' -print0 2>/dev/null       | xargs -0 grep -n -- "$query"       || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  fi
 }
 
 
@@ -1167,25 +1199,256 @@ cmd_consolidate() {
 }
 
 # ── Process ───────────────────────────────────────────────────
-cmd_process() {
+slugify() {
+  printf '%s' "${1:-}"     | iconv -t ASCII//TRANSLIT 2>/dev/null     | tr '[:upper:]' '[:lower:]'     | sed 's/[^a-z0-9]/-/g; s/-\+/-/g; s/^-//; s/-$//'
+}
+
+ensure_process_structure() {
+  mkdir -p "${IPCRAE_ROOT}/Process/daily" "${IPCRAE_ROOT}/Process/weekly"            "${IPCRAE_ROOT}/Process/monthly" "${IPCRAE_ROOT}/Process/on-trigger"            "${IPCRAE_ROOT}/Process/manual"
+
+  [ -f "${IPCRAE_ROOT}/Process/map.md" ] || cat > "${IPCRAE_ROOT}/Process/map.md" <<'EOF'
+# Process Map — Source de vérité
+
+## Daily
+-
+
+## Weekly
+-
+
+## Monthly
+-
+
+## On-trigger
+-
+
+## Manuel
+-
+EOF
+
+  [ -f "${IPCRAE_ROOT}/Process/priorites.md" ] || cat > "${IPCRAE_ROOT}/Process/priorites.md" <<'EOF'
+# Priorités Process — Impact × Facilité
+
+| Process | Fréquence | Temps actuel / semaine | Impact (1-5) | Facilité (1-5) | Score (I×F) | Décision (agent/auto) | Statut |
+|---|---|---:|---:|---:|---:|---|---|
+|  |  |  |  |  |  |  | todo |
+EOF
+}
+
+find_process_file() {
+  local slug="$(slugify "${1:-}")"
+  [ -z "$slug" ] && return 1
+
+  local f
+  for f in     "${IPCRAE_ROOT}/Process/daily/${slug}.md"     "${IPCRAE_ROOT}/Process/weekly/${slug}.md"     "${IPCRAE_ROOT}/Process/monthly/${slug}.md"     "${IPCRAE_ROOT}/Process/on-trigger/${slug}.md"     "${IPCRAE_ROOT}/Process/manual/${slug}.md"     "${IPCRAE_ROOT}/Process/${slug}.md"     "${IPCRAE_ROOT}/Process/Process-${slug}.md"
+  do
+    [ -f "$f" ] && { printf '%s' "$f"; return 0; }
+  done
+
+  local first
+  first=$(find "${IPCRAE_ROOT}/Process" -maxdepth 3 -type f -name "*${slug}*.md" 2>/dev/null | head -1 || true)
+  [ -n "$first" ] && { printf '%s' "$first"; return 0; }
+  return 1
+}
+
+cmd_process_run() {
   need_root
-  local nom="${1:-}"
-  if [ -z "$nom" ]; then
-    open_note "${IPCRAE_ROOT}/Process/index.md" "Process/index.md"
+  ensure_process_structure
+
+  local slug="${1:-}"
+  local mode="run"
+  [ "${1:-}" = "--dry-run" ] && { mode="dry-run"; slug="${2:-}"; }
+
+  if [ -z "$slug" ]; then
+    logerr "Usage: ipcrae process run [--dry-run] <slug>"
+    return 1
+  fi
+
+  local abs
+  abs=$(find_process_file "$slug") || {
+    logerr "Fiche process introuvable pour '$slug'."
+    logwarn "Créez-la dans Process/<frequence>/$(slugify "$slug").md"
+    return 1
+  }
+
+  local rel="${abs#${IPCRAE_ROOT}/}"
+  section "Process run: ${rel}"
+
+  local agent context_tags output_path collector
+  agent=$(awk -F': ' '/^- \*\*Agent\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+  context_tags=$(awk -F': ' '/^- \*\*Context tags\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+  output_path=$(awk -F': ' '/^- \*\*Output path\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+  collector=$(awk -F': ' '/^- \*\*Collector script \(optionnel\)\*\* :/{print $2; exit}' "$abs" 2>/dev/null || true)
+
+  local today_s y w
+  today_s="$(today)"; y="$(year)"; w="$(iso_week)"
+  local context_file="Journal/Daily/${y}/${today_s}.md"
+  local weekly_file="Journal/Weekly/$(date +%G)/${w}.md"
+
+  printf 'Mode: %s
+' "$mode"
+  printf 'Fiche: %s
+' "$rel"
+  printf 'Contexte minimal:
+'
+  printf '  - %s
+' ".ipcrae/context.md"
+  [ -f "$context_file" ] && printf '  - %s
+' "$context_file"
+  [ -f "$weekly_file" ] && printf '  - %s
+' "$weekly_file"
+  [ -n "$agent" ] && printf 'Agent recommandé: %s
+' "$agent"
+  [ -n "$context_tags" ] && printf 'Context tags: %s
+' "$context_tags"
+  [ -n "$collector" ] && printf 'Collector: %s
+' "$collector"
+
+  if [ -n "$context_tags" ] && [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ]; then
+    printf 'Fichiers liés par tags:
+'
+    local tags_clean
+    tags_clean=$(printf '%s' "$context_tags" | tr -d '[]' | tr ',' '
+' | sed 's/^ *//;s/ *$//')
+    while IFS= read -r t; do
+      [ -z "$t" ] && continue
+      printf '  - [%s]
+' "$t"
+      cmd_tag "$t" 2>/dev/null | sed 's/^/    · /' || true
+    done <<< "$tags_clean"
+  fi
+
+  if [ "$mode" = "dry-run" ]; then
+    printf '
+--- Aperçu fiche process ---
+'
+    sed -n '1,220p' "$abs"
     return 0
   fi
-  local slug
-  slug=$(printf '%s' "$nom" | iconv -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
-  [ -z "$slug" ] && slug="process"
-  local filename="Process-${slug}.md"
-  local abs="${IPCRAE_ROOT}/Process/${filename}"
-  
-  if [ ! -f "$abs" ] && [ -f "${IPCRAE_ROOT}/Process/_template_process.md" ]; then
-    cp "${IPCRAE_ROOT}/Process/_template_process.md" "$abs"
-    sed -i "s/\[Nom\]/${nom}/g" "$abs"
-    loginfo "Process créé: Process/${filename}"
+
+  local out_file=""
+  if [ -n "$output_path" ]; then
+    out_file="$output_path"
+    out_file="${out_file//YYYY-MM-DD/$today_s}"
+    out_file="${out_file//YYYY/$y}"
+    out_file="${out_file//\[slug\]/$(slugify "$slug")}"
+  else
+    local out_dir="Journal/Daily/${y}"
+    out_file="${out_dir}/${today_s}-process-$(slugify "$slug").md"
   fi
-  open_note "$abs" "Process/${filename}"
+  mkdir -p "$(dirname "$out_file")"
+
+  {
+    printf '# Exécution process — %s
+
+' "$slug"
+    printf '- Date: %s
+' "$(date +'%F %T')"
+    printf '- Fiche: %s
+
+' "$rel"
+    printf '## Étapes à exécuter
+'
+    awk 'BEGIN{p=0} /^## 3\)/{p=1; next} /^## 4\)/{p=0} p{print}' "$abs" || true
+    printf "\n## Notes d’exécution\n- À compléter via agent/provider.\n"
+  } > "$out_file"
+
+  # Mise à jour légère de la section dernière exécution.
+  local tmp
+  tmp=$(mktemp)
+  awk -v d="$(date +'%F %T')" -v f="$out_file" '
+    BEGIN{in_last=0}
+    /^## 8\) Dernière exécution/{in_last=1; print; next}
+    /^## [0-9]\)/ && in_last==1 {in_last=0}
+    {
+      if (in_last==1) {
+        if ($0 ~ /^- \*\*Date\*\* :/) { print "- **Date** : " d; next }
+        if ($0 ~ /^- \*\*Fichier produit\*\* :/) { print "- **Fichier produit** : " f; next }
+      }
+      print
+    }
+  ' "$abs" > "$tmp" && mv "$tmp" "$abs"
+
+  loginfo "Sortie créée: ${out_file}"
+  auto_git_sync_event "process run $(slugify "$slug")"
+}
+
+cmd_process_next() {
+  need_root
+  local pfile="${IPCRAE_ROOT}/Process/priorites.md"
+  [ -f "$pfile" ] || { logerr "Process/priorites.md introuvable"; return 1; }
+
+  section "Top quick wins (impact × facilité)"
+  awk -F'|' '
+    /^\|/ {
+      if ($0 ~ /^\|---/) next
+      proc=$2; gsub(/^ +| +$/, "", proc)
+      impact=$5; gsub(/^ +| +$/, "", impact)
+      ease=$6; gsub(/^ +| +$/, "", ease)
+      status=$9; gsub(/^ +| +$/, "", status)
+      if (proc=="" || impact=="" || ease=="") next
+      if (impact !~ /^[0-9]+$/ || ease !~ /^[0-9]+$/) next
+      if (status=="live") next
+      score=(impact+0)*(ease+0)
+      printf "%d	%s	%s\n", score, proc, status
+    }
+  ' "$pfile"     | sort -t$'	' -k1,1nr     | head -3     | awk -F'	' '{printf "- %s (score=%s, statut=%s)\n", $2, $1, $3}'
+}
+
+cmd_inbox_process() {
+  need_root
+  if [ "${1:-}" = "--dry-run" ]; then
+    cmd_process_run --dry-run inbox-triage
+  else
+    cmd_process_run inbox-triage
+  fi
+}
+
+cmd_process() {
+  need_root
+  ensure_process_structure
+
+  local sub="${1:-}"
+  shift || true
+
+  case "$sub" in
+    ""|index)
+      open_note "${IPCRAE_ROOT}/Process/map.md" "Process/map.md"
+      ;;
+    map)
+      open_note "${IPCRAE_ROOT}/Process/map.md" "Process/map.md"
+      ;;
+    priorities|priorites)
+      open_note "${IPCRAE_ROOT}/Process/priorites.md" "Process/priorites.md"
+      ;;
+    run)
+      cmd_process_run "$@"
+      ;;
+    next)
+      cmd_process_next
+      ;;
+    *)
+      local nom="$sub"
+      local slug freq
+      slug="$(slugify "$nom")"
+      [ -z "$slug" ] && slug="process"
+      freq="manual"
+      local abs="${IPCRAE_ROOT}/Process/${freq}/${slug}.md"
+      if [ ! -f "$abs" ]; then
+        local tpl="${IPCRAE_ROOT}/Process/_template_process.md"
+        [ -f "$tpl" ] || tpl="${IPCRAE_ROOT}/templates/prompts/template_process.md"
+        if [ -f "$tpl" ]; then
+          cp "$tpl" "$abs"
+          sed -i "s/\[Nom\]/${nom}/g" "$abs"
+          loginfo "Process créé: Process/${freq}/${slug}.md"
+        else
+          logwarn "Template process introuvable (_template_process.md)."
+          printf '# Process — %s
+' "$nom" > "$abs"
+        fi
+      fi
+      open_note "$abs" "Process/${freq}/${slug}.md"
+      ;;
+  esac
 }
 
 # ── Update ────────────────────────────────────────────────────
@@ -1382,7 +1645,13 @@ Commandes:
   search <mots|tags>       Recherche (cache tags + fallback grep)
   review <type>            Revue adaptative (phase|project|quarter)
   phase|phases             Ouvrir Phases/index.md
-  process [nom]            Créer/ouvrir un process ou l'index
+  process [nom]            Créer/ouvrir une fiche process (manual/<slug>.md)
+  process map              Ouvrir la cartographie centrale Process/map.md
+  process priorites        Ouvrir la matrice impact × facilité
+  process run <slug>       Exécuter une fiche process (agent supervisé)
+  process run --dry-run <slug>  Afficher le plan d'exécution sans produire de sortie
+  process next             Proposer les 3 prochains quick wins
+  inbox --process          Lancer le process inbox-triage
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
   update                   Met à jour via git pull puis relance l'installateur
   sync-git                 Sauvegarde Git du vault entier (add, commit, push)
@@ -1390,7 +1659,8 @@ Commandes:
   <texte_libre>            Mode expert (ex: ipcrae DevOps)
 
 Variables utiles:
-  IPCRAE_AUTO_GIT=true     Auto-commit/push après nouvelles entrées mémoire
+  IPCRAE_AUTO_GIT=true     Active l'auto-commit après nouvelles entrées mémoire
+  IPCRAE_AUTO_GIT_PUSH=true Active le push auto (désactivé par défaut)
 
 Options:
   -p, --provider PROVIDER  Choisir le provider (claude|gemini|codex)
@@ -1399,7 +1669,10 @@ Options:
 
 Exemples:
   ipcrae                    # menu
-  ipcrae process facturation # crée/ouvre Process-facturation.md
+  ipcrae process inbox-triage      # crée/ouvre Process/manual/inbox-triage.md
+  ipcrae process run inbox-triage  # exécute le process inbox-triage
+  ipcrae process next              # top 3 quick wins
+  ipcrae inbox --process           # alias vers process run inbox-triage
   ipcrae consolidate devops # compacte la mémoire DevOps
   ipcrae update             # mise à jour système
   ipcrae doctor -v          # diagnostic complet
@@ -1462,7 +1735,8 @@ main() {
     update)            cmd_update ;;
     consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
-    process|processes) cmd_process "${cmd_args[*]:-}" ;;
+    process|processes) cmd_process "${cmd_args[@]:-}" ;;
+    inbox)             [ "${cmd_args[0]:-}" = "--process" ] && cmd_inbox_process "${cmd_args[@]:1}" || cmd_inbox_process ;;
     *)
       need_root; show_dashboard
       printf '%b🤖 Provider: %s | 🎯 Expert: %s%b
