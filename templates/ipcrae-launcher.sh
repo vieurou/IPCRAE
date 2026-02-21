@@ -454,6 +454,26 @@ PYCTX
   cmd_index
   loginfo "Clôture dynamique effectuée: memory/${domain}.md + context.md + cache tags"
   auto_git_sync_event "close session"
+
+  # ── Git tag de session (jalon temporel dans l'historique du vault) ──────
+  # Crée un tag annoté après le commit auto_git_sync pour marquer l'état du
+  # cerveau à la fin de cette session. Permet de retrouver "ce qui était connu
+  # à cette date" via `git show session-YYYYMMDD-domaine`.
+  if [ -d "${IPCRAE_ROOT}/.git" ]; then
+    local tag_name
+    tag_name="session-$(date +%Y%m%d)-${domain}"
+    local tag_msg="Session close: domaine=${domain}"
+    [ -n "$project" ] && tag_msg="${tag_msg}, projet=${project}"
+    # Tag idempotent : si le tag existe déjà (double close), on le skip
+    if ! GIT_DIR="${IPCRAE_ROOT}/.git" git rev-parse "$tag_name" >/dev/null 2>&1; then
+      GIT_DIR="${IPCRAE_ROOT}/.git" GIT_WORK_TREE="${IPCRAE_ROOT}" \
+        git tag -a "$tag_name" -m "$tag_msg" 2>/dev/null \
+        && loginfo "Tag vault créé: ${tag_name}" \
+        || logwarn "Création du tag vault échouée (non bloquant)"
+    else
+      loginfo "Tag vault déjà présent: ${tag_name} (skipped)"
+    fi
+  fi
 }
 
 
