@@ -1,4 +1,4 @@
-# 🧠 IPCRAE Étendu (méthode v3.2 / scripts v3.2.0)
+# 🧠 IPCRAE Étendu (méthode v3.3 / scripts v3.3.0)
 
 > **I**nbox · **P**rojets · **C**asquettes · **R**essources · **A**rchives
 > Un système de gestion de vie complet, piloté par l'IA, 100% local, versionnable et CLI-friendly.
@@ -52,7 +52,7 @@ IPCRAE_ROOT/
 │   ├── context.md          # Contexte global : identité, valeurs, structure, projets en cours
 │   ├── instructions.md     # Règles IA communes (qualité, vérification, styles)
 │   ├── config.yaml         # Provider par défaut, options
-│   └── prompts/            # Architecture v3.2 des prompts par domaine/fonction
+│   └── prompts/            # Architecture v3.3 des prompts par domaine/fonction
 ├── Inbox/
 │   ├── waiting-for.md      # Délégué / en attente
 │   └── capture-*.md        # Captures rapides
@@ -143,7 +143,7 @@ Algorithme appliqué :
 
 ---
 
-## 5) Contrat IA et Prompts (v3.2)
+## 5) Contrat IA et Prompts (v3.3)
 
 ### Fichiers racines
 - **`.ipcrae/context.md`** : Identité, structure, projets en cours.
@@ -173,7 +173,7 @@ Puis seulement exécuter ce prompt optimisé.
 
 La mémoire IA sert à éviter de refaire les mêmes erreurs.
 - **Règle** : Une mémoire par domaine (devops, electronique, etc.) pour réduire le bruit.
-- **Commande** : Mise à jour en fin de session via `ipcrae close [domaine]`.
+- **Commande** : Mise à jour en fin de session via `ipcrae close <domaine> --project <slug>` (flux canonique).
 
 ### Format canonique
 ```markdown
@@ -187,6 +187,12 @@ La mémoire IA sert à éviter de refaire les mêmes erreurs.
 ---
 
 ## 7) Workflows opérationnels (Rituels)
+
+### 7.0 Cycle canonique start → work → close
+- `ipcrae start --project <slug> --phase <phase>` : initialise le contexte de session.
+- `ipcrae work "<objectif>"` : lance l'agent avec contexte minimisé et tags pertinents.
+- `ipcrae close <domaine> --project <slug>` : consolide `memory/<domaine>.md`, met à jour `.ipcrae/context.md`, puis reconstruit `.ipcrae/cache/tag-index.json`.
+
 
 ### 7.1 Capture (Inbox)
 Objectif : ne jamais perdre une idée.
@@ -206,7 +212,7 @@ Objectif : ne jamais perdre une idée.
 - Bilan, ajustements d’objectifs, “reset”.
 
 ### 7.5 Close session
-- Commande : `ipcrae close devops`
+- Commande : `ipcrae close devops --project mon-projet`
 - L'IA résume la session, extrait la sève dans `memory/<domaine>.md` et purge le reste.
 
 ---
@@ -228,6 +234,9 @@ Objectif : ne jamais perdre une idée.
 ---
 
 ## 10) Mode “Projet Local” : CDE (Context Driven Engineering)
+
+Référence conception: `docs/conception/00_OS_IA_3_COUCHES.md` (stockage/agent/interface + sources de vérité).
+
 
 Quand un repo local (code applicatif, dossier musique...) doit bénéficier d'IPCRAE, utilisez :
 ```bash
