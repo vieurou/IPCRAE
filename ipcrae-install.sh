@@ -9,9 +9,9 @@ SCRIPT_VERSION="3.3.0"
 METHOD_VERSION="3.3"
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'
 RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
-AUTO_YES=false
-DRY_RUN=false
-IPCRAE_ROOT=""
+AUTO_YES="${AUTO_YES:-false}"
+DRY_RUN="${DRY_RUN:-false}"
+IPCRAE_ROOT="${IPCRAE_ROOT:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 execute() {
@@ -454,15 +454,28 @@ ipcrae -p gemini     # choisir le provider
 # ═══════════════════════════════════════════════════════════════════════════
 section "Fichiers provider"
 if prompt_yes_no "Générer CLAUDE.md, GEMINI.md, AGENTS.md, Kilo ?" "y"; then
-  body="$(cat .ipcrae/context.md; printf '\n\n---\n\n'; cat .ipcrae/instructions.md)"
+  ctx=".ipcrae/context.md"
+  ins=".ipcrae/instructions.md"
+  body=""
+  if [ -f "$ctx" ] && [ -f "$ins" ]; then
+    body="$(cat "$ctx"; printf '\n\n---\n\n'; cat "$ins")"
+  elif [ "$DRY_RUN" = true ]; then
+    body="[DRY-RUN CONTENT]"
+  fi
+
   for t in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
     f="${t%%:*}"; n="${t##*:}"
-    printf '# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' "$n" "$METHOD_VERSION" "$body" > "$f"
-    loginfo "$f"
+    write_safe "$f" "# Instructions pour $n — IPCRAE v$METHOD_VERSION
+# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md
+# Régénérer : ipcrae sync
+
+$body"
   done
-  mkdir -p .kilocode/rules
-  printf '# Instructions IPCRAE pour Kilo Code\n# ⚠ GÉNÉRÉ\n\n%s\n' "$body" > .kilocode/rules/ipcrae.md
-  loginfo ".kilocode/rules/ipcrae.md"
+  execute mkdir -p .kilocode/rules
+  write_safe ".kilocode/rules/ipcrae.md" "# Instructions IPCRAE pour Kilo Code
+# ⚠ GÉNÉRÉ
+
+$body"
 fi
 
 section "Fichiers ignore"
@@ -484,11 +497,11 @@ fi
 section "Installation des scripts CLI dans le PATH"
 
 if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
-  mkdir -p "$HOME/bin"
+  execute mkdir -p "$HOME/bin"
 
   if [ -f "$SCRIPT_DIR/templates/ipcrae-launcher.sh" ]; then
-    cp "$SCRIPT_DIR/templates/ipcrae-launcher.sh" "$HOME/bin/ipcrae"
-    chmod +x "$HOME/bin/ipcrae"
+    execute cp "$SCRIPT_DIR/templates/ipcrae-launcher.sh" "$HOME/bin/ipcrae"
+    execute chmod +x "$HOME/bin/ipcrae"
     # NE PAS hardcoder IPCRAE_ROOT dans le binaire : on exporte la variable d'env
     # dans les shells (voir section "Variables d'environnement" ci-dessous).
     # Le launcher utilise déjà ${IPCRAE_ROOT:-${HOME}/IPCRAE} comme fallback dynamique.
@@ -498,57 +511,57 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
   fi
   
   if [ -f "$SCRIPT_DIR/templates/ipcrae-addProject.sh" ]; then
-    cp "$SCRIPT_DIR/templates/ipcrae-addProject.sh" "$HOME/bin/ipcrae-addProject"
+    execute cp "$SCRIPT_DIR/templates/ipcrae-addProject.sh" "$HOME/bin/ipcrae-addProject"
   else
     logerr "Template templates/ipcrae-addProject.sh introuvable !"
     exit 1
   fi
 
   if [ -f "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" ]; then
-    cp "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" "$HOME/bin/ipcrae-migrate-safe"
-    chmod +x "$HOME/bin/ipcrae-migrate-safe"
+    execute cp "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" "$HOME/bin/ipcrae-migrate-safe"
+    execute chmod +x "$HOME/bin/ipcrae-migrate-safe"
   else
     logwarn "Template templates/ipcrae-migrate-safe.sh introuvable (migration safe non installée)."
   fi
   
   if [ -d "$SCRIPT_DIR/templates/prompts" ]; then
-    mkdir -p "$IPCRAE_ROOT/.ipcrae/prompts/"
-    cp "$SCRIPT_DIR"/templates/prompts/*.md "$IPCRAE_ROOT/.ipcrae/prompts/"
+    execute mkdir -p "$IPCRAE_ROOT/.ipcrae/prompts/"
+    execute cp "$SCRIPT_DIR"/templates/prompts/*.md "$IPCRAE_ROOT/.ipcrae/prompts/"
     loginfo "✓ Prompts IA extraits dans .ipcrae/prompts/"
   else
     logwarn "Dossier templates/prompts introuvable, installation des prompts omise."
   fi
 
   if [ -d "$SCRIPT_DIR/templates/scripts" ]; then
-    mkdir -p "$IPCRAE_ROOT/Scripts" "$HOME/bin"
-    cp "$SCRIPT_DIR"/templates/scripts/*.sh "$IPCRAE_ROOT/Scripts/"
-    chmod +x "$IPCRAE_ROOT"/Scripts/*.sh
+    execute mkdir -p "$IPCRAE_ROOT/Scripts" "$HOME/bin"
+    execute cp "$SCRIPT_DIR"/templates/scripts/*.sh "$IPCRAE_ROOT/Scripts/"
+    execute chmod +x "$IPCRAE_ROOT"/Scripts/*.sh
 
-    cp "$SCRIPT_DIR/templates/scripts/ipcrae-tokenpack.sh" "$HOME/bin/ipcrae-tokenpack"
-    cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-bridge.sh" "$HOME/bin/ipcrae-agent-bridge"
-    cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$HOME/bin/ipcrae-prompt-optimize"
-    chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tokenpack.sh" "$HOME/bin/ipcrae-tokenpack"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-bridge.sh" "$HOME/bin/ipcrae-agent-bridge"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$HOME/bin/ipcrae-prompt-optimize"
+    execute chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize"
     loginfo "✓ Scripts token/multi-agent installés (ipcrae-tokenpack, ipcrae-agent-bridge, ipcrae-prompt-optimize)"
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" ]; then
-      cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"
-      chmod +x "$HOME/bin/ipcrae-index"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"
+      execute chmod +x "$HOME/bin/ipcrae-index"
       loginfo "✓ Script optionnel installé: ipcrae-index"
     else
-      logwarn "Optionnel non installé: ipcrae-index (template manquant)"
+      logwarn "Script ipcrae-index introuvable."
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
-      cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
-      chmod +x "$HOME/bin/ipcrae-tag"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
+      execute chmod +x "$HOME/bin/ipcrae-tag"
       loginfo "✓ Script optionnel installé: ipcrae-tag"
     else
-      logwarn "Optionnel non installé: ipcrae-tag (template manquant)"
+      logwarn "Script ipcrae-tag introuvable."
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" ]; then
-      cp "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" "$HOME/bin/ipcrae-uninstall"
-      chmod +x "$HOME/bin/ipcrae-uninstall"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" "$HOME/bin/ipcrae-uninstall"
+      execute chmod +x "$HOME/bin/ipcrae-uninstall"
       loginfo "✓ Script de purge installé: ipcrae-uninstall"
     fi
   else

@@ -78,3 +78,23 @@ EOF
   run prompt_yes_no "Test question ?" "y"
   [ "$status" -eq 0 ]
 }
+
+@test "write_safe creates a backup when overwriting an existing file" {
+  local test_file="$TEST_DIR/test_backup.txt"
+  echo "Old content" > "$test_file"
+  
+  write_safe "$test_file" "New content"
+  
+  # Ensure the new content is written
+  run cat "$test_file"
+  [ "$output" = "New content" ]
+  
+  # Ensure the backup exists and has the old content
+  local backup_file
+  backup_file=$(ls "$test_file.bak-"* 2>/dev/null | head -1)
+  [ -n "$backup_file" ]
+  [ -f "$backup_file" ]
+  
+  run cat "$backup_file"
+  [ "$output" = "Old content" ]
+}

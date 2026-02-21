@@ -934,6 +934,7 @@ cmd_health() {
 }
 
 cmd_doctor() {
+  local orig_cwd="$PWD"
   need_root
   local verbose=false
   if [ "${1:-}" = "--verbose" ] || [ "${1:-}" = "-v" ]; then verbose=true; fi
@@ -996,17 +997,17 @@ cmd_doctor() {
   fi
 
   printf "\n%bContrat d'injection de contexte (CDE)%b\n" "$YELLOW" "$NC"
-  [ -d "docs/conception" ] && printf '  ✓ docs/conception/\n' || printf '  ✗ docs/conception/\n'
-  [ -f "docs/conception/03_IPCRAE_BRIDGE.md" ] && printf '  ✓ docs/conception/03_IPCRAE_BRIDGE.md\n' || printf '  ✗ docs/conception/03_IPCRAE_BRIDGE.md\n'
+  [ -d "$orig_cwd/docs/conception" ] && printf '  ✓ docs/conception/\n' || printf '  ✗ docs/conception/\n'
+  [ -f "$orig_cwd/docs/conception/03_IPCRAE_BRIDGE.md" ] && printf '  ✓ docs/conception/03_IPCRAE_BRIDGE.md\n' || printf '  ✗ docs/conception/03_IPCRAE_BRIDGE.md\n'
 
-  if [ -L ".ipcrae-memory" ]; then
+  if [ -L "$orig_cwd/.ipcrae-memory" ]; then
     printf '  ✓ .ipcrae-memory (symlink)\n'
   else
     printf '  ⚠ .ipcrae-memory absent ou non-symlink (mode dégradé)\n'
   fi
 
   local project_name hub_dir
-  project_name="$(basename "$PWD")"
+  project_name="$(basename "$orig_cwd")"
   hub_dir="${IPCRAE_ROOT}/Projets/${project_name}"
   [ -d "$hub_dir" ] && printf '  ✓ hub projet: %s\n' "${hub_dir#$IPCRAE_ROOT/}" || printf '  ⚠ hub projet manquant: %s\n' "${hub_dir#$IPCRAE_ROOT/}"
 
