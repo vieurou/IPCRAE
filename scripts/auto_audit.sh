@@ -15,13 +15,19 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-AGENT="kilo-code"
+AGENT="claude"
 FREQUENCY="quotidien"
 VERBOSE="false"
 FORCE="false"
 
-# Parser les arguments
+# Parser les arguments — passe 1 : COMMAND (premier arg positionnel non-flag)
 COMMAND=""
+if [[ $# -gt 0 && "$1" != --* && "$1" != -h ]]; then
+    COMMAND="$1"
+    shift
+fi
+
+# Passe 2 : options flags
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --agent)
@@ -45,7 +51,8 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         status|activate|deactivate|history|report)
-            COMMAND="$1"
+            # Permet aussi COMMAND en position non-première (fallback)
+            [[ -z "$COMMAND" ]] && COMMAND="$1"
             shift
             ;;
         *)
@@ -105,7 +112,10 @@ check_new_audit_needed() {
         return 0
     fi
 
-    local last_audit=$(cat "$LAST_AUDIT_FILE" 2>/dev/null || echo "0")
+    local last_audit
+    last_audit=$(cat "$LAST_AUDIT_FILE" 2>/dev/null)
+    # Garder uniquement les chiffres (timestamp Unix)
+    [[ "$last_audit" =~ ^[0-9]+$ ]] || last_audit=0
     local current_time=$(date +%s)
     local interval=0
 
