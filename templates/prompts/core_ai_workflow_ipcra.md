@@ -32,5 +32,6 @@
 - **OBLIGATION ABSOLUE : Tu as EXPLICITEMENT documenté ton travail dans le système de fichiers, en respectant la matrice :**
   - Si c'est en cours (WIP, debug, todo) ➔ `.ipcrae-project/local-notes/`.
   - Si c'est une décision technique clé ou une fin de feature ➔ `.ipcrae-project/memory/` (spécifique) ou `.ipcrae-memory/memory/` (global).
+- **MISE À JOUR DU TRACKING** : Tu as impérativement coché `[x]` la tâche correspondante dans `tracking.md` (Projet) ou `Phases/index.md` (Global), et remonté le backlog si nécessaire.
 - **TOUS LES FICHIERS MODIFIÉS** dans le répertoire du projet ont été commités (`git add . && git commit -m "..."`).
 - Le prochain pas est nommé.
