@@ -174,6 +174,7 @@ Puis seulement exécuter ce prompt optimisé.
 La mémoire IA sert à éviter de refaire les mêmes erreurs.
 - **Règle** : Une mémoire par domaine (devops, electronique, etc.) pour réduire le bruit.
 - **Commande** : Mise à jour en fin de session via `ipcrae close <domaine> --project <slug>` (flux canonique).
+- **Hygiène (TTL)** : `ipcrae memory gc --domain <domaine> --ttl-days 180` archive les entrées anciennes vers `Archives/memory/`.
 
 ### Format canonique
 ```markdown
@@ -192,6 +193,7 @@ La mémoire IA sert à éviter de refaire les mêmes erreurs.
 - `ipcrae start --project <slug> --phase <phase>` : initialise le contexte de session.
 - `ipcrae work "<objectif>"` : lance l'agent avec contexte minimisé et tags pertinents.
 - `ipcrae close <domaine> --project <slug>` : consolide `memory/<domaine>.md`, met à jour `.ipcrae/context.md`, puis reconstruit `.ipcrae/cache/tag-index.json`.
+- **Point d'entrée unifié** : `ipcrae session start|end|run` (avec `--skip-audit` pour mode rapide).
 
 
 ### 7.1 Capture (Inbox)

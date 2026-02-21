@@ -14,6 +14,8 @@ created: 2026-02-21
 
 Le pipeline IPCRAE est le flux de travail complet qui guide la prise de décision et l'exécution des tâches. Il intègre tous les systèmes IPCRAE: auto-audit, auto-amélioration, profils, demandes, non-régression, allContext, et tags.
 
+> Raccourci opérationnel: `ipcrae session start|end|run` orchestre les étapes principales (audit d'entrée, close, audit de non-régression) avec `--skip-audit` pour un mode rapide.
+
 ## 🎯 Objectifs du Pipeline
 
 1. **Amélioration continue**: Maintenir et améliorer le score IPCRAE
