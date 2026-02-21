@@ -215,6 +215,14 @@ Objectif : ne jamais perdre une idée.
 - Commande : `ipcrae close devops --project mon-projet`
 - L'IA résume la session, extrait la sève dans `memory/<domaine>.md` et purge le reste.
 
+### 7.7 Process OS exécutable (CMA: Clarifier → Mapper → Amplifier)
+- `Process/map.md` devient la source de vérité (daily/weekly/monthly/on-trigger/manuel).
+- `Process/priorites.md` porte la matrice **Impact × Facilité** + statut d’exécution.
+- `ipcrae process run <slug>` exécute une fiche process avec contexte minimal.
+- `ipcrae process run --dry-run <slug>` affiche le plan sans exécuter.
+- `ipcrae process next` propose les 3 quick wins prioritaires.
+- `ipcrae inbox --process` lance le process canonique `inbox-triage`.
+
 ### 7.6 Workflows Avancés (Nouvelle Idée & Projets)
 Pour des guides pas-à-pas sur la création de projets, l'intégration de projets existants, ou le traitement automatique d'une nouvelle idée, consultez le document détaillé :
 👉 **[docs/workflows.md](docs/workflows.md)**
@@ -276,6 +284,10 @@ Par défaut (`auto_git_sync: true`), IPCRAE va auto-commit & push vos nouvelles 
 - `ipcrae tag <tag>` : liste les fichiers liés à un tag.
 - `ipcrae search <mots|tags>` : recherche avec cache tags + fallback grep.
 - `ipcrae review project` : Rétrospective d'un projet guidée.
+- `ipcrae process map` : ouvre la cartographie process centrale.
+- `ipcrae process run <slug>` : exécute un process documenté.
+- `ipcrae process next` : propose les prochains quick wins impact×facilité.
+- `ipcrae inbox --process` : déclenche le tri Inbox supervisé.
 
 ---
 
