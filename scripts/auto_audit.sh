@@ -1,6 +1,11 @@
 #!/bin/bash
 # Auto-Audit IPCRAE - Script principal pour le mode auto-amélioration
 
+# Résolution du répertoire d'installation
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IPCRAE_AUDIT_CHECK="${SELF_DIR}/ipcrae-audit-check"
+IPCRAE_AUTO_APPLY="${SELF_DIR}/ipcrae-auto-apply"
+
 # Couleurs pour l'output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -49,10 +54,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Répertoire d'état (dans le vault IPCRAE, jamais dans le repo DEV)
+IPCRAE_AUTO_DIR="${IPCRAE_ROOT:-$HOME/IPCRAE}/.ipcrae/auto"
+mkdir -p "$IPCRAE_AUTO_DIR"
+
 # Fichiers de configuration
-CONFIG_FILE=".ipcrae-project/memory/agent_auto_amelioration_config.md"
-HISTORY_FILE=".ipcrae-project/memory/agent_auto_amelioration_history.md"
-LAST_AUDIT_FILE=".ipcrae-project/memory/last_audit_${AGENT}.txt"
+CONFIG_FILE="$IPCRAE_AUTO_DIR/agent_auto_amelioration_config.md"
+HISTORY_FILE="$IPCRAE_AUTO_DIR/agent_auto_amelioration_history.md"
+LAST_AUDIT_FILE="$IPCRAE_AUTO_DIR/last_audit_${AGENT}.txt"
 
 # Fonction pour retirer les codes ANSI
 strip_ansi() {
@@ -132,9 +141,9 @@ run_audit() {
 
     # Exécuter le script d'audit
     if [ "$VERBOSE" = "true" ]; then
-        ./scripts/audit_ipcrae.sh | tee "$audit_output_file"
+        "$IPCRAE_AUDIT_CHECK" | tee "$audit_output_file"
     else
-        ./scripts/audit_ipcrae.sh | tee "$audit_output_file" | grep -E "^(📊|🔴|🟡|🟢|Score|Critiques|Importants|Mineurs|RECOMMANDATIONS)"
+        "$IPCRAE_AUDIT_CHECK" | tee "$audit_output_file" | grep -E "^(📊|🔴|🟡|🟢|Score|Critiques|Importants|Mineurs|RECOMMANDATIONS)"
     fi
 
     # Sauvegarder le résultat
@@ -166,7 +175,7 @@ apply_corrections() {
 
     # Appliquer les corrections critiques
     echo -e "${YELLOW}1. Corrections critiques...${NC}"
-    ./scripts/apply_ipcrae_corrections.sh
+    "$IPCRAE_AUTO_APPLY"
 
     # Appliquer les corrections importantes
     echo -e "\n${YELLOW}2. Corrections importantes...${NC}"
@@ -218,7 +227,7 @@ generate_report() {
     if [ -f "$LAST_AUDIT_FILE.score" ]; then
         local last_score=$(cat "$LAST_AUDIT_FILE.score")
         local current_score
-        current_score=$(./scripts/audit_ipcrae.sh 2>/dev/null | extract_score_from_output)
+        current_score=$("$IPCRAE_AUDIT_CHECK" 2>/dev/null | extract_score_from_output)
         current_score=${current_score:-0/40}
 
         echo -e "${BLUE}Score initial:${NC} $last_score"

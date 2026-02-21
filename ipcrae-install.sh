@@ -635,6 +635,19 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     logwarn "Dossier templates/scripts introuvable, installation des scripts avancés omise."
   fi
 
+  # ── Mode auto-amélioration ─────────────────────────────────────────────
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-auto.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-auto.sh"             "$HOME/bin/ipcrae-auto"
+    execute cp "$SCRIPT_DIR/scripts/auto_audit.sh"              "$HOME/bin/ipcrae-auto-core"
+    execute cp "$SCRIPT_DIR/scripts/audit_ipcrae.sh"            "$HOME/bin/ipcrae-audit-check"
+    execute cp "$SCRIPT_DIR/scripts/apply_ipcrae_corrections.sh" "$HOME/bin/ipcrae-auto-apply"
+    execute chmod +x "$HOME/bin/ipcrae-auto" "$HOME/bin/ipcrae-auto-core" \
+                     "$HOME/bin/ipcrae-audit-check" "$HOME/bin/ipcrae-auto-apply"
+    loginfo "✓ Mode auto-amélioration installé: ipcrae-auto (+ ipcrae-auto-core, ipcrae-audit-check, ipcrae-auto-apply)"
+  else
+    logwarn "scripts/ipcrae-auto.sh introuvable — mode auto-amélioration non installé."
+  fi
+
   chmod +x "$HOME/bin/ipcrae-addProject"
   loginfo "✓ Script ipcrae-addProject installé dans ~/bin"
 
