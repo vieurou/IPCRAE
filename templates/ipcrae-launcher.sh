@@ -1284,6 +1284,25 @@ cmd_consolidate() {
   launch_with_prompt "$(get_default_provider)" "$prompt"
 }
 
+# ── AllContext — pipeline analyse/ingestion universel ─────────
+cmd_allcontext() {
+  need_root
+  local request="${1:-}"
+  if [ -z "$request" ]; then
+    logerr "Usage: ipcrae allcontext \"<texte de la demande>\" [--dry-run] [--show-all]"
+    return 1
+  fi
+  # Script dans DEV/IPCRAE/scripts/ (installé) ou fallback inline
+  local script_path="${HOME}/DEV/IPCRAE/scripts/ipcrae-allcontext.sh"
+  if [ -f "$script_path" ]; then
+    bash "$script_path" "$@"
+  else
+    logerr "Script ipcrae-allcontext.sh introuvable: $script_path"
+    logerr "Clonez DEV/IPCRAE ou copiez le script dans ~/DEV/IPCRAE/scripts/"
+    return 1
+  fi
+}
+
 # ── Process ───────────────────────────────────────────────────
 cmd_process() {
   need_root
@@ -1502,6 +1521,7 @@ Commandes:
   phase|phases             Ouvrir Phases/index.md
   process [nom]            Créer/ouvrir un process ou l'index
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
+  allcontext "<texte>"     Pipeline d'analyse/ingestion universel (rôles + contexte + tracking)
   update                   Met à jour via git pull puis relance l'installateur
   sync-git                 Sauvegarde Git du vault entier (add, commit, push)
   migrate-safe             Upgrade IPCRAE sans perte (backup + merge non destructif)
@@ -1579,6 +1599,7 @@ main() {
     review)            cmd_review "${cmd_args[0]:-}" "$provider" ;;
     update)            cmd_update ;;
     consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
+    allcontext)        cmd_allcontext "${cmd_args[@]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
     process|processes) cmd_process "${cmd_args[*]:-}" ;;
     *)
