@@ -60,7 +60,7 @@ has_frontmatter_field() {
 }
 
 vault_uncommitted_count() {
-  git -C "$IPCRAE_ROOT" status --porcelain 2>/dev/null | grep -c "^[MADRCU?]" || echo 0
+  git -C "$IPCRAE_ROOT" status --porcelain 2>/dev/null | grep "^[MADRCU?]" | wc -l | tr -d ' \t'
 }
 
 vault_last_commit_age_hours() {
