@@ -137,6 +137,11 @@ GIT_DIR="{{ipcrae_root}}/.git" GIT_WORK_TREE="{{ipcrae_root}}" \
 
 Ce tag permet de retrouver l'état du cerveau juste après l'ajout de ce projet :
 `git show ingestion-{{project_name}}-{{date_compact}}`
+
+**T5.3 — Clôturer la session**
+Suivre `Process/session-close.md` pour le commit complet, push vers brain.git et tag de session.
+Si `ipcrae close` est disponible : `ipcrae close {{domain}} --project {{project_name}}`
+
 ---
 
 ### BLOC 6 — AUTO-AUDIT [TOUJOURS EN DERNIER]
@@ -161,6 +166,9 @@ Pour chaque concept ci-dessous, vérifier si une note ou entrée a été créée
 **T6.3 — Proposer des améliorations au prompt d'ingestion**
 Si des lacunes ont été détectées dans ce workflow, les lister explicitement avec une suggestion de correction.
 
+**T6.4 — Déclencher un cycle d'auto-amélioration si score < 30**
+Suivre `Process/auto-amelioration.md` : l'ingestion d'un nouveau projet est un déclencheur naturel pour vérifier l'état global du cerveau.
+
 ---
 
 ## DÉFINITION DE DONE (vérifier avant de déclarer l'ingestion terminée)
@@ -174,6 +182,7 @@ Si des lacunes ont été détectées dans ce workflow, les lister explicitement 
 - [ ] `Zettelkasten/_inbox/` — ≥2 notes atomiques
 - [ ] `Journal/Daily/{{year}}/{{date}}.md` — entrée présente
 - [ ] Tag Git vault créé : `ingestion-{{project_name}}-{{date_compact}}`
+- [ ] Session clôturée via `Process/session-close.md` (commit + push brain.git + tag session)
 
 ## RÈGLE D'OR
 Exécute cette queue de façon séquentielle, bloc par bloc. Annonce chaque tâche avant de l'exécuter. Un fichier cerveau créé vaut plus que 10 fichiers du projet analysés. La traçabilité (journal) est inviolable.
