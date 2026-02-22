@@ -1,5 +1,5 @@
 #!/bin/bash
-# Audit réel du vault IPCRAE — score dynamique 0-45
+# Audit réel du vault IPCRAE — score dynamique 0-50
 # Usage: ipcrae-audit-check [--verbose]
 
 # --- Config ---
@@ -18,7 +18,7 @@ NC='\033[0m'
 
 # --- État global ---
 TOTAL_SCORE=0
-MAX_SCORE=45
+MAX_SCORE=50
 declare -a GAPS=()
 CRITIQUES=0
 IMPORTANTS=0
@@ -543,6 +543,69 @@ audit_section5() {
 }
 
 # ══════════════════════════════════════════════
+# Section 6 — Intégrité système (5 pts)
+# ══════════════════════════════════════════════
+audit_section6() {
+  section_header "Section 6 — Intégrité système"
+  local s=0
+
+  # 6.1 Scripts essentiels ~/bin/ipcrae* présents et exécutables (2 pts)
+  local bin_dir="${HOME}/bin"
+  local scripts_ok=1
+  for script in ipcrae ipcrae-audit-check ipcrae-auto ipcrae-auto-apply ipcrae-auto-core; do
+    if [[ ! -x "${bin_dir}/${script}" ]]; then
+      scripts_ok=0
+      break
+    fi
+  done
+  if [[ "$scripts_ok" -eq 1 ]]; then
+    check_line ok "Scripts essentiels ~/bin/ipcrae* présents et exécutables" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Scripts essentiels ~/bin/ipcrae* présents et exécutables" 0 2 "Script(s) manquant(s) → relancer: ipcrae-install.sh"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
+
+  # 6.2 Tags vault : 0 tag en majuscules dans le frontmatter (2 pts)
+  # Frontmatter-aware : only checks lines between first --- and second ---
+  local tags_bad=0
+  while IFS= read -r f; do
+    if awk 'BEGIN{d=0} /^---/{d++; next} d==1{print} d>=2{exit}' "$f" \
+        | grep -q "^tags:.*[A-Z]"; then
+      tags_bad=$(( tags_bad + 1 ))
+    fi
+  done < <(find "$IPCRAE_ROOT" -name "*.md" ! -path "*/.git/*" 2>/dev/null)
+  if [[ "$tags_bad" -eq 0 ]]; then
+    check_line ok "Tags vault : 0 tag en majuscules dans le frontmatter" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Tags vault : ${tags_bad} fichier(s) avec tags en majuscules" 0 2 "${tags_bad} fichier(s) avec tags en majuscules → normaliser en minuscules"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 6.3 DEV/IPCRAE propre (0 fichiers modifiés non commités) (1 pt)
+  local dev_dir
+  dev_dir=$(grep -oP "'\K[^']+(?='\s*—[^']*(IPCRAE|outillage))" \
+    "$IPCRAE_ROOT/.ipcrae/context.md" 2>/dev/null | head -1)
+  [[ -z "$dev_dir" ]] && dev_dir="${HOME}/DEV/IPCRAE"
+  local dev_modified=0
+  if [[ -d "$dev_dir/.git" ]]; then
+    dev_modified=$(git -C "$dev_dir" status --porcelain 2>/dev/null \
+      | grep "^[MADRCU]" | wc -l | tr -d ' \t')
+  fi
+  if [[ "$dev_modified" -eq 0 ]]; then
+    check_line ok "DEV/IPCRAE : 0 fichier modifié non commité" 1 1
+    s=$(( s + 1 ))
+  else
+    check_line ko "DEV/IPCRAE : ${dev_modified} fichier(s) modifié(s) non commité(s)" 0 1 "${dev_modified} fichier(s) DEV non commités → git -C $dev_dir commit"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/5${NC}"
+  add_score "$s"
+}
+
+# ══════════════════════════════════════════════
 # Main
 # ══════════════════════════════════════════════
 main() {
@@ -564,7 +627,8 @@ main() {
   audit_section3
   audit_section4
   audit_section5
-  
+  audit_section6
+
   # Résumé
   local pct=$(( TOTAL_SCORE * 100 / MAX_SCORE ))
   local color_score
