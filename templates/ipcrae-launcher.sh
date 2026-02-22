@@ -592,6 +592,26 @@ PYCTX
 
   cmd_index
   loginfo "Clôture dynamique effectuée: memory/${domain}.md + context.md + cache tags"
+
+  # ── MOC auto-détection (bash + python3, propose les MOC manquants) ─────
+  if command -v ipcrae-moc-auto &>/dev/null; then
+    ipcrae-moc-auto --min-notes 3 --update --quiet "$IPCRAE_ROOT" || true
+  fi
+
+  # ── Audit pre-commit (score ≥ 30/40 recommandé avant push) ───────────
+  if command -v ipcrae-audit-check &>/dev/null; then
+    local audit_score
+    audit_score=$(IPCRAE_ROOT="$IPCRAE_ROOT" ipcrae-audit-check 2>/dev/null \
+      | grep -oP 'Score:\s*\K[0-9]+' | tail -1 || echo "?")
+    if [ "$audit_score" != "?" ] && [ "$audit_score" -lt 30 ] 2>/dev/null; then
+      printf '%b⚠  Audit score: %s/40 (< 30) — commit quand même (non bloquant)%b\n' \
+        "$YELLOW" "$audit_score" "$NC"
+      printf '   → Lancer: ipcrae-audit-check pour voir les gaps\n'
+    elif [ "$audit_score" != "?" ]; then
+      printf '%b✓  Audit pre-commit: %s/40%b\n' "$GREEN" "$audit_score" "$NC"
+    fi
+  fi
+
   auto_git_sync_event "close session"
 
   # ── Git tag de session (jalon temporel dans l'historique du vault) ──────
