@@ -1516,6 +1516,13 @@ ENDOFFILE
 
   # Auto-commit vault
   auto_git_sync_event "addProject ${slug}"
+
+  # Tag Git annoté — jalon de création projet
+  if [ -d "${IPCRAE_ROOT}/.git" ]; then
+    local tag_name="project-${slug}-$(date '+%Y%m%d')"
+    (cd "${IPCRAE_ROOT}" && git tag -a "$tag_name" -m "Projet créé: ${slug} (domaine: ${domain})" 2>/dev/null \
+      && loginfo "Tag Git annoté: ${tag_name}") || true
+  fi
 }
 
 # ── Archive — archiver un projet terminé ──────────────────────
