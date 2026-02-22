@@ -546,6 +546,13 @@ audit_section5() {
 # Main
 # ══════════════════════════════════════════════
 main() {
+  # Guard : vault doit être un dépôt git valide
+  if ! git -C "$IPCRAE_ROOT" rev-parse --git-dir &>/dev/null; then
+    echo -e "\n${RED}ERREUR: IPCRAE_ROOT=$IPCRAE_ROOT n'est pas un dépôt git — vault invalide${NC}" >&2
+    echo -e "${YELLOW}Conseil: export IPCRAE_ROOT=\$HOME/IPCRAE${NC}\n" >&2
+    exit 2
+  fi
+
   local date_label
   date_label=$(date '+%Y-%m-%d')
 

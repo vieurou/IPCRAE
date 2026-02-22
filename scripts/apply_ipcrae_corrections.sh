@@ -131,7 +131,7 @@ apply_guided() {
 
   # G2 — Vault non commité
   local uncommitted
-  uncommitted=$(git -C "$IPCRAE_ROOT" status --porcelain 2>/dev/null | grep -c "^[MADRCU?]" || echo 0)
+  uncommitted=$(git -C "$IPCRAE_ROOT" status --porcelain 2>/dev/null | grep "^[MADRCU?]" | wc -l | tr -d ' \t')
   if [[ "$uncommitted" -gt 0 ]]; then
     log_warn "Vault : ${uncommitted} fichier(s) non commité(s)"
     if confirm "git add -A && git commit (vault)"; then
@@ -213,6 +213,13 @@ report_manual() {
 # Main
 # ══════════════════════════════════════════════
 main() {
+  # Guard : vault doit être un dépôt git valide
+  if ! git -C "$IPCRAE_ROOT" rev-parse --git-dir &>/dev/null; then
+    echo -e "\n${RED}ERREUR: IPCRAE_ROOT=$IPCRAE_ROOT n'est pas un dépôt git — vault invalide${NC}" >&2
+    echo -e "${YELLOW}Conseil: export IPCRAE_ROOT=\$HOME/IPCRAE${NC}\n" >&2
+    exit 2
+  fi
+
   echo -e "\n${BOLD}${CYAN}━━ Corrections IPCRAE — $(date '+%Y-%m-%d %H:%M') ━━${NC}"
   echo -e "${CYAN}Vault: ${IPCRAE_ROOT}${NC}"
   [[ "$AUTO_MODE" == "true" ]] && echo -e "${CYAN}Mode: automatique (--auto)${NC}"
