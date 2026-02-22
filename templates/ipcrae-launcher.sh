@@ -1612,6 +1612,96 @@ cmd_allcontext() {
   fi
 }
 
+# ── Demandes — suivi automatique de l'état des demandes ───────
+cmd_demandes() {
+  need_root
+  local subcmd="${1:-status}"
+  shift 2>/dev/null || true
+  local mark_file=""
+
+  case "$subcmd" in
+    status|list)
+      local inbox_dir="${IPCRAE_ROOT}/Inbox/demandes-brutes"
+      local traites_dir="${inbox_dir}/traites"
+      local total=0 pending=0 done_count=0
+
+      section "Suivi des demandes brutes"
+
+      if [ ! -d "$inbox_dir" ]; then
+        logwarn "Dossier introuvable: Inbox/demandes-brutes/"
+        return 0
+      fi
+
+      # Compter les demandes
+      while IFS= read -r f; do
+        [[ "$f" == *traites* ]] && continue
+        total=$(( total + 1 ))
+        local st
+        st=$(awk '/^---$/{fm++; next} fm==1 && /^status:/{print; exit} fm>=2{exit}' "$f" 2>/dev/null \
+             | sed 's/^status: *//')
+        if [[ "$st" == "traite"* ]]; then
+          done_count=$(( done_count + 1 ))
+        else
+          pending=$(( pending + 1 ))
+        fi
+      done < <(find "$inbox_dir" -maxdepth 1 -name "*.md" 2>/dev/null)
+
+      local traites_n
+      traites_n=$(find "$traites_dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' \t')
+      done_count=$(( done_count + ${traites_n:-0} ))
+      local grand_total=$(( total + ${traites_n:-0} ))
+
+      printf '  Demandes brutes : %d total | %d en attente | %d traitées\n' \
+        "$grand_total" "$pending" "$done_count"
+      echo ""
+
+      if [ "$pending" -gt 0 ]; then
+        logwarn "Demandes en attente de traitement :"
+        while IFS= read -r f; do
+          [[ "$f" == *traites* ]] && continue
+          local st
+          st=$(awk '/^---$/{fm++; next} fm==1 && /^status:/{print; exit} fm>=2{exit}' "$f" 2>/dev/null \
+               | sed 's/^status: *//')
+          if [[ "$st" != "traite"* ]]; then
+            local fname; fname=$(basename "$f")
+            printf '  • [%s] %s\n' "${st:-?}" "$fname"
+          fi
+        done < <(find "$inbox_dir" -maxdepth 1 -name "*.md" 2>/dev/null)
+        echo ""
+        loginfo "Pour marquer traité: ipcrae demandes done <nom-fichier>"
+      else
+        loginfo "Toutes les demandes sont traitées ✓"
+      fi
+      ;;
+
+    done|mark-done)
+      mark_file="${1:-}"
+      if [ -z "$mark_file" ]; then
+        logerr "Usage: ipcrae demandes done <nom-fichier>"
+        return 1
+      fi
+      local inbox_dir="${IPCRAE_ROOT}/Inbox/demandes-brutes"
+      local traites_dir="${inbox_dir}/traites"
+      local full_path="${inbox_dir}/${mark_file}"
+      [ ! -f "$full_path" ] && full_path="${mark_file}"
+      if [ ! -f "$full_path" ]; then
+        logerr "Fichier introuvable: ${mark_file}"
+        return 1
+      fi
+      mkdir -p "$traites_dir"
+      sed -i "s/^status: .*/status: traite/" "$full_path"
+      mv "$full_path" "${traites_dir}/$(basename "$full_path")"
+      loginfo "Demande marquée traitée et déplacée dans traites/"
+      auto_git_sync_event "demandes done $(basename "$mark_file")"
+      ;;
+
+    *)
+      logerr "Sous-commande inconnue: $subcmd (status|list|done)"
+      return 1
+      ;;
+  esac
+}
+
 # ── Process ───────────────────────────────────────────────────
 cmd_process() {
   need_root
@@ -1833,6 +1923,7 @@ Commandes:
   allcontext "<texte>"     Pipeline d'analyse/ingestion universel (rôles + contexte + tracking)
   addProject --slug <s>    Créer un hub projet vault (index + tracking + memory + demandes/)
   archive <slug>           Archiver un projet terminé (Projets/ → Archives/, context.md nettoyé)
+  demandes [status|done]   Suivi de l'état des demandes brutes (Inbox/demandes-brutes/)
   prompt build --agent <d> Compiler les couches prompts en un seul fichier (.ipcrae/compiled/)
   prompt check             Vérifier la cohérence des sections obligatoires dans tous les agents
   prompt --list            Lister les agents disponibles
@@ -1917,6 +2008,7 @@ main() {
     prompt)            cmd_prompt_build "${cmd_args[@]:-}" ;;
     addProject|add-project) cmd_add_project "${cmd_args[@]:-}" ;;
     archive)           cmd_archive "${cmd_args[@]:-}" ;;
+    demandes)          cmd_demandes "${cmd_args[@]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
     process|processes) cmd_process "${cmd_args[*]:-}" ;;
     *)
