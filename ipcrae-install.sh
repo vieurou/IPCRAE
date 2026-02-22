@@ -666,6 +666,13 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
   else
     logwarn "scripts/ipcrae-capture-request.sh introuvable — capture request non installé."
   fi
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-moc-auto.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-moc-auto.sh" "$HOME/bin/ipcrae-moc-auto"
+    execute chmod +x "$HOME/bin/ipcrae-moc-auto"
+    loginfo "✓ ipcrae-moc-auto installé dans ~/bin (génération MOC automatique)"
+  else
+    logwarn "scripts/ipcrae-moc-auto.sh introuvable — moc-auto non installé."
+  fi
 
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
