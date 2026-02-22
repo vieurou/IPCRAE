@@ -651,6 +651,22 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
   chmod +x "$HOME/bin/ipcrae-addProject"
   loginfo "✓ Script ipcrae-addProject installé dans ~/bin"
 
+  # ── Inbox scan + capture request ──────────────────────────────────────
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-inbox-scan.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-inbox-scan.sh"     "$HOME/bin/ipcrae-inbox-scan"
+    execute chmod +x "$HOME/bin/ipcrae-inbox-scan"
+    loginfo "✓ ipcrae-inbox-scan installé dans ~/bin (scan Inbox sans IA)"
+  else
+    logwarn "scripts/ipcrae-inbox-scan.sh introuvable — scan inbox non installé."
+  fi
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-capture-request.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-capture-request.sh" "$HOME/bin/ipcrae-capture-request"
+    execute chmod +x "$HOME/bin/ipcrae-capture-request"
+    loginfo "✓ ipcrae-capture-request installé dans ~/bin"
+  else
+    logwarn "scripts/ipcrae-capture-request.sh introuvable — capture request non installé."
+  fi
+
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
     loginfo "Ajouté ~/bin au PATH dans ~/.bashrc. Redémarrez le terminal en tapant 'bash'."
