@@ -1518,6 +1518,74 @@ ENDOFFILE
   auto_git_sync_event "addProject ${slug}"
 }
 
+# ── Archive — archiver un projet terminé ──────────────────────
+cmd_archive() {
+  need_root
+  local slug="" dry_run=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --slug|-s)   slug="${2:-}"; shift ;;
+      --dry-run)   dry_run=true ;;
+      -*)          logerr "Option inconnue: $1"; return 1 ;;
+      *)           [ -z "$slug" ] && slug="$1" ;;
+    esac
+    shift
+  done
+
+  if [ -z "$slug" ]; then
+    logerr "Usage: ipcrae archive <slug> [--dry-run]"
+    return 1
+  fi
+
+  local src_dir="${IPCRAE_ROOT}/Projets/${slug}"
+  local dst_dir="${IPCRAE_ROOT}/Archives/${slug}"
+  local today; today=$(date '+%Y-%m-%d')
+
+  if [ ! -d "$src_dir" ]; then
+    logerr "Projet introuvable: Projets/${slug}"
+    return 1
+  fi
+  if [ -d "$dst_dir" ]; then
+    logerr "Archive déjà existante: Archives/${slug}"
+    return 1
+  fi
+
+  loginfo "Archivage de Projets/${slug} → Archives/${slug}"
+
+  if [ "$dry_run" = "true" ]; then
+    logwarn "[dry-run] mv \"${src_dir}\" \"${dst_dir}\""
+    logwarn "[dry-run] Mise à jour status: archived dans index.md"
+    logwarn "[dry-run] Suppression de la ligne projet dans context.md"
+    logwarn "[dry-run] auto_git_sync_event (pas de commit)"
+    return 0
+  fi
+
+  # 1. Déplacer le hub
+  mkdir -p "${IPCRAE_ROOT}/Archives"
+  mv "$src_dir" "$dst_dir"
+
+  # 2. Mettre à jour status dans index.md
+  local idx="${dst_dir}/index.md"
+  if [ -f "$idx" ]; then
+    sed -i "s/^status: .*/status: archived/" "$idx"
+    sed -i "s/^updated: .*/updated: ${today}/" "$idx"
+    sed -i "s/- \*\*Statut\*\* :.*/- **Statut** : 📦 Archivé (${today})/" "$idx"
+  fi
+
+  # 3. Retirer le projet de context.md "Projets en cours"
+  local ctx="${IPCRAE_ROOT}/.ipcrae/context.md"
+  if [ -f "$ctx" ]; then
+    sed -i "/^\- \*\*${slug}\*\*/d" "$ctx"
+    sed -i "/^- ${slug}$/d" "$ctx"
+  fi
+
+  loginfo "Archivé: Projets/${slug} → Archives/${slug}"
+  loginfo "Status: archived | context.md mis à jour"
+
+  auto_git_sync_event "archive ${slug}"
+}
+
 # ── AllContext — pipeline analyse/ingestion universel ─────────
 cmd_allcontext() {
   need_root
@@ -1757,6 +1825,7 @@ Commandes:
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
   allcontext "<texte>"     Pipeline d'analyse/ingestion universel (rôles + contexte + tracking)
   addProject --slug <s>    Créer un hub projet vault (index + tracking + memory + demandes/)
+  archive <slug>           Archiver un projet terminé (Projets/ → Archives/, context.md nettoyé)
   prompt build --agent <d> Compiler les couches prompts en un seul fichier (.ipcrae/compiled/)
   prompt check             Vérifier la cohérence des sections obligatoires dans tous les agents
   prompt --list            Lister les agents disponibles
@@ -1840,6 +1909,7 @@ main() {
     allcontext)        cmd_allcontext "${cmd_args[@]:-}" ;;
     prompt)            cmd_prompt_build "${cmd_args[@]:-}" ;;
     addProject|add-project) cmd_add_project "${cmd_args[@]:-}" ;;
+    archive)           cmd_archive "${cmd_args[@]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
     process|processes) cmd_process "${cmd_args[*]:-}" ;;
     *)
