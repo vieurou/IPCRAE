@@ -64,7 +64,7 @@ need_root() {
   if [ ! -d "$IPCRAE_ROOT" ]; then
     logerr "IPCRAE_ROOT introuvable: $IPCRAE_ROOT"
     exit 1
-  fi
+  }
   cd "$IPCRAE_ROOT"
 }
 
@@ -78,7 +78,7 @@ read_config_value() {
   local key="$1"
   if [ -f "$IPCRAE_CONFIG" ]; then
     grep -E "^${key}:" "$IPCRAE_CONFIG" 2>/dev/null | head -1 | awk '{print $2}' | tr -d '"' || true
-  fi
+  }
 }
 
 is_truthy() {
@@ -104,7 +104,7 @@ get_brain_remote() {
       | head -1 | awk -F'"' '{print $2}' || true)
     [ -z "$r" ] && r=$(grep -E '^brain_remote:' "$IPCRAE_CONFIG" 2>/dev/null \
       | head -1 | awk '{print $2}' | tr -d "'" || true)
-  fi
+  }
   printf '%s' "$r"
 }
 
@@ -136,7 +136,7 @@ ensure_brain_remote() {
     git -C "${IPCRAE_ROOT}" remote set-url origin "$wanted" \
       && loginfo "Remote brain mis à jour: $wanted" \
       || logwarn "Impossible de mettre à jour le remote brain."
-  fi
+  }
 }
 
 auto_git_stage_allowlist() {
@@ -168,7 +168,7 @@ cmd_remote() {
         sed -i "s|^brain_remote:.*|brain_remote: \"${url}\"|" "$IPCRAE_CONFIG"
       else
         printf 'brain_remote: "%s"\n' "$url" >> "$IPCRAE_CONFIG"
-      fi
+      }
       ensure_brain_remote
       loginfo "brain_remote configuré: $url"
       ;;
@@ -180,10 +180,10 @@ cmd_remote() {
       if grep -q "^\s\+${slug}:" "$IPCRAE_CONFIG" 2>/dev/null; then
         sed -i "s|^\(\s*\)${slug}:.*|\1${slug}: \"${url}\"|" "$IPCRAE_CONFIG"
       elif grep -q '^project_remotes:' "$IPCRAE_CONFIG" 2>/dev/null; then
-        sed -i "/^project_remotes:/a\\  ${slug}: \"${url}\"" "$IPCRAE_CONFIG"
+        sed -i "/^project_remotes:/a\  ${slug}: \"${url}\"" "$IPCRAE_CONFIG"
       else
         printf '\nproject_remotes:\n  %s: "%s"\n' "$slug" "$url" >> "$IPCRAE_CONFIG"
-      fi
+      }
       loginfo "Remote projet '${slug}' configuré: $url"
       ;;
     list)
@@ -200,7 +200,7 @@ cmd_remote() {
           "$IPCRAE_CONFIG" || true
       else
         printf '    (aucun)\n'
-      fi
+      }
       ;;
     *) logerr "Sous-commande inconnue: $subcmd (set-brain|set-project|list)"; return 1 ;;
   esac
@@ -213,17 +213,17 @@ auto_git_sync_event() {
   local mode="${IPCRAE_AUTO_GIT:-}"
   if [ -z "$mode" ]; then
     mode="$(read_config_value auto_git_sync)"
-  fi
+  }
   mode="${mode:-false}"
 
   if ! is_truthy "$mode"; then
     return 0
-  fi
+  }
 
   if [ ! -d "${IPCRAE_ROOT}/.git" ]; then
     logwarn "Auto Git activé mais ${IPCRAE_ROOT} n'est pas un dépôt Git."
     return 0
-  fi
+  }
 
   # S'assurer que origin est configuré depuis brain_remote
   ensure_brain_remote
@@ -233,14 +233,14 @@ auto_git_sync_event() {
     auto_git_stage_allowlist
     if git diff --cached --quiet; then
       return 0
-    fi
+    }
 
     git commit -m "chore(ipcrae): ${reason} ($(date +'%Y-%m-%d %H:%M:%S'))" || return 0
 
     local allow_push="${IPCRAE_AUTO_GIT_PUSH:-}"
     if [ -z "$allow_push" ] && [ -f "$IPCRAE_CONFIG" ]; then
       allow_push="$(read_config_value auto_git_push)"
-    fi
+    }
     allow_push="${allow_push:-false}"
 
     if is_truthy "$allow_push"; then
@@ -253,10 +253,10 @@ auto_git_sync_event() {
         git push || logwarn "Auto-push échoué (commit local conservé)."
       else
         logwarn "Auto-push ignoré (branche détachée ou remote origin absent)."
-      fi
+      }
     else
       loginfo "Auto-commit effectué (auto_git_push=false: push ignoré)."
-    fi
+    }
   )
 }
 
@@ -266,7 +266,7 @@ get_default_provider() {
     local p
     p=$(grep -E '^default_provider:' "$IPCRAE_CONFIG" 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
     [ -n "$p" ] && printf '%s' "$p" && return
-  fi
+  }
   for cmd in claude gemini codex; do
     command -v "$cmd" &>/dev/null && printf '%s' "$cmd" && return
   done
@@ -285,7 +285,7 @@ list_providers() {
       printf '  %b✓%b %-10s — %s\n' "$GREEN" "$NC" "$p" "$n"
     else
       printf '  %b✗%b %-10s — %s (non installé)\n' "$RED" "$NC" "$p" "$n"
-    fi
+    }
   done
 }
 
@@ -297,7 +297,7 @@ sync_providers() {
   if [ ! -f "$ctx" ] || [ ! -f "$ins" ]; then
     logerr "Sources manquantes (.ipcrae/context.md ou instructions.md)"
     exit 1
-  fi
+  }
 
   local body
   body="$(cat "$ctx"; printf '\n\n---\n\n'; cat "$ins")"
@@ -325,9 +325,9 @@ sync_providers() {
           "$(basename "$dev_path")" "$IPCRAE_ROOT" "$IPCRAE_ROOT" "$body" \
           > "$dev_path/.kilocode/rules/ipcrae.md"
         printf '  ✓ %s/.kilocode/rules/ipcrae.md\n' "$(basename "$dev_path")"
-      fi
+      }
     done <<< "$dev_paths"
-  fi
+  }
 
   loginfo "Sync terminée."
 }
@@ -353,56 +353,29 @@ cmd_daily() {
       phase_rel="Phases/index.md"
 
       {
-        printf '# Daily — %s
-
-' "$d"
-        printf '## Contexte automatique
-'
-        [ -n "$yrel" ] && printf -- '- Hier: [[%s]]
-' "$yrel"
-        printf -- '- Semaine: [[%s]]
-' "$wrel"
-        printf -- '- En attente: [[%s]]
-' "$waiting_rel"
-        printf -- '- Phase active: [[%s]]
-
-' "$phase_rel"
-        printf '## Top 3
-- [ ] 
-- [ ] 
-- [ ] 
-
-'
-        printf '## Next actions par casquette
-- [ ] 
-
-'
-        printf '## Décisions
-- 
-
-'
-        printf '## Journal
-- 
-'
+        printf '# Daily — %s\n\n' "$d"
+        printf '## Contexte automatique\n'
+        [ -n "$yrel" ] && printf -- '- Hier: [[%s]]\n' "$yrel"
+        printf -- '- Semaine: [[%s]]\n' "$wrel"
+        printf -- '- En attente: [[%s]]\n' "$waiting_rel"
+        printf -- '- Phase active: [[%s]]\n\n' "$phase_rel"
+        printf '## Top 3\n- [ ] \n- [ ] \n- [ ] \n\n'
+        printf '## Next actions par casquette\n- [ ] \n\n'
+        printf '## Décisions\n- \n\n'
+        printf '## Journal\n- \n'
       } > "$abs"
       loginfo "Daily préparée: $rel"
       auto_git_sync_event "prepare daily ${rel}"
-    fi
+    }
     open_note "$abs" "$rel"
     return 0
-  fi
+  }
 
   if [ ! -f "$abs" ]; then
-    printf '# Daily — %s
-
-## Top 3
-- [ ] 
-- [ ] 
-- [ ] 
-' "$d" > "$abs"
+    printf '# Daily — %s\n\n## Top 3\n- [ ] \n- [ ] \n- [ ] \n' "$d" > "$abs"
     loginfo "Daily créée: $rel"
     auto_git_sync_event "create daily ${rel}"
-  fi
+  }
   open_note "$abs" "$rel"
 }
 
@@ -418,7 +391,7 @@ cmd_weekly() {
     printf '# Weekly — %s\n\n## Objectifs semaine\n- [ ] \n- [ ] \n- [ ] \n' "$w" > "$abs"
     loginfo "Weekly créée: $rel"
     auto_git_sync_event "create weekly ${rel}"
-  fi
+  }
   open_note "$abs" "$rel"
 }
 
@@ -434,7 +407,7 @@ cmd_monthly() {
     printf '# Revue mensuelle — %s\n\n## Bilan objectifs\n\n## Ajustements\n\n## Mois prochain\n' "$m" > "$abs"
     loginfo "Monthly créée: $rel"
     auto_git_sync_event "create monthly ${rel}"
-  fi
+  }
   open_note "$abs" "$rel"
 }
 
@@ -455,7 +428,7 @@ launch_ai() {
     launch_with_prompt "$p" "MODE EXPERT: ${m}. Analyser le contexte IPCRAE et aider sur ce domaine."
   else
     launch_with_prompt "$p" "Bonjour. Je suis prêt à travailler sur IPCRAE."
-  fi
+  }
 }
 
 # ── Close session ─────────────────────────────────────────────
@@ -484,40 +457,30 @@ cmd_close() {
   if [ ! -f "$memory_file" ]; then
     logwarn "memory/${domain}.md absent, création."
     mkdir -p "${IPCRAE_ROOT}/memory"
-    printf '# Mémoire — %s
-
-' "$domain" > "$memory_file"
-  fi
+    printf '# Mémoire — %s\n\n' "$domain" > "$memory_file"
+  }
 
   local changed=""
   if command -v git >/dev/null 2>&1 && [ -d "${IPCRAE_ROOT}/.git" ]; then
     changed="$(git -C "$IPCRAE_ROOT" status --short 2>/dev/null | awk '{print $2}' | head -20 || true)"
-  fi
+  }
   local timestamp
   timestamp="$(date +'%Y-%m-%d %H:%M')"
 
   {
-    printf '
-## %s - Session close
-' "$timestamp"
+    printf '\n## %s - Session close\n' "$timestamp"
     printf '**Contexte** : domaine=%s' "$domain"
     [ -n "$project" ] && printf ', project=%s' "$project"
-    printf '
-'
-    printf '**Décision** : consolidation de fin de session.
-'
+    printf '\n'
+    printf '**Décision** : consolidation de fin de session.\n'
     if [ -n "$note" ]; then
-      printf '**Résultat** : %s
-' "$note"
+      printf '**Résultat** : %s\n' "$note"
     elif [ -n "$changed" ]; then
-      printf '**Résultat** : fichiers touchés récents:
-'
-      printf '%s
-' "$changed" | sed 's/^/- /'
+      printf '**Résultat** : fichiers touchés récents:\n'
+      printf '%s\n' "$changed" | sed 's/^/- /'
     else
-      printf '**Résultat** : session clôturée, pas de delta détecté.
-'
-    fi
+      printf '**Résultat** : session clôturée, pas de delta détecté.\n'
+    }
   } >> "$memory_file"
 
   python3 - "$IPCRAE_ROOT" "$domain" "$project" <<'PYCTX'
@@ -563,40 +526,18 @@ if project:
         ptext = pctx.read_text(encoding='utf-8')
     else:
         ptext = (
-            f'# Context projet — {project}
-
-'
-            '## Vision
-- (à maintenir)
-
-'
-            '## État actuel
-- (à maintenir)
-
-'
-            '## KPIs
-- (à maintenir)
-
-'
-            '## Prochaines actions
-- [ ]
-
-'
-            '## Accès ressources
-- docs/conception/
-' + f'- Projets/{project}/
-
-'
+            f'# Context projet — {project}\n\n'
+            '## Vision\n- (à maintenir)\n\n'
+            '## État actuel\n- (à maintenir)\n\n'
+            '## KPIs\n- (à maintenir)\n\n'
+            '## Prochaines actions\n- [ ]\n\n'
+            '## Accès ressources\n- docs/conception/\n' + f'- Projets/{project}/\n\n'
         )
     update_block = (
-        '## Session
-'
-        f'- Dernière mise à jour: {stamp}
-'
-        f'- Domaine: {domain}
-'
-        '- Source: ipcrae close
-'
+        '## Session\n'
+        f'- Dernière mise à jour: {stamp}\n'
+        f'- Domaine: {domain}\n'
+        '- Source: ipcrae close\n'
     )
     if re.search(r'## Session\n.*?(?=\n## |\Z)', ptext, re.S):
         ptext = re.sub(r'## Session\n.*?(?=\n## |\Z)', update_block.rstrip('\n'), ptext, flags=re.S)
@@ -613,7 +554,7 @@ PYCTX
   # ── MOC auto-détection (bash + python3, propose les MOC manquants) ─────
   if command -v ipcrae-moc-auto &>/dev/null; then
     ipcrae-moc-auto --min-notes 3 --update --quiet "$IPCRAE_ROOT" || true
-  fi
+  }
 
   # ── Audit pre-commit (score ≥ 30/40 recommandé avant push) ───────────
   if command -v ipcrae-audit-check &>/dev/null; then
@@ -626,8 +567,8 @@ PYCTX
       printf '   → Lancer: ipcrae-audit-check pour voir les gaps\n'
     elif [ "$audit_score" != "?" ]; then
       printf '%b✓  Audit pre-commit: %s/40%b\n' "$GREEN" "$audit_score" "$NC"
-    fi
-  fi
+    }
+  }
 
   auto_git_sync_event "close session"
 
@@ -648,8 +589,8 @@ PYCTX
         || logwarn "Création du tag vault échouée (non bloquant)"
     else
       loginfo "Tag vault déjà présent: ${tag_name} (skipped)"
-    fi
-  fi
+    }
+  }
 }
 
 
@@ -678,13 +619,13 @@ cmd_start() {
     if [ -f "$proj_idx" ]; then
       domain=$(grep -E '^domain:|^domaine:' "$proj_idx" 2>/dev/null \
         | head -1 | awk -F': ' '{print $2}' | tr -d '"' || true)
-    fi
-  fi
+    }
+  }
   # Fallback : domaine actif dans context.md (Working set)
   if [ -z "$domain" ]; then
     domain=$(grep -E '^- Domaine actif:' "${IPCRAE_ROOT}/.ipcrae/context.md" 2>/dev/null \
       | head -1 | awk -F': ' '{print $2}' | tr -d ' ' || true)
-  fi
+  }
 
   # ── Génération session-context.md (chargement sélectif) ──────────────
   local sc_path="${IPCRAE_ROOT}/.ipcrae/session-context.md"
@@ -699,7 +640,7 @@ cmd_start() {
       printf '%s\n\n## Mémoire domaine : %s\n\n' "---" "$domain"
       cat "$mem"
       printf '\n'
-    fi
+    }
 
     if [ -n "$project" ]; then
       local tracking="${IPCRAE_ROOT}/Projets/${project}/tracking.md"
@@ -707,15 +648,15 @@ cmd_start() {
         printf '\n%s\n\n## État projet : %s\n\n' "---" "$project"
         cat "$tracking"
         printf '\n'
-      fi
-    fi
+      }
+    }
 
     local phases="${IPCRAE_ROOT}/Phases/index.md"
     if [ -f "$phases" ]; then
       printf '\n%s\n\n## Phase active (résumé)\n\n' "---"
       head -40 "$phases"
       printf '\n'
-    fi
+    }
   } > "$sc_path"
 
   local sc_kb
@@ -738,8 +679,8 @@ cmd_start() {
       IPCRAE_ROOT="$IPCRAE_ROOT" ipcrae-agent-hub status 2>/dev/null | grep -E "LEAD_AGENT|in_progress|todo" || true
     else
       printf '%b   Multi-agent : aucune session active (ipcrae-agent-hub start <id> pour démarrer)%b\n' "$NC" "$NC"
-    fi
-  fi
+    }
+  }
 
   # ── Détection activité agents dans projets DEV (hors hub) ────────────
   local dev_paths
@@ -753,14 +694,14 @@ cmd_start() {
         "${IPCRAE_ROOT}/.ipcrae/multi-agent/state.env" 2>/dev/null | head -3 || true)
       if [ -n "$recent" ]; then
         agent_activity="${agent_activity}  $(basename "$dev_path"): $(echo "$recent" | wc -l | tr -d ' ') fichier(s) récent(s)\n"
-      fi
+      }
     done <<< "$dev_paths"
     if [ -n "$agent_activity" ]; then
       printf '%b⚡ Activité détectée dans projets DEV (autre agent probable) :%b\n' "$YELLOW" "$NC"
       printf "%b" "$agent_activity"
       printf '   → Vérifier avec: ipcrae-agent-hub status\n'
-    fi
-  fi
+    }
+  }
 
   # ── Vérification inbox ────────────────────────────────────────────────
   if command -v ipcrae-inbox-scan &>/dev/null; then
@@ -771,7 +712,7 @@ cmd_start() {
     printf '%b⚠  Inbox: fichiers en attente (dernière détection: %s)%b\n' \
       "$YELLOW" "$flag_date" "$NC"
     printf '   → Lire: %s/.ipcrae/auto/inbox-pending.md\n' "$IPCRAE_ROOT"
-  fi
+  }
 }
 
 cmd_session() {
@@ -811,14 +752,14 @@ cmd_session() {
       if [ "$run_audit" = true ] && [ -x "scripts/audit_ipcrae.sh" ]; then
         section "Audit de session (start)"
         bash "scripts/audit_ipcrae.sh" || logwarn "audit_ipcrae.sh en warning (non bloquant)"
-      fi
+      }
       ;;
     end)
       cmd_close "${end_args[@]}"
       if [ "$run_audit" = true ] && [ -x "scripts/audit_non_regression.sh" ]; then
         section "Audit de clôture"
         bash "scripts/audit_non_regression.sh" || logwarn "audit_non_regression.sh en warning (non bloquant)"
-      fi
+      }
       ;;
     run)
       cmd_start "${start_args[@]}"
@@ -904,7 +845,7 @@ PYGC
         cmd_index
       else
         loginfo "GC mémoire: aucune entrée à archiver (TTL ${ttl_days} jours)"
-      fi
+      }
       ;;
     *)
       logerr "Usage: ipcrae memory gc --domain <domaine> [--ttl-days 180]"
@@ -944,7 +885,7 @@ cmd_sprint() {
           | head -1 | awk '{print $2}' | tr -d '"' || true)
         [ -z "$project" ] && project=$(basename "$dir")
         break
-      fi
+      }
       dir=$(dirname "$dir")
     done
     # Fallback : nom du CWD d'origine si un hub Projets/ correspond
@@ -952,8 +893,8 @@ cmd_sprint() {
       local cwd_name
       cwd_name=$(basename "$orig_cwd")
       [ -d "${IPCRAE_ROOT}/Projets/${cwd_name}" ] && project="$cwd_name"
-    fi
-  fi
+    }
+  }
 
   # ── 2. Détecter le domaine ────────────────────────────────
   if [ -z "$domain" ] && [ -n "$project" ]; then
@@ -961,8 +902,8 @@ cmd_sprint() {
     if [ -f "$proj_idx" ]; then
       domain=$(grep -E '^domain:|^domaine:' "$proj_idx" 2>/dev/null \
         | head -1 | awk -F': ' '{print $2}' | tr -d '"' || true)
-    fi
-  fi
+    }
+  }
   [ -z "$domain" ] && domain="devops"
 
   # ── 3. Collecter les tâches (section-aware) ───────────────
@@ -988,7 +929,7 @@ cmd_sprint() {
     while IFS= read -r line; do
       [ -n "$line" ] && tasks+=("$line")
     done < <(collect_tasks_from_section "$tracking" "Backlog")
-  fi
+  }
 
   # Priorité 3 : phases actives (si pas assez de tâches projet)
   if [ "${#tasks[@]}" -lt "$max_tasks" ]; then
@@ -996,7 +937,7 @@ cmd_sprint() {
     while IFS= read -r line; do
       [ -n "$line" ] && tasks+=("$line")
     done < <(collect_tasks_from_section "$phase_idx" "Actions|Next|En cours")
-  fi
+  }
 
   # Priorité 4 (global, pas de projet détecté) : tous les tracking In Progress
   if [ -z "$project" ] && [ "${#tasks[@]}" -lt "$max_tasks" ]; then
@@ -1006,7 +947,7 @@ cmd_sprint() {
         [ -n "$line" ] && tasks+=("$line")
       done < <(collect_tasks_from_section "$tf" "In Progress")
     done < <(find "${IPCRAE_ROOT}/Projets" -name "tracking.md" 2>/dev/null)
-  fi
+  }
 
   # ── 4. Limiter à max-tasks ────────────────────────────────
   local -a selected=()
@@ -1027,7 +968,7 @@ cmd_sprint() {
   if [ "${#selected[@]}" -eq 0 ]; then
     logwarn "Aucune tâche [ ] trouvée. Vérifier les tracking.md / Phases/index.md."
     return 0
-  fi
+  }
 
   local n=1
   for t in "${selected[@]}"; do
@@ -1040,7 +981,7 @@ cmd_sprint() {
   if [ "$dry_run" = true ]; then
     loginfo "Dry-run : sprint affiché, aucune IA lancée."
     return 0
-  fi
+  }
 
   # ── 7. Confirmation ───────────────────────────────────────
   if [ "$confirm" = true ]; then
@@ -1048,14 +989,13 @@ cmd_sprint() {
       loginfo "Sprint annulé."
       return 0
     }
-  fi
+  }
 
   # ── 8. Construire le prompt sprint ────────────────────────
   local task_list=""
   local idx=1
   for t in "${selected[@]}"; do
-    task_list="${task_list}${idx}. ${t}
-"
+    task_list="${task_list}${idx}. ${t}\n"
     idx=$((idx + 1))
   done
 
@@ -1069,20 +1009,8 @@ cmd_sprint() {
       -e "s|{{task_list}}|${task_list}|g" \
       "$template")
   else
-    sprint_prompt="SPRINT AUTONOME IPCRAE
-Projet : ${project:-(global)} | Domaine : ${domain} | Max tâches : ${max_tasks}
-
-TÂCHES À EXÉCUTER (dans cet ordre) :
-${task_list}
-SOURCES DE CONTEXTE :
-- \$IPCRAE_ROOT/Projets/${project}/memory.md
-- \$IPCRAE_ROOT/memory/${domain}.md
-- \$IPCRAE_ROOT/Projets/${project}/tracking.md
-
-PROTOCOLE : pour chaque tâche, annoncer [n/total], exécuter, marquer [x] dans tracking.md, ajouter décision datée dans memory/${domain}.md.
-RAPPORT FINAL : tâches faites, tâches restantes, prochaine action recommandée.
-RÈGLE : si bloqué sur une tâche, passer et continuer."
-  fi
+    sprint_prompt="SPRINT AUTONOME IPCRAE\nProjet : ${project:-(global)} | Domaine : ${domain} | Max tâches : ${max_tasks}\n\nTÂCHES À EXÉCUTER (dans cet ordre) :\n${task_list}\nSOURCES DE CONTEXTE :\n- \$IPCRAE_ROOT/Projets/${project}/memory.md\n- \$IPCRAE_ROOT/memory/${domain}.md\n- \$IPCRAE_ROOT/Projets/${project}/tracking.md\n\nPROTOCOLE : pour chaque tâche, annoncer [n/total], exécuter, marquer [x] dans tracking.md, ajouter décision datée dans memory/${domain}.md.\nRAPPORT FINAL : tâches faites, tâches restantes, prochaine action recommandée.\nRÈGLE : si bloqué sur une tâche, passer et continuer."
+  }
 
   # ── 9. Lancer l'IA ───────────────────────────────────────
   local provider
@@ -1110,18 +1038,10 @@ matches = [t for t in tags if t in tokens or any(tok in t for tok in tokens)]
 print(', '.join(sorted(matches)[:8]))
 PYWORK
 )"
-  fi
+  }
 
   local prompt
-  prompt="MODE WORK IPCRAE (contexte minimisé):
-Objectif: ${objective}
-Sources de vérité:
-1) .ipcrae/context.md
-2) .ipcrae/instructions.md
-3) memory/<domaine>.md et notes Knowledge/Zettelkasten
-Tags pertinents: ${tags_hint:-aucun}
-
-Travaille uniquement sur l'objectif et propose un plan d'action concret."
+  prompt="MODE WORK IPCRAE (contexte minimisé):\nObjectif: ${objective}\nSources de vérité:\n1) .ipcrae/context.md\n2) .ipcrae/instructions.md\n3) memory/<domaine>.md et notes Knowledge/Zettelkasten\nTags pertinents: ${tags_hint:-aucun}\n\nTravaille uniquement sur l'objectif et propose un plan d'action concret."
   launch_with_prompt "$provider" "$prompt"
 }
 
@@ -1133,7 +1053,7 @@ cmd_capture() {
   if [ -z "$text" ]; then
     read -r -p "Note à capturer: " text
     [ -z "$text" ] && { logerr "Texte requis"; return 1; }
-  fi
+  }
   local ts
   ts=$(date +%Y%m%d%H%M%S)
   local rel="Inbox/capture-${ts}.md"
@@ -1150,7 +1070,7 @@ cmd_zettel() {
   if [ -z "$title" ]; then
     read -r -p "Titre de la note: " title
     [ -z "$title" ] && { logerr "Titre requis"; return 1; }
-  fi
+  }
 
   local id
   id="$(date +%Y%m%d%H%M)"
@@ -1186,7 +1106,7 @@ created: $(today)
 ## Source
 -
 ZEOF
-  fi
+  }
 
   loginfo "Zettel créée: $rel"
   auto_git_sync_event "create zettel ${rel}"
@@ -1200,7 +1120,7 @@ cmd_moc() {
   if [ -z "$theme" ]; then
     read -r -p "Thème du MOC: " theme
     [ -z "$theme" ] && { logerr "Thème requis"; return 1; }
-  fi
+  }
 
   local slug
   slug=$(printf '%s' "$theme" | iconv -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
@@ -1225,7 +1145,7 @@ cmd_moc() {
 MEOF
     loginfo "MOC créé: $rel"
     auto_git_sync_event "create moc ${rel}"
-  fi
+  }
   open_note "$abs" "$rel"
 }
 
@@ -1241,7 +1161,7 @@ cmd_health() {
   printf '📥 Inbox: %s notes' "$inbox_count"
   if [ "$inbox_stale" -gt 0 ]; then
     printf ' %b(⚠ %s > 7 jours)%b' "$RED" "$inbox_stale" "$NC"
-  fi
+  }
   printf '\n'
 
   # Waiting-for
@@ -1250,7 +1170,7 @@ cmd_health() {
     wf_count=$(grep '^|[^-|]' "Inbox/waiting-for.md" 2>/dev/null | wc -l | tr -d ' \t')
     wf_count=$((wf_count > 0 ? wf_count - 1 : 0))  # soustraire l'en-tête
     printf '⏳ Waiting-for: %s items\n' "$wf_count"
-  fi
+  }
 
   # Projets actifs
   local proj_count
@@ -1268,7 +1188,7 @@ cmd_health() {
     printf '%b(⚠ %s > 7j)%b | ' "$RED" "$zk_inbox_stale" "$NC"
   else
     printf '| '
-  fi
+  }
   printf '%s permanents | %s MOC\n' "$zk_perm" "$zk_moc"
 
   # Mémoire
@@ -1281,7 +1201,7 @@ cmd_health() {
   stale_hats=$(find Casquettes/ -name "*.md" -mtime +30 2>/dev/null | wc -l)
   if [ "$stale_hats" -gt 0 ]; then
     printf '%b⚠  Casquettes sans activité > 30j: %s%b\n' "$YELLOW" "$stale_hats" "$NC"
-  fi
+  }
 
   # Daily streak
   local streak=0 check_date
@@ -1295,7 +1215,7 @@ cmd_health() {
   # Dernière activité
   printf '\n%b📝 Modifié récemment (7j)%b\n' "$YELLOW" "$NC"
   find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcrae/*" -print0 2>/dev/null \
-    | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^\./||' || true
+    | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^./||' || true
 }
 
 cmd_doctor() {
@@ -1307,30 +1227,23 @@ cmd_doctor() {
   section "Doctor — Environnement"
 
   local missing=0
-  printf '%bDépendances hard%b
-' "$YELLOW" "$NC"
+  printf '%bDépendances hard%b\n' "$YELLOW" "$NC"
   for c in find sed awk python3 iconv; do
     if command -v "$c" >/dev/null 2>&1; then
-      printf '  ✓ %s
-' "$c"
+      printf '  ✓ %s\n' "$c"
     else
-      printf '  ✗ %s (manquant)
-' "$c"
+      printf '  ✗ %s (manquant)\n' "$c"
       missing=$((missing + 1))
-    fi
+    }
   done
 
-  printf '
-%bDépendances soft%b
-' "$YELLOW" "$NC"
+  printf '\n%bDépendances soft%b\n' "$YELLOW" "$NC"
   for c in git rg curl; do
     if command -v "$c" >/dev/null 2>&1; then
-      printf '  ✓ %s
-' "$c"
+      printf '  ✓ %s\n' "$c"
     else
-      printf '  ⚠ %s (optionnel, fonctionnalités réduites)
-' "$c"
-    fi
+      printf '  ⚠ %s (optionnel, fonctionnalités réduites)\n' "$c"
+    }
   done
 
   printf '\n%bProviders%b\n' "$YELLOW" "$NC"
@@ -1339,7 +1252,7 @@ cmd_doctor() {
       printf '  ✓ %s\n' "$c"
     else
       printf '  ✗ %s\n' "$c"
-    fi
+    }
   done
 
   printf '\n%bFichiers IPCRAE%b\n' "$YELLOW" "$NC"
@@ -1353,7 +1266,7 @@ cmd_doctor() {
       printf '  ✓ %s\n' "${f#$IPCRAE_ROOT/}"
     else
       printf '  ✗ %s\n' "${f#$IPCRAE_ROOT/}"
-    fi
+    }
   done
 
   printf '\n%bInvariants v3.3%b\n' "$YELLOW" "$NC"
@@ -1367,15 +1280,15 @@ cmd_doctor() {
     for t in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
       local f="${t%%:*}" n="${t##*:}" tmp
       tmp="$(mktemp)"
-      printf '# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' "$n" "$METHOD_VERSION" "$body" > "$tmp"
+      printf "# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n" "$n" "$METHOD_VERSION" "$body" > "$tmp"
       if [ -f "$IPCRAE_ROOT/$f" ] && cmp -s "$tmp" "$IPCRAE_ROOT/$f"; then
         printf '  ✓ %s à jour\n' "$f"
       else
         printf '  ✗ %s non synchronisé (lancer: ipcrae sync)\n' "$f"
-      fi
+      }
       rm -f "$tmp"
-    done
-  fi
+    }
+  }
 
   printf "\n%bContrat d'injection de contexte (CDE)%b\n" "$YELLOW" "$NC"
   [ -d "$orig_cwd/docs/conception" ] && printf '  ✓ docs/conception/\n' || printf '  ✗ docs/conception/\n'
@@ -1385,7 +1298,7 @@ cmd_doctor() {
     printf '  ✓ .ipcrae-memory (symlink)\n'
   else
     printf '  ⚠ .ipcrae-memory absent ou non-symlink (mode dégradé)\n'
-  fi
+  }
 
   local project_name hub_dir
   project_name="$(basename "$orig_cwd")"
@@ -1395,7 +1308,7 @@ cmd_doctor() {
   if [ "$missing" -gt 0 ]; then
     logwarn "Doctor: dépendances hard manquantes: $missing"
     return 1
-  fi
+  }
   loginfo "Doctor: environnement de base OK"
 }
 
@@ -1405,7 +1318,7 @@ cmd_index() {
   if [ -x "${IPCRAE_ROOT}/Scripts/ipcrae-index.sh" ]; then
     "${IPCRAE_ROOT}/Scripts/ipcrae-index.sh" "$IPCRAE_ROOT"
     return 0
-  fi
+  }
   mkdir -p "${IPCRAE_ROOT}/.ipcrae/cache"
 
   python3 - <<'PYIDX'
@@ -1434,9 +1347,9 @@ for base in scan_dirs:
         found = []
         if '[' in tag_line and ']' in tag_line:
             inner = tag_line.split('[',1)[1].rsplit(']',1)[0]
-            found.extend([t.strip().strip("\"'") for t in inner.split(',') if t.strip()])
+            found.extend([t.strip().strip("\"") for t in inner.split(',') if t.strip()])
         if project_line:
-            project = project_line.split(':',1)[1].strip().strip("\"'")
+            project = project_line.split(':',1)[1].strip().strip("\"")
             if project:
                 found.append(f'project:{project}')
         rel = md.relative_to(root).as_posix()
@@ -1462,7 +1375,7 @@ cmd_tag() {
   if [ -x "${IPCRAE_ROOT}/Scripts/ipcrae-tag.sh" ]; then
     "${IPCRAE_ROOT}/Scripts/ipcrae-tag.sh" "$needle"
     return $?
-  fi
+  }
   [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ] || cmd_index
   python3 - "$needle" <<'PYTAG'
 import json, sys
@@ -1490,12 +1403,12 @@ cmd_search() {
     if cmd_tag "$normalized" >/dev/null 2>&1; then
       cmd_tag "$normalized"
       return 0
-    fi
-  fi
+    }
+  }
 
   if [[ "$query" == *:* ]]; then
     cmd_tag "$query" && return 0
-  fi
+  }
 
   local -a targets=()
   for d in Knowledge Zettelkasten memory docs Projets Process; do
@@ -1510,7 +1423,7 @@ cmd_search() {
   else
     logwarn "rg absent: fallback via find+grep (plus lent)."
     find "${targets[@]}" -type f -name '*.md' ! -path '*/Archives/*' -print0 2>/dev/null       | xargs -0 grep -n -- "$query"       || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
-  fi
+  }
 }
 
 
@@ -1522,26 +1435,13 @@ cmd_review() {
 
   case "$type" in
     phase)
-      local prompt="REVUE DE PHASE:
- 1) Lire Phases/index.md
- 2) Lire les projets actifs dans Projets/
- 3) Évaluer: la phase actuelle est-elle toujours pertinente?
- 4) Proposer des ajustements de priorités
- 5) Identifier ce qui devrait être mis en pause ou accéléré"
+      local prompt="REVUE DE PHASE:\n 1) Lire Phases/index.md\n 2) Lire les projets actifs dans Projets/\n 3) Évaluer: la phase actuelle est-elle toujours pertinente?\n 4) Proposer des ajustements de priorités\n 5) Identifier ce qui devrait être mis en pause ou accéléré"
       launch_with_prompt "$provider" "$prompt" ;;
     project)
-      local prompt="RÉTROSPECTIVE PROJET:
- 1) Demander quel projet
- 2) Lire le dossier du projet
- 3) Évaluer: objectifs atteints? Leçons apprises?
- 4) Proposer l'archivage si terminé
- 5) Écrire un résumé dans memory/<domaine>.md"
+      local prompt="RÉTROSPECTIVE PROJET:\n 1) Demander quel projet\n 2) Lire le dossier du projet\n 3) Évaluer: objectifs atteints? Leçons apprises?\n 4) Proposer l'archivage si terminé\n 5) Écrire un résumé dans memory/<domaine>.md"
       launch_with_prompt "$provider" "$prompt" ;;
     quarter)
-      local prompt="REVUE TRIMESTRIELLE:
- 1) Lister les domaines memory/
- 2) Évaluer les avancées long terme
- 3) Définir les objectifs pour les 3 prochains mois"
+      local prompt="REVUE TRIMESTRIELLE:\n 1) Lister les domaines memory/\n 2) Évaluer les avancées long terme\n 3) Définir les objectifs pour les 3 prochains mois"
       launch_with_prompt "$provider" "$prompt" ;;
     *) logerr "Type de revue inconnu: $type (attendu: phase|project|quarter)"; return 1 ;;
   esac
@@ -1554,11 +1454,8 @@ cmd_consolidate() {
   if [ -z "$domain" ]; then
     read -r -p "Domaine à consolider (ex: devops, electronique) : " domain
     [ -z "$domain" ] && { logerr "Domaine requis"; return 1; }
-  fi
-  local prompt="CONSOLIDATION GLOBALE :
-1) Lis memory/${domain}.md pour connaître l'état actuel.
-2) Cherche les notes locales via 'find .ipcrae-project/local-notes/' ou 'find Projets/'.
-3) Propose une mise à jour synthétique et structurée de memory/${domain}.md sans effacer l'historique pertinent."
+  }
+  local prompt="CONSOLIDATION GLOBALE :\n1) Lis memory/${domain}.md pour connaître l'état actuel.\n2) Cherche les notes locales via 'find .ipcrae-project/local-notes/' ou 'find Projets/'.\n3) Propose une mise à jour synthétique et structurée de memory/${domain}.md sans effacer l'historique pertinent."
   
   launch_with_prompt "$(get_default_provider)" "$prompt"
 }
@@ -1626,7 +1523,7 @@ cmd_process_run() {
   if [ -z "$slug" ]; then
     logerr "Usage: ipcrae process run [--dry-run] <slug>"
     return 1
-  fi
+  }
 
   local abs
   abs=$(find_process_file "$slug") || {
@@ -1649,46 +1546,32 @@ cmd_process_run() {
   local context_file="Journal/Daily/${y}/${today_s}.md"
   local weekly_file="Journal/Weekly/$(date +%G)/${w}.md"
 
-  printf 'Mode: %s
-' "$mode"
-  printf 'Fiche: %s
-' "$rel"
-  printf 'Contexte minimal:
-'
-  printf '  - %s
-' ".ipcrae/context.md"
-  [ -f "$context_file" ] && printf '  - %s
-' "$context_file"
-  [ -f "$weekly_file" ] && printf '  - %s
-' "$weekly_file"
-  [ -n "$agent" ] && printf 'Agent recommandé: %s
-' "$agent"
-  [ -n "$context_tags" ] && printf 'Context tags: %s
-' "$context_tags"
-  [ -n "$collector" ] && printf 'Collector: %s
-' "$collector"
+  printf 'Mode: %s\n' "$mode"
+  printf 'Fiche: %s\n' "$rel"
+  printf 'Contexte minimal:\n'
+  printf '  - %s\n' ".ipcrae/context.md"
+  [ -f "$context_file" ] && printf '  - %s\n' "$context_file"
+  [ -f "$weekly_file" ] && printf '  - %s\n' "$weekly_file"
+  [ -n "$agent" ] && printf 'Agent recommandé: %s\n' "$agent"
+  [ -n "$context_tags" ] && printf 'Context tags: %s\n' "$context_tags"
+  [ -n "$collector" ] && printf 'Collector: %s\n' "$collector"
 
   if [ -n "$context_tags" ] && [ -f "${IPCRAE_ROOT}/.ipcrae/cache/tag-index.json" ]; then
-    printf 'Fichiers liés par tags:
-'
+    printf 'Fichiers liés par tags:\n'
     local tags_clean
-    tags_clean=$(printf '%s' "$context_tags" | tr -d '[]' | tr ',' '
-' | sed 's/^ *//;s/ *$//')
+    tags_clean=$(printf '%s' "$context_tags" | tr -d '[]' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
     while IFS= read -r t; do
       [ -z "$t" ] && continue
-      printf '  - [%s]
-' "$t"
+      printf '  - [%s]\n' "$t"
       cmd_tag "$t" 2>/dev/null | sed 's/^/    · /' || true
     done <<< "$tags_clean"
-  fi
+  }
 
   if [ "$mode" = "dry-run" ]; then
-    printf '
---- Aperçu fiche process ---
-'
+    printf '\n---\n'
     sed -n '1,220p' "$abs"
     return 0
-  fi
+  }
 
   local out_file=""
   if [ -n "$output_path" ]; then
@@ -1699,20 +1582,14 @@ cmd_process_run() {
   else
     local out_dir="Journal/Daily/${y}"
     out_file="${out_dir}/${today_s}-process-$(slugify "$slug").md"
-  fi
+  }
   mkdir -p "$(dirname "$out_file")"
 
   {
-    printf '# Exécution process — %s
-
-' "$slug"
-    printf '- Date: %s
-' "$(date +'%F %T')"
-    printf '- Fiche: %s
-
-' "$rel"
-    printf '## Étapes à exécuter
-'
+    printf '# Exécution process — %s\n\n' "$slug"
+    printf '- Date: %s\n' "$(date +'%F %T')"
+    printf '- Fiche: %s\n\n' "$rel"
+    printf '## Étapes à exécuter\n'
     awk 'BEGIN{p=0} /^## 3\)/{p=1; next} /^## 4\)/{p=0} p{print}' "$abs" || true
     printf "\n## Notes d’exécution\n- À compléter via agent/provider.\n"
   } > "$out_file"
@@ -1722,12 +1599,12 @@ cmd_process_run() {
   tmp=$(mktemp)
   awk -v d="$(date +'%F %T')" -v f="$out_file" '
     BEGIN{in_last=0}
-    /^## 8\) Dernière exécution/{in_last=1; print; next}
+    /^## 8\\) Dernière exécution/{in_last=1; print; next}
     /^## [0-9]\)/ && in_last==1 {in_last=0}
     {
       if (in_last==1) {
-        if ($0 ~ /^- \*\*Date\*\* :/) { print "- **Date** : " d; next }
-        if ($0 ~ /^- \*\*Fichier produit\*\* :/) { print "- **Fichier produit** : " f; next }
+        if ($0 ~ /^- \*\*Date\*\* :/) { print "- \*\*Date\*\* : " d; next }
+        if ($0 ~ /^- \*\*Fichier produit\*\* :/) { print "- \*\*Fichier produit\*\* : " f; next }
       }
       print
     }
@@ -1754,9 +1631,9 @@ cmd_process_next() {
       if (impact !~ /^[0-9]+$/ || ease !~ /^[0-9]+$/) next
       if (status=="live") next
       score=(impact+0)*(ease+0)
-      printf "%d	%s	%s\n", score, proc, status
+      printf "%d\t%s\t%s\n", score, proc, status
     }
-  ' "$pfile"     | sort -t$'	' -k1,1nr     | head -3     | awk -F'	' '{printf "- %s (score=%s, statut=%s)\n", $2, $1, $3}'
+  ' "$pfile"     | sort -t$'\t' -k1,1nr     | head -3     | awk -F'\t' '{printf "- %s (score=%s, statut=%s)\n", $2, $1, $3}'
 }
 
 cmd_process_gc() {
@@ -1774,9 +1651,8 @@ cmd_process_gc() {
         if [ "$mtime" -lt "$epoch_limit" ]; then
           local age_days
           age_days=$(( (now-mtime)/86400 ))
-          printf '⚠ Process stale: %s (age=%sj)
-' "${f#${IPCRAE_ROOT}/}" "$age_days"
-        fi
+          printf '⚠ Process stale: %s (age=%sj)\n' "${f#${IPCRAE_ROOT}/}" "$age_days"
+        }
       done
 }
 
@@ -1786,7 +1662,7 @@ cmd_inbox_process() {
     cmd_process_run --dry-run inbox-triage
   else
     cmd_process_run inbox-triage
-  fi
+  }
 }
 
 cmd_process() {
@@ -1831,10 +1707,9 @@ cmd_process() {
           loginfo "Process créé: Process/${freq}/${slug}.md"
         else
           logwarn "Template process introuvable (_template_process.md)."
-          printf '# Process — %s
-' "$nom" > "$abs"
-        fi
-      fi
+          printf '# Process — %s\n' "$nom" > "$abs"
+        }
+      }
       open_note "$abs" "Process/${freq}/${slug}.md"
       ;;
   esac
@@ -1849,15 +1724,15 @@ cmd_update() {
     (cd "${IPCRAE_ROOT}" && git pull) || logwarn "Échec du git pull."
   else
     logwarn "${IPCRAE_ROOT} n'est pas un dépôt Git."
-  fi
+  }
   
   if prompt_yes_no "Relancer l'installateur (ipcrae-install.sh) ?" "y"; then
     if [ -f "${IPCRAE_ROOT}/ipcrae-install.sh" ]; then
       bash "${IPCRAE_ROOT}/ipcrae-install.sh"
     else
       logwarn "Installateur introuvable dans ${IPCRAE_ROOT}"
-    fi
-  fi
+    }
+  }
 }
 
 # ── Git Vault Sync ────────────────────────────────────────────
@@ -1882,14 +1757,14 @@ cmd_sync_git() {
           else
               logwarn "URL vide, sauvegarde distante annulée (les commits restent locaux)."
               exit 1
-          fi
+          }
       else
           git push && loginfo "✅ Sauvegarde terminée avec succès." || logwarn "Échec de la sauvegarde Git."
-      fi
+      }
     )
   else
     logwarn "${IPCRAE_ROOT} n'est pas un dépôt Git. Impossible de synchroniser."
-  fi
+  }
 }
 
 
@@ -1907,8 +1782,8 @@ cmd_migrate_safe() {
     else
       logerr "Script de migration safe introuvable. Réinstaller IPCRAE pour l'obtenir."
       return 1
-    fi
-  fi
+    }
+  }
 
   IPCRAE_ROOT="$IPCRAE_ROOT" "$migrator"
 }
@@ -1925,24 +1800,24 @@ show_dashboard() {
     grep '\- \[ \]' "$today_file" | head -3 | awk '{print "  - " $0}' || true
   else
     printf '📅 Daily : %b✗ Absente (ipcrae daily)%b\n' "$RED" "$NC"
-  fi
+  }
 
   # Inbox status
   local in_count
   in_count=$(find Inbox/ -name "*.md" ! -name "waiting*" 2>/dev/null | wc -l)
   if [ "$in_count" -gt 0 ]; then
     printf '📥 Inbox : %b%s notes en attente%b\n' "$YELLOW" "$in_count" "$NC"
-  fi
+  }
 
   # Weekly status
   local week_file="Journal/Weekly/$(date +%G)/$(iso_week).md"
   if [ ! -f "$week_file" ]; then
     printf '🗓️  Weekly : %b✗ Pas encore créée%b\n' "$YELLOW" "$NC"
-  fi
+  }
 
   printf '\n%b📝 Modifié récemment (7j)%b\n' "$YELLOW" "$NC"
   find . -name "*.md" -type f -mtime -7 ! -path "*/Archives/*" ! -path "*/.ipcrae/*" -print0 2>/dev/null \
-    | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^\./||' || true
+    | xargs -0 ls -lt 2>/dev/null | head -5 | awk '{print "  • " $NF}' | sed 's|^./||' || true
   printf '\n'
 }
 
@@ -1998,147 +1873,65 @@ cmd_menu() {
       20) list_providers; break ;;
       21) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
       22) cmd_process; break ;;
-      23) exit 0 ;;
+      23) break ;;
       *)  echo "Choix invalide." ;;
     esac
   done
 }
 
-# ── Usage ─────────────────────────────────────────────────────
-usage() {
-  cat <<EOF
-Usage: ipcrae [COMMANDE] [OPTIONS]
-
-Commandes:
-  (rien)|menu              Menu interactif
-  daily                    Créer/ouvrir la daily du jour
-  daily --prep             Daily pré-rédigée par l'IA
-  weekly                   Créer/ouvrir la weekly ISO en cours
-  monthly                  Créer/ouvrir la revue mensuelle
-  capture "texte"          Capturer une idée rapide dans Inbox
-  start [--project --phase] Initialiser le contexte de session
-  work "objectif"          Lancer l'agent avec contexte minimisé
-  sprint [OPTIONS]         Sprint autonome : collecte tâches + lance l'IA
-  close <domaine>          Clôturer la session (mémoire + context + tags)
-  session [start|end|run]  Session tout-en-un (start/close + audits optionnels)
-  remote list              Afficher les remotes git configurés (cerveau + projets)
-  remote set-brain <url>  Configurer le remote du cerveau dans config.yaml
-  remote set-project <s> <url>  Configurer le remote d'un projet
-  sync                     Régénérer CLAUDE.md, GEMINI.md, AGENTS.md, Kilo
-  list                     Lister les providers disponibles
-  zettel [titre]           Créer une note atomique Zettelkasten
-  moc [thème]              Créer/ouvrir une Map of Content
-  health                   Diagnostic du système IPCRAE
-  doctor [-v]              Vérifier dépendances + contrat d'injection de contexte
-  index                    Reconstruit le cache tags (.ipcrae/cache/tag-index.json)
-  tag <tag>                Liste les fichiers liés à un tag
-  search <mots|tags>       Recherche (cache tags + fallback grep)
-  review <type>            Revue adaptative (phase|project|quarter)
-  phase|phases             Ouvrir Phases/index.md
-  process [nom]            Créer/ouvrir une fiche process (manual/<slug>.md)
-  process map              Ouvrir la cartographie centrale Process/map.md
-  process priorites        Ouvrir la matrice impact × facilité
-  process run <slug>       Exécuter une fiche process (agent supervisé)
-  process run --dry-run <slug>  Afficher le plan d'exécution sans produire de sortie
-  process gc [ttl-days]    Signaler les process obsolètes (TTL, défaut: 180j)
-  process next             Proposer les 3 prochains quick wins
-  inbox --process          Lancer le process inbox-triage
-  consolidate <domaine>    Lancer une IA pour compacter la mémoire
-  memory gc --domain <d> [--ttl-days N]  Archiver les entrées mémoire anciennes
-  update                   Met à jour via git pull puis relance l'installateur
-  sync-git                 Sauvegarde Git du vault entier (add, commit, push)
-  migrate-safe             Upgrade IPCRAE sans perte (backup + merge non destructif)
-  <texte_libre>            Mode expert (ex: ipcrae DevOps)
-
-Variables utiles:
-  IPCRAE_AUTO_GIT=true     Active l'auto-commit après nouvelles entrées mémoire
-  IPCRAE_AUTO_GIT_PUSH=true Active le push auto (désactivé par défaut)
-
-Options:
-  -p, --provider PROVIDER  Choisir le provider (claude|gemini|codex)
-  -h, --help               Aide
-  -V, --version            Version
-
-Exemples:
-  ipcrae                    # menu
-  ipcrae process inbox-triage      # crée/ouvre Process/manual/inbox-triage.md
-  ipcrae process run inbox-triage  # exécute le process inbox-triage
-  ipcrae process next              # top 3 quick wins
-  ipcrae inbox --process           # alias vers process run inbox-triage
-  ipcrae consolidate devops # compacte la mémoire DevOps
-  ipcrae update             # mise à jour système
-  ipcrae doctor -v          # diagnostic complet
-  ipcrae sprint --dry-run   # afficher les tâches sans lancer l'IA
-  ipcrae sprint --project IPCRAE --max-tasks 1 --dry-run
-  ipcrae sprint --auto      # lancer sans confirmation (mode CI)
-  ipcrae DevOps             # mode expert DevOps
-  ipcrae sync               # régénérer fichiers provider
-  ipcrae index              # rebuild du cache tags
-  ipcrae tag devops         # lister les notes liées à un tag
-EOF
-}
-
-# ── Main ──────────────────────────────────────────────────────
+# ── Main ────────────────────────────────────────────────────────
 main() {
-  local provider="" cmd=""
-  local -a cmd_args=()
+  if [ $# -eq 0 ]; then
+    show_dashboard
+    return 0
+  }
 
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      -p|--provider) provider="${2:-}"; shift ;;
-      -h|--help)     usage; exit 0 ;;
-      -V|--version)  printf 'IPCRAE Launcher script v%s (method v%s)
-' "$SCRIPT_VERSION" "$METHOD_VERSION"; exit 0 ;;
-      -*)
-        if [ -n "$cmd" ]; then cmd_args+=("$1")
-        else logerr "Option inconnue: $1"; usage; exit 1; fi ;;
-      *)
-        if [ -z "$cmd" ]; then cmd="$1"
-        else cmd_args+=("$1"); fi ;;
-    esac
-    shift
-  done
+  local cmd="${1:-menu}"
+  shift || true
 
-  [ -z "$provider" ] && provider="$(get_default_provider)"
-
-  case "${cmd:-menu}" in
-    menu)              cmd_menu ;;
-    daily)             cmd_daily "${cmd_args[@]:-}" ;;
-    weekly)            cmd_weekly ;;
-    monthly)           cmd_monthly ;;
-    capture)           cmd_capture "${cmd_args[*]:-}" ;;
-    start)             cmd_start "${cmd_args[@]:-}" ;;
-    work)              cmd_work "${cmd_args[*]:-}" ;;
-    sprint)            cmd_sprint "${cmd_args[@]:-}" ;;
-    remote)            cmd_remote "${cmd_args[@]:-}" ;;
-    close)             cmd_close "${cmd_args[@]:-}" ;;
-    session)           cmd_session "${cmd_args[@]:-}" ;;
-    sync)              sync_providers ;;
-    sync-git)          cmd_sync_git ;;
-    migrate-safe)      cmd_migrate_safe ;;
-    list)              list_providers ;;
-    zettel)            cmd_zettel "${cmd_args[*]:-}" ;;
-    moc)               cmd_moc "${cmd_args[*]:-}" ;;
-    health)            cmd_health ;;
-    doctor)            cmd_doctor "${cmd_args[0]:-}" ;;
-    index)             cmd_index ;;
-    tag)               cmd_tag "${cmd_args[0]:-}" ;;
-    search)            cmd_search "${cmd_args[*]:-}" ;;
-    review)            cmd_review "${cmd_args[0]:-}" "$provider" ;;
-    update)            cmd_update ;;
-    consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
-    memory)            cmd_memory "${cmd_args[@]:-}" ;;
-    phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
-    process|processes) cmd_process "${cmd_args[@]:-}" ;;
-    inbox)             [ "${cmd_args[0]:-}" = "--process" ] && cmd_inbox_process "${cmd_args[@]:1}" || cmd_inbox_process ;;
+  case "$cmd" in
+    start)       cmd_start "$@" ;;
+    work)        cmd_work "$@" ;;
+    sprint)      cmd_sprint "$@" ;;
+    daily)       cmd_daily "$@" ;;
+    weekly)      cmd_weekly ;;
+    monthly)     cmd_monthly ;;
+    close)       cmd_close "$@" ;;
+    sync)        sync_providers ;;
+    zettel)      cmd_zettel "$@" ;;
+    moc)         cmd_moc "$@" ;;
+    health)      cmd_health ;;
+    doctor)      cmd_doctor "$@" ;;
+    review)      cmd_review "$@" ;;
+    capture)     cmd_capture "$@" ;;
+    consolidate) cmd_consolidate "$@" ;;
+    process)     cmd_process "$@" ;;
+    index)       cmd_index ;;
+    tag)         cmd_tag "$@" ;;
+    search)      cmd_search "$@" ;;
+    update)      cmd_update ;;
+    "sync-git")  cmd_sync_git ;;
+    "migrate-safe") cmd_migrate_safe ;;
+    remote)      cmd_remote "$@" ;;
+    menu)        cmd_menu ;;
+    launch)
+      shift || true
+      launch_ai "$(get_default_provider)" "$@"
+      ;;
+    --version|-v)
+      printf 'IPCRAE launcher v%s (méthode v%s)\n' "$SCRIPT_VERSION" "$METHOD_VERSION"
+      ;;
+    --help|-h)
+      usage
+      ;;
     *)
-      need_root; show_dashboard
-      printf '%b🤖 Provider: %s | 🎯 Expert: %s%b
-
-' "$BOLD" "$provider" "$cmd" "$NC"
-      launch_ai "$provider" "$cmd" ;;
+      # If the command is not recognized, it's treated as a prompt for the AI
+      local provider
+      provider="$(get_default_provider)"
+      # The original command and all its arguments are passed as the prompt
+      launch_with_prompt "$provider" "$cmd $*"
+      ;;
   esac
 }
-
 
 main "$@"
