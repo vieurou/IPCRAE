@@ -1,2 +1,6 @@
 # Local CDE link to central brain (must stay local)
 .ipcrae-memory
+
+# Agent-local directories (auto-generated, not to be committed)
+.ipcrae/
+.kilocode/
