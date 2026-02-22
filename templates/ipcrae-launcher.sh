@@ -312,6 +312,23 @@ sync_providers() {
   mkdir -p "${IPCRAE_ROOT}/.kilocode/rules"
   printf '# Instructions IPCRAE pour Kilo Code\n# ⚠ GÉNÉRÉ\n\n%s\n' "$body" > "${IPCRAE_ROOT}/.kilocode/rules/ipcrae.md"
   printf '  ✓ .kilocode/rules/ipcrae.md\n'
+
+  # ── Propager règles KiloCode dans tous les projets DEV connus ──────────
+  local dev_paths
+  dev_paths=$(grep -oP '\(`\K[^`]+(?=`\))' "${IPCRAE_ROOT}/.ipcrae/context.md" 2>/dev/null \
+    | grep "^/home" | sort -u || true)
+  if [ -n "$dev_paths" ]; then
+    while IFS= read -r dev_path; do
+      if [ -d "$dev_path/.kilocode" ] || [ -d "$dev_path" ]; then
+        mkdir -p "$dev_path/.kilocode/rules"
+        printf '# Instructions IPCRAE pour Kilo Code — projet: %s\n# ⚠ GÉNÉRÉ par ipcrae sync depuis %s\n# IPCRAE_ROOT=%s\n\n%s\n' \
+          "$(basename "$dev_path")" "$IPCRAE_ROOT" "$IPCRAE_ROOT" "$body" \
+          > "$dev_path/.kilocode/rules/ipcrae.md"
+        printf '  ✓ %s/.kilocode/rules/ipcrae.md\n' "$(basename "$dev_path")"
+      fi
+    done <<< "$dev_paths"
+  fi
+
   loginfo "Sync terminée."
 }
 
@@ -721,6 +738,27 @@ cmd_start() {
       IPCRAE_ROOT="$IPCRAE_ROOT" ipcrae-agent-hub status 2>/dev/null | grep -E "LEAD_AGENT|in_progress|todo" || true
     else
       printf '%b   Multi-agent : aucune session active (ipcrae-agent-hub start <id> pour démarrer)%b\n' "$NC" "$NC"
+    fi
+  fi
+
+  # ── Détection activité agents dans projets DEV (hors hub) ────────────
+  local dev_paths
+  dev_paths=$(grep -oP '\(`\K[^`]+(?=`\))' "${IPCRAE_ROOT}/.ipcrae/context.md" 2>/dev/null \
+    | grep "^/home" | sort -u || true)
+  if [ -n "$dev_paths" ]; then
+    local agent_activity=""
+    while IFS= read -r dev_path; do
+      local recent
+      recent=$(find "$dev_path/.ipcrae-memory" -name "*.md" -newer \
+        "${IPCRAE_ROOT}/.ipcrae/multi-agent/state.env" 2>/dev/null | head -3 || true)
+      if [ -n "$recent" ]; then
+        agent_activity="${agent_activity}  $(basename "$dev_path"): $(echo "$recent" | wc -l | tr -d ' ') fichier(s) récent(s)\n"
+      fi
+    done <<< "$dev_paths"
+    if [ -n "$agent_activity" ]; then
+      printf '%b⚡ Activité détectée dans projets DEV (autre agent probable) :%b\n' "$YELLOW" "$NC"
+      printf "%b" "$agent_activity"
+      printf '   → Vérifier avec: ipcrae-agent-hub status\n'
     fi
   fi
 
