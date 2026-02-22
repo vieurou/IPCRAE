@@ -1284,6 +1284,240 @@ cmd_consolidate() {
   launch_with_prompt "$(get_default_provider)" "$prompt"
 }
 
+# ── Prompt build — compilation des couches de prompts ─────────
+cmd_prompt_build() {
+  need_root
+  local agent="" output="" list_only=false subcmd="build"
+  # Détection sous-commande positionnelle
+  case "${1:-}" in
+    check) subcmd="check"; shift ;;
+    build) shift ;;
+  esac
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --agent|-a) agent="${2:-}"; shift ;;
+      --output|-o) output="${2:-}"; shift ;;
+      --list)  list_only=true ;;
+    esac
+    shift
+  done
+
+  local prompts_dir="${IPCRAE_ROOT}/.ipcrae/prompts"
+  local compiled_dir="${IPCRAE_ROOT}/.ipcrae/compiled"
+
+  # --list : affiche les agents disponibles
+  if [ "$list_only" = true ]; then
+    printf 'Agents disponibles :\n'
+    find "$prompts_dir" -name "agent_*.md" | sed 's|.*/agent_||;s|\.md||' | sort
+    return 0
+  fi
+
+  # Sous-commande check : audit cohérence de tous les agents
+  if [ "$subcmd" = "check" ]; then
+    local ok=0 warn=0
+    printf '\n%s\n' "─── Cohérence prompts agents ───"
+    for af in "${prompts_dir}"/agent_*.md; do
+      local aname miss=""
+      aname=$(basename "$af" .md | sed 's/^agent_//')
+      for sec in "## Rôle" "## Workflow" "## Contrat"; do
+        grep -qi "^${sec}" "$af" 2>/dev/null || miss="${miss} [${sec}]"
+      done
+      if [ -z "$miss" ]; then
+        printf '  \033[0;32m✓\033[0m %s\n' "$aname"; ok=$(( ok + 1 ))
+      else
+        printf '  \033[0;31m✗\033[0m %s — manque :%s\n' "$aname" "$miss"; warn=$(( warn + 1 ))
+      fi
+    done
+    printf '\nRésultat : %d OK, %d avec sections manquantes\n\n' "$ok" "$warn"
+    return 0
+  fi
+
+  if [ -z "$agent" ]; then
+    logerr "Usage: ipcrae prompt build --agent <domaine> [--output <fichier>]"
+    logerr "       ipcrae prompt check"
+    logerr "       ipcrae prompt --list"
+    return 1
+  fi
+
+  local agent_file="${prompts_dir}/agent_${agent}.md"
+  if [ ! -f "$agent_file" ]; then
+    logerr "Agent introuvable: $agent_file"
+    logerr "Agents disponibles: $(find "$prompts_dir" -name "agent_*.md" | sed 's|.*/agent_||;s|\.md||' | tr '\n' ' ')"
+    return 1
+  fi
+
+  mkdir -p "$compiled_dir"
+  local out="${output:-${compiled_dir}/prompt_${agent}.md}"
+
+  {
+    printf '# Prompt compilé — agent: %s\n' "$agent"
+    printf '# Généré par `ipcrae prompt build` le %s\n' "$(date '+%Y-%m-%d %H:%M')"
+    printf '# Couches : core_ai_functioning + core_ai_workflow + core_ai_memory + agent_%s\n\n' "$agent"
+    printf '%s\n\n' "---"
+
+    for core in core_ai_functioning core_ai_workflow_ipcra core_ai_memory_method; do
+      local cf="${prompts_dir}/${core}.md"
+      if [ -f "$cf" ]; then
+        printf '<!-- COUCHE: %s -->\n\n' "$core"
+        cat "$cf"
+        printf '\n\n%s\n\n' "---"
+      else
+        logwarn "Couche manquante: $cf"
+      fi
+    done
+
+    printf '<!-- COUCHE: agent_%s -->\n\n' "$agent"
+    cat "$agent_file"
+  } > "$out"
+
+  local lines
+  lines=$(wc -l < "$out" | tr -d ' ')
+  loginfo "Prompt compilé → ${out} (${lines} lignes)"
+
+  # Vérification cohérence sections obligatoires dans l'agent
+  local missing=""
+  for section in "## Rôle" "## Workflow" "## Contrat"; do
+    grep -q "^${section}" "$agent_file" 2>/dev/null || missing="${missing} '${section}'"
+  done
+  [ -n "$missing" ] && logwarn "Sections manquantes dans agent_${agent}.md :${missing}"
+}
+
+# ── AddProject — créer un hub projet dans le vault ────────────
+cmd_add_project() {
+  need_root
+  local slug="" domain="" path="" desc=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --slug|-s)    slug="${2:-}";   shift ;;
+      --domain|-d)  domain="${2:-}"; shift ;;
+      --path|-p)    path="${2:-}";   shift ;;
+      --desc)       desc="${2:-}";   shift ;;
+    esac
+    shift
+  done
+
+  # Prompt interactif si args manquants
+  if [ -z "$slug" ]; then
+    read -r -p "Nom du projet (slug, ex: mon-projet) : " slug
+    [ -z "$slug" ] && { logerr "Slug requis"; return 1; }
+  fi
+  slug=$(printf '%s' "$slug" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
+  if [ -z "$domain" ]; then
+    read -r -p "Domaine (devops/electronique/musique/maison/finance/sante) : " domain
+    domain="${domain:-devops}"
+  fi
+  [ -z "$path" ] && path="${HOME}/DEV/${slug}"
+  [ -z "$desc" ] && desc="Projet ${slug}"
+
+  local hub_dir="${IPCRAE_ROOT}/Projets/${slug}"
+  if [ -d "$hub_dir" ]; then
+    logwarn "Hub déjà existant : ${hub_dir}"
+    return 1
+  fi
+
+  local today
+  today=$(date '+%Y-%m-%d')
+
+  mkdir -p "${hub_dir}/demandes"
+
+  # index.md
+  cat > "${hub_dir}/index.md" << ENDOFFILE
+---
+type: hub
+project: ${slug}
+domain: ${domain}
+status: active
+tags: [${domain}]
+created: ${today}
+updated: ${today}
+---
+
+# ${slug}
+
+## Métadonnées
+- **Domaine** : ${domain}
+- **Statut** : 🚀 Actif
+- **Priorité** : 🟠 Haute
+- **Chemin Local** : \`${path}\`
+
+## Objectif
+
+${desc}
+
+## Next Actions
+- [ ]
+
+## Architecture / Stack
+
+## Décisions importantes
+| Date | Décision | Raison |
+|------|----------|--------|
+
+## Liens
+- Tracking : [[${slug}/tracking]]
+- Mémoire  : [[${slug}/memory]]
+ENDOFFILE
+
+  # tracking.md
+  cat > "${hub_dir}/tracking.md" << ENDOFFILE
+# Kanban Tracking — ${slug}
+<!-- Géré par : ipcrae close, ipcrae start -->
+
+---
+
+## ▶️ In Progress (max 3)
+
+## ⏳ Waiting For
+
+---
+
+## 🎯 Backlog — Court terme
+- [ ]
+
+## 🗂️ Backlog — Moyen terme
+
+## 🔭 Backlog — Long terme
+
+---
+
+## ✅ Done
+
+---
+
+## Milestones
+- [ ] **M1** :
+ENDOFFILE
+
+  # memory.md
+  cat > "${hub_dir}/memory.md" << ENDOFFILE
+---
+type: memory
+project: ${slug}
+domain: ${domain}
+tags: [${domain}, memory, ${slug}]
+created: ${today}
+updated: ${today}
+---
+
+# Mémoire projet — ${slug}
+
+## Contraintes connues
+
+## Décisions passées
+
+### ${today} — Création du projet
+**Contexte** : Initialisation du hub IPCRAE
+**Décision** : Projet créé via \`ipcrae addProject\`
+**Résultat** : Hub opérationnel
+ENDOFFILE
+
+  loginfo "Hub créé : ${hub_dir}"
+  loginfo "  index.md | tracking.md | memory.md | demandes/"
+
+  # Auto-commit vault
+  auto_git_sync_event "addProject ${slug}"
+}
+
 # ── AllContext — pipeline analyse/ingestion universel ─────────
 cmd_allcontext() {
   need_root
@@ -1522,6 +1756,10 @@ Commandes:
   process [nom]            Créer/ouvrir un process ou l'index
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
   allcontext "<texte>"     Pipeline d'analyse/ingestion universel (rôles + contexte + tracking)
+  addProject --slug <s>    Créer un hub projet vault (index + tracking + memory + demandes/)
+  prompt build --agent <d> Compiler les couches prompts en un seul fichier (.ipcrae/compiled/)
+  prompt check             Vérifier la cohérence des sections obligatoires dans tous les agents
+  prompt --list            Lister les agents disponibles
   update                   Met à jour via git pull puis relance l'installateur
   sync-git                 Sauvegarde Git du vault entier (add, commit, push)
   migrate-safe             Upgrade IPCRAE sans perte (backup + merge non destructif)
@@ -1600,6 +1838,8 @@ main() {
     update)            cmd_update ;;
     consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
     allcontext)        cmd_allcontext "${cmd_args[@]:-}" ;;
+    prompt)            cmd_prompt_build "${cmd_args[@]:-}" ;;
+    addProject|add-project) cmd_add_project "${cmd_args[@]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
     process|processes) cmd_process "${cmd_args[*]:-}" ;;
     *)
