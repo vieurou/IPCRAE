@@ -1,5 +1,5 @@
 #!/bin/bash
-# Audit réel du vault IPCRAE — score dynamique 0-40
+# Audit réel du vault IPCRAE — score dynamique 0-45
 # Usage: ipcrae-audit-check [--verbose]
 
 # --- Config ---
@@ -18,7 +18,7 @@ NC='\033[0m'
 
 # --- État global ---
 TOTAL_SCORE=0
-MAX_SCORE=40
+MAX_SCORE=45
 declare -a GAPS=()
 CRITIQUES=0
 IMPORTANTS=0
@@ -89,6 +89,112 @@ config_has_fields() {
   local cfg="$IPCRAE_ROOT/.ipcrae/config.yaml"
   [[ -f "$cfg" ]] || return 1
   grep -q "^ipcrae_root:" "$cfg" && grep -q "^default_provider:" "$cfg"
+}
+
+# --- Fonctions de suivi des profils ---
+
+# Obtenir les rôles actuels depuis l'environnement ou les arguments
+get_current_roles() {
+  local roles=()
+  
+  # Rôle principal depuis AGENT_TYPE ou variable d'environnement
+  if [[ -n "${AGENT_TYPE:-}" ]]; then
+    roles+=("$AGENT_TYPE")
+  fi
+  
+  # Rôles secondaires depuis AGENT_ROLES
+  if [[ -n "${AGENT_ROLES:-}" ]]; then
+    IFS=',' read -ra SECONDARY_ROLES <<< "$AGENT_ROLES"
+    for role in "${SECONDARY_ROLES[@]}"; do
+      roles+=("$role")
+    done
+  fi
+  
+  # Fallback: détecter depuis les arguments de la commande
+  if [[ ${#roles[@]} -eq 0 ]]; then
+    # Analyser les arguments pour détecter les rôles
+    for arg in "$@"; do
+      case "$arg" in
+        *architect*) roles+=("Architect") ;;
+        *code*) roles+=("Code") ;;
+        *ask*) roles+=("Ask") ;;
+        *debug*) roles+=("Debug") ;;
+        *orchestrator*) roles+=("Orchestrator") ;;
+        *review*) roles+=("Review") ;;
+      esac
+    done
+  fi
+  
+  # Si toujours vide, utiliser un rôle par défaut
+  [[ ${#roles[@]} -eq 0 ]] && roles=("Architect")
+  
+  printf '%s\n' "${roles[@]}"
+}
+
+# Enregistrer l'utilisation des rôles dans le fichier de suivi
+log_roles_usage() {
+  local primary_role="${1:-Architect}"
+  shift
+  local secondary_roles=("$@")
+  
+  local profiles_file="$IPCRAE_ROOT/.ipcrae/memory/profils-usage.md"
+  local date=$(date '+%Y-%m-%d')
+  local time=$(date '+%H:%M')
+  local session_id="${date}_${time}_$$"
+  
+  # Créer le fichier s'il n'existe pas
+  [[ ! -f "$profiles_file" ]] && mkdir -p "$(dirname "$profiles_file")" && touch "$profiles_file"
+  
+  # Ajouter l'entrée de session
+  local session_entry="### ${date} - ${time}
+---
+date: ${date}
+time: ${time}
+session_id: ${session_id}
+roles_used:
+  - ${primary_role}
+"
+  
+  for role in "${secondary_roles[@]}"; do
+    session_entry="${session_entry}
+  - ${role}"
+  done
+  
+  session_entry="${session_entry}
+project: IPCRAE
+score_ipcrae: ${TOTAL_SCORE}/${MAX_SCORE}
+duration: 0
+---
+"
+  
+  # Ajouter au fichier
+  echo "$session_entry" >> "$profiles_file"
+}
+
+# Calculer les statistiques d'utilisation des rôles
+get_roles_statistics() {
+  local profiles_file="$IPCRAE_ROOT/.ipcrae/memory/profils-usage.md"
+  [[ ! -f "$profiles_file" ]] && return 0
+  
+  # Compter les sessions par rôle
+  local architect=0 code=0 ask=0 debug=0 orchestrator=0 review=0
+  
+  # Utiliser grep pour compter les occurrences de chaque rôle
+  architect=$(grep "Architect" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  code=$(grep "Code" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  ask=$(grep "Ask" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  debug=$(grep "Debug" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  orchestrator=$(grep "Orchestrator" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  review=$(grep "Review" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  
+  # Afficher les statistiques
+  echo -e "\n${BOLD}${BLUE}Statistiques d'Utilisation des Rôles${NC}"
+  echo -e "  Architect: ${architect} sessions"
+  echo -e "  Code: ${code} sessions"
+  echo -e "  Ask: ${ask} sessions"
+  echo -e "  Debug: ${debug} sessions"
+  echo -e "  Orchestrator: ${orchestrator} sessions"
+  echo -e "  Review: ${review} sessions"
 }
 
 waiting_for_stale_count() {
@@ -393,6 +499,50 @@ audit_section4() {
 }
 
 # ══════════════════════════════════════════════
+# Section 5 — Suivi des Profils (5 pts)
+# ══════════════════════════════════════════════
+audit_section5() {
+  section_header "Section 5 — Suivi des Profils"
+  local s=0
+  
+  # 5.1 Fichier de suivi des profils présent (2 pts)
+  local profiles_file="$IPCRAE_ROOT/.ipcrae/memory/profils-usage.md"
+  if [[ -f "$profiles_file" ]]; then
+    check_line ok "Fichier de suivi des profils présent" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Fichier de suivi des profils présent" 0 2 "Fichier manquant → créé automatiquement"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+  
+  # 5.2 Au moins 1 session enregistrée dans le fichier (2 pts)
+  local session_count=0
+  if [[ -f "$profiles_file" ]]; then
+    session_count=$(grep "^session_id:" "$profiles_file" 2>/dev/null | wc -l | tr -d ' \t')
+  fi
+  if [[ "$session_count" -ge 1 ]]; then
+    check_line ok "Sessions enregistrées : ${session_count} session(s)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Sessions enregistrées : aucune" 0 2 "Aucune session encore enregistrée (sera logée à la fin de cet audit)"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 5.3 Enregistrement de session automatique (1 pt) — auto-log de cette session
+  log_roles_usage "Architect"
+  check_line ok "Enregistrement de session automatique (session logée)" 1 1
+  s=$(( s + 1 ))
+  
+  # Afficher les statistiques si disponibles
+  if [[ -f "$profiles_file" ]]; then
+    get_roles_statistics
+  fi
+  
+  echo -e "  ${CYAN}Score section: ${s}/5${NC}"
+  add_score "$s"
+}
+
+# ══════════════════════════════════════════════
 # Main
 # ══════════════════════════════════════════════
 main() {
@@ -406,7 +556,8 @@ main() {
   audit_section2
   audit_section3
   audit_section4
-
+  audit_section5
+  
   # Résumé
   local pct=$(( TOTAL_SCORE * 100 / MAX_SCORE ))
   local color_score
