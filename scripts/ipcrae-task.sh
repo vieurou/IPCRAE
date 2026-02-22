@@ -38,13 +38,14 @@ function task_new() {
     if [ -z "$description" ]; then
         echo "Usage: ipcrae-task new \"<description>\"" >&2
         return 1
-    }
+    fi
 
     local timestamp
     timestamp=$(date +%s)
     local task_id="task-${timestamp}"
     local task_file="$TO_AI_DIR/${task_id}.md"
 
+    mkdir -p "$TO_AI_DIR"
     cat > "$task_file" << EOF
 ---
 id: ${task_id}
@@ -84,7 +85,7 @@ function task_done() {
     if [ -z "$task_id" ]; then
         echo "Usage: ipcrae-task done <task_id>" >&2
         return 1
-    }
+    fi
 
     local task_file
     task_file=$(find "$TO_AI_DIR" "$TO_USER_DIR" -name "${task_id}.md" 2>/dev/null | head -n 1)
@@ -92,7 +93,7 @@ function task_done() {
     if [ ! -f "$task_file" ]; then
         echo "Erreur: Tâche '${task_id}' introuvable." >&2
         return 1
-    }
+    fi
 
     # Mettre à jour le statut (utilise sed)
     sed -i 's/status: .*/status: done/' "$task_file"
