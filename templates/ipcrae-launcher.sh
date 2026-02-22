@@ -528,7 +528,7 @@ block = (
     f'- {project or "(à renseigner)"}\n\n'
 )
 
-pattern = re.compile(r'## Working set \(dynamique\).*?(?=\n## |\Z)', re.S)
+pattern = re.compile(r'## Working set \(dynamique\).*', re.S)
 if pattern.search(text):
     text = pattern.sub(block.rstrip('\n'), text)
 else:
@@ -592,6 +592,26 @@ PYCTX
 
   cmd_index
   loginfo "Clôture dynamique effectuée: memory/${domain}.md + context.md + cache tags"
+
+  # ── MOC auto-détection (bash + python3, propose les MOC manquants) ─────
+  if command -v ipcrae-moc-auto &>/dev/null; then
+    ipcrae-moc-auto --min-notes 3 --update --quiet "$IPCRAE_ROOT" || true
+  fi
+
+  # ── Audit pre-commit (score ≥ 30/40 recommandé avant push) ───────────
+  if command -v ipcrae-audit-check &>/dev/null; then
+    local audit_score
+    audit_score=$(IPCRAE_ROOT="$IPCRAE_ROOT" ipcrae-audit-check 2>/dev/null \
+      | grep -oP 'Score:\s*\K[0-9]+' | tail -1 || echo "?")
+    if [ "$audit_score" != "?" ] && [ "$audit_score" -lt 30 ] 2>/dev/null; then
+      printf '%b⚠  Audit score: %s/40 (< 30) — commit quand même (non bloquant)%b\n' \
+        "$YELLOW" "$audit_score" "$NC"
+      printf '   → Lancer: ipcrae-audit-check pour voir les gaps\n'
+    elif [ "$audit_score" != "?" ]; then
+      printf '%b✓  Audit pre-commit: %s/40%b\n' "$GREEN" "$audit_score" "$NC"
+    fi
+  fi
+
   auto_git_sync_event "close session"
 
   # ── Git tag de session (jalon temporel dans l'historique du vault) ──────
@@ -618,12 +638,12 @@ PYCTX
 
 cmd_start() {
   need_root
-  local project=""
-  local phase=""
+  local project="" domain="" phase=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --project) project="${2:-}"; shift ;;
-      --phase) phase="${2:-}"; shift ;;
+      --domain)  domain="${2:-}"; shift ;;
+      --phase)   phase="${2:-}"; shift ;;
     esac
     shift
   done
@@ -634,6 +654,73 @@ cmd_start() {
   printf 'Weekly: %s\n' "$(iso_week)"
   [ -f "Phases/index.md" ] && printf 'Phase index: Phases/index.md\n'
   [ -f "Journal/Weekly/$(date +%G)/$(iso_week).md" ] || cmd_weekly
+
+  # ── Auto-détection domaine depuis hub projet ──────────────────────────
+  if [ -z "$domain" ] && [ -n "$project" ]; then
+    local proj_idx="${IPCRAE_ROOT}/Projets/${project}/index.md"
+    if [ -f "$proj_idx" ]; then
+      domain=$(grep -E '^domain:|^domaine:' "$proj_idx" 2>/dev/null \
+        | head -1 | awk -F': ' '{print $2}' | tr -d '"' || true)
+    fi
+  fi
+  # Fallback : domaine actif dans context.md (Working set)
+  if [ -z "$domain" ]; then
+    domain=$(grep -E '^- Domaine actif:' "${IPCRAE_ROOT}/.ipcrae/context.md" 2>/dev/null \
+      | head -1 | awk -F': ' '{print $2}' | tr -d ' ' || true)
+  fi
+
+  # ── Génération session-context.md (chargement sélectif) ──────────────
+  local sc_path="${IPCRAE_ROOT}/.ipcrae/session-context.md"
+  {
+    printf '# Contexte session — %s / %s\n' "${domain:-global}" "${project:-tous}"
+    printf '> Généré par `ipcrae start` le %s\n' "$(date '+%Y-%m-%d %H:%M')"
+    printf '> **Chargement sélectif actif** : lire ce fichier EN PREMIER ; éviter les autres memory/\n'
+    printf '> Pour les autres domaines → `ipcrae tag <tag>`\n\n'
+
+    local mem="${IPCRAE_ROOT}/memory/${domain}.md"
+    if [ -n "$domain" ] && [ -f "$mem" ]; then
+      printf '%s\n\n## Mémoire domaine : %s\n\n' "---" "$domain"
+      cat "$mem"
+      printf '\n'
+    fi
+
+    if [ -n "$project" ]; then
+      local tracking="${IPCRAE_ROOT}/Projets/${project}/tracking.md"
+      if [ -f "$tracking" ]; then
+        printf '\n%s\n\n## État projet : %s\n\n' "---" "$project"
+        cat "$tracking"
+        printf '\n'
+      fi
+    fi
+
+    local phases="${IPCRAE_ROOT}/Phases/index.md"
+    if [ -f "$phases" ]; then
+      printf '\n%s\n\n## Phase active (résumé)\n\n' "---"
+      head -40 "$phases"
+      printf '\n'
+    fi
+  } > "$sc_path"
+
+  local sc_kb
+  sc_kb=$(( $(wc -c < "$sc_path") / 1024 ))
+  printf '%b✓  session-context.md généré (%s Ko — domaine: %s, projet: %s)%b\n' \
+    "$GREEN" "$sc_kb" "${domain:-global}" "${project:-(tous)}" "$NC"
+  printf '   → Fichier à charger EN PREMIER dans votre session IA\n'
+  printf '   → Autres domaines → ipcrae tag <tag>\n'
+
+  # ── Sync providers (régénère CLAUDE.md) ──────────────────────────────
+  sync_providers
+
+  # ── Vérification inbox ────────────────────────────────────────────────
+  if command -v ipcrae-inbox-scan &>/dev/null; then
+    ipcrae-inbox-scan --verbose "$IPCRAE_ROOT" || true
+  elif [ -f "${IPCRAE_ROOT}/.ipcrae/auto/inbox-needs-processing" ]; then
+    local flag_date
+    flag_date=$(cat "${IPCRAE_ROOT}/.ipcrae/auto/inbox-needs-processing" 2>/dev/null || echo "?")
+    printf '%b⚠  Inbox: fichiers en attente (dernière détection: %s)%b\n' \
+      "$YELLOW" "$flag_date" "$NC"
+    printf '   → Lire: %s/.ipcrae/auto/inbox-pending.md\n' "$IPCRAE_ROOT"
+  fi
 }
 
 cmd_session() {
