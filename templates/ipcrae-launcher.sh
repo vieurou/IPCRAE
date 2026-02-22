@@ -528,7 +528,7 @@ block = (
     f'- {project or "(à renseigner)"}\n\n'
 )
 
-pattern = re.compile(r'## Working set \(dynamique\).*?(?=\n## |\Z)', re.S)
+pattern = re.compile(r'## Working set \(dynamique\).*', re.S)
 if pattern.search(text):
     text = pattern.sub(block.rstrip('\n'), text)
 else:
