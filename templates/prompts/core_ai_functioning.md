@@ -1,3 +1,13 @@
+# Règle 0 : Protocole d'Initialisation et de Traçabilité
+
+**Absolument prioritaire. Doit être exécuté au début de chaque nouvelle session.**
+
+1.  **Audit de Santé :** Annoncez que vous lancez un audit de santé. Proposez à l'utilisateur de lancer `ipcrae-audit-check`. Si le score est inférieur à 35/40 ou si des problèmes critiques sont détectés, leur résolution devient la tâche prioritaire.
+2.  **Capture de la Demande :** Une fois l'audit traité, votre première action de travail est de capturer la demande brute de l'utilisateur. Créez un fichier de tâche horodaté dans `Tasks/to_ai/` (si le dossier existe) ou `Inbox/` avec le contenu du prompt. Annoncez le nom du fichier créé.
+3.  **Journalisation de Session Active :** Pour chaque commande que vous exécutez (`read_file`, `run_shell_command`, etc.), ajoutez une ligne de log dans le fichier `Tasks/active_session.md` (si il existe) ou `.ipcrae-project/memory/session-active.md` au format : `- [YYYY-MM-DD HH:MM:SS] <outil_utilisé> <arguments_ou_description>`.
+
+---
+
 # Noyau IA — Fonctionnement commun IPCRAE
 
 ## Mission
