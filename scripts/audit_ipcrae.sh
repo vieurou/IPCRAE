@@ -18,7 +18,7 @@ NC='\033[0m'
 
 # --- État global ---
 TOTAL_SCORE=0
-MAX_SCORE=50
+MAX_SCORE=55
 declare -a GAPS=()
 CRITIQUES=0
 IMPORTANTS=0
@@ -605,6 +605,64 @@ audit_section6() {
   add_score "$s"
 }
 
+audit_section7() {
+  section_header "Section 7 — Profondeur de la connaissance"
+  local s=0
+
+  # 7.1 Ressources/ a du contenu (≥ 1 fichier .md) (2 pts)
+  local res_dir="$IPCRAE_ROOT/Ressources"
+  local res_count=0
+  if [[ -d "$res_dir" ]]; then
+    res_count=$(find "$res_dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' \t')
+  fi
+  if [[ "$res_count" -ge 1 ]]; then
+    check_line ok "Ressources/ : ${res_count} fichier(s) .md présent(s)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Ressources/ : 0 fichier .md — dossier vide" 0 2 "Ajouter des notes de référence dans Ressources/<domaine>/"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 7.2 Mémoires domaine : ≥ 2 fichiers avec ≥ 3 décisions datées (2 pts)
+  local mem_dir="$IPCRAE_ROOT/memory"
+  local dense_count=0
+  while IFS= read -r f; do
+    local entries
+    entries=$(grep "^### 20" "$f" 2>/dev/null | wc -l | tr -d ' \t')
+    [[ "$entries" -ge 3 ]] && dense_count=$(( dense_count + 1 ))
+  done < <(find "$mem_dir" -maxdepth 1 -type f -name "*.md" ! -name "index.md" 2>/dev/null)
+  if [[ "$dense_count" -ge 2 ]]; then
+    check_line ok "Mémoires domaine : ${dense_count} fichier(s) avec ≥3 décisions datées" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Mémoires domaine : ${dense_count}/2 fichier(s) avec ≥3 décisions datées" 0 2 "Alimenter memory/<domaine>.md via: ipcrae close <domaine> --project <slug>"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 7.3 Knowledge/ : ≥ 80% des notes ont un champ sources: (1 pt)
+  local know_dir="$IPCRAE_ROOT/Knowledge"
+  local know_total=0 know_with_src=0
+  while IFS= read -r f; do
+    # Exclure index.md et templates
+    [[ "$(basename "$f")" == "index.md" ]] && continue
+    [[ "$(basename "$f")" == _template* ]] && continue
+    know_total=$(( know_total + 1 ))
+    grep -q "^sources:" "$f" 2>/dev/null && know_with_src=$(( know_with_src + 1 ))
+  done < <(find "$know_dir" -type f -name "*.md" 2>/dev/null)
+  local know_pct=0
+  [[ "$know_total" -gt 0 ]] && know_pct=$(( know_with_src * 100 / know_total ))
+  if [[ "$know_pct" -ge 80 ]]; then
+    check_line ok "Knowledge sources: : ${know_with_src}/${know_total} notes (${know_pct}%)" 1 1
+    s=$(( s + 1 ))
+  else
+    check_line ko "Knowledge sources: : ${know_with_src}/${know_total} notes (${know_pct}% < 80%)" 0 1 "Ajouter champ sources: dans les notes Knowledge sans référence"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/5${NC}"
+  add_score "$s"
+}
+
 # ══════════════════════════════════════════════
 # Main
 # ══════════════════════════════════════════════
@@ -628,6 +686,7 @@ main() {
   audit_section4
   audit_section5
   audit_section6
+  audit_section7
 
   # Résumé
   local pct=$(( TOTAL_SCORE * 100 / MAX_SCORE ))
