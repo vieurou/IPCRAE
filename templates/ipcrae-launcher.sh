@@ -1247,7 +1247,7 @@ cmd_health() {
   # Waiting-for
   if [ -f "Inbox/waiting-for.md" ]; then
     local wf_count
-    wf_count=$(grep -c '^|[^-|]' "Inbox/waiting-for.md" 2>/dev/null || echo 0)
+    wf_count=$(grep '^|[^-|]' "Inbox/waiting-for.md" 2>/dev/null | wc -l | tr -d ' \t')
     wf_count=$((wf_count > 0 ? wf_count - 1 : 0))  # soustraire l'en-tête
     printf '⏳ Waiting-for: %s items\n' "$wf_count"
   fi
