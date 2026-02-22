@@ -41,7 +41,8 @@ IPCRAE_ROOT/
 │   ├── instructions.md       # Règles IA communes (qualité, vérification)
 │   ├── config.yaml           # Provider par défaut, auto_git_sync
 │   ├── prompts/              # Templates agents & workflows (core + domaines)
-│   └── cache/tag-index.json  # Cache tags (dérivé, reconstructible)
+│   ├── cache/tag-index.json  # Cache tags (dérivé, reconstructible)
+│   └── multi-agent/          # État partagé lead/assistants (state, tasks, notifications)
 ├── memory/
 │   ├── devops.md | electronique.md | musique.md | maison.md | sante.md | finance.md
 │   └── index.md
@@ -85,6 +86,7 @@ updated: YYYY-MM-DD
 | `ipcrae-addProject` | Initialise un repo local CDE : `docs/conception/` + hub Projets + symlink `.ipcrae-memory` |
 | `ipcrae-tokenpack` | Génère un contexte compact (core ou projet) pour minimiser les tokens IA |
 | `ipcrae-agent-bridge` | Interroge automatiquement les agents CLI disponibles avec cache de réponses |
+| `ipcrae-agent-hub` | Coordonne une session multi-agents parallèle (lead + assistants) via backlog partagé |
 | `ipcrae-prompt-optimize` | Optimise un prompt selon l'agent cible avant délégation |
 | `ipcrae-index` | Reconstruit le cache `tag-index.json` depuis les frontmatters Markdown |
 | `ipcrae-tag` | Liste les fichiers liés à un tag donné |

@@ -576,8 +576,9 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tokenpack.sh" "$HOME/bin/ipcrae-tokenpack"
     execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-bridge.sh" "$HOME/bin/ipcrae-agent-bridge"
     execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$HOME/bin/ipcrae-prompt-optimize"
-    execute chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize"
-    loginfo "✓ Scripts token/multi-agent installés (ipcrae-tokenpack, ipcrae-agent-bridge, ipcrae-prompt-optimize)"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-hub.sh" "$HOME/bin/ipcrae-agent-hub"
+    execute chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize" "$HOME/bin/ipcrae-agent-hub"
+    loginfo "✓ Scripts token/multi-agent installés (ipcrae-tokenpack, ipcrae-agent-bridge, ipcrae-prompt-optimize, ipcrae-agent-hub)"
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" ]; then
       execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"

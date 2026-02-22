@@ -45,6 +45,7 @@ Extensions “Étendu” :
 - **Knowledge/** : connaissances opérationnelles réutilisables (how-to, runbooks, patterns).
 - **memory/** : mémoire IA par domaine (décisions, erreurs, heuristiques).
 - **Agents/** : rôles IA spécialisés (devops, électronique, musique, maison, santé, finance).
+- **.ipcrae/multi-agent/** : orchestration parallèle (lead + assistants) pour coordonner plusieurs providers.
 
 ---
 
@@ -200,6 +201,12 @@ La mémoire IA sert à éviter de refaire les mêmes erreurs.
 - `ipcrae work "<objectif>"` : lance l'agent avec contexte minimisé et tags pertinents.
 - `ipcrae close <domaine> --project <slug>` : consolide `memory/<domaine>.md`, met à jour `.ipcrae/context.md`, puis reconstruit `.ipcrae/cache/tag-index.json`.
 - **Point d'entrée unifié** : `ipcrae session start|end|run` (avec `--skip-audit` pour mode rapide).
+
+### 7.0 bis Orchestration multi-agents
+- `ipcrae-agent-hub start <agent_id>` : démarre une session partagée (agent lead).
+- `ipcrae-agent-hub task-add|task-pick|task-done` : distribue et suit le travail en parallèle.
+- `ipcrae-agent-hub notify <from> <to> <message>` : handoff asynchrone entre providers.
+- `ipcrae-agent-hub stop <agent_id>` : clôture de session par le lead.
 
 
 ### 7.1 Capture (Inbox)
