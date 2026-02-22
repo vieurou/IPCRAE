@@ -18,7 +18,7 @@ NC='\033[0m'
 
 # --- État global ---
 TOTAL_SCORE=0
-MAX_SCORE=55
+MAX_SCORE=60
 declare -a GAPS=()
 CRITIQUES=0
 IMPORTANTS=0
@@ -552,7 +552,7 @@ audit_section6() {
   # 6.1 Scripts essentiels ~/bin/ipcrae* présents et exécutables (2 pts)
   local bin_dir="${HOME}/bin"
   local scripts_ok=1
-  for script in ipcrae ipcrae-audit-check ipcrae-auto ipcrae-auto-apply ipcrae-auto-core; do
+  for script in ipcrae ipcrae-audit-check ipcrae-auto ipcrae-auto-apply ipcrae-auto-core ipcrae-inbox-scan ipcrae-moc-auto; do
     if [[ ! -x "${bin_dir}/${script}" ]]; then
       scripts_ok=0
       break
@@ -598,6 +598,65 @@ audit_section6() {
     s=$(( s + 1 ))
   else
     check_line ko "DEV/IPCRAE : ${dev_modified} fichier(s) modifié(s) non commité(s)" 0 1 "${dev_modified} fichier(s) DEV non commités → git -C $dev_dir commit"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  echo -e "  ${CYAN}Score section: ${s}/5${NC}"
+  add_score "$s"
+}
+
+audit_section8() {
+  section_header "Section 8 — Gouvernance de phase"
+  local s=0
+
+  # 8.1 Phase active avec DoD documentée (≥ 3 critères [ ]/[x]) (2 pts)
+  local phases_dir="$IPCRAE_ROOT/Phases"
+  local active_phase=""
+  if [[ -f "$phases_dir/index.md" ]]; then
+    active_phase=$(grep -o '\[\[phase-[^]]*\]\]' "$phases_dir/index.md" 2>/dev/null \
+      | head -1 | sed 's/\[\[//;s/\]\]//')
+  fi
+  local dod_count=0
+  if [[ -n "$active_phase" ]] && [[ -f "$phases_dir/${active_phase}.md" ]]; then
+    dod_count=$(grep -c "^\- \[.\]" "$phases_dir/${active_phase}.md" 2>/dev/null | tr -d ' \t')
+  fi
+  if [[ "$dod_count" -ge 3 ]]; then
+    check_line ok "Phase active avec DoD documentée (${dod_count} critères)" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Phase active sans DoD suffisante (${dod_count} < 3 critères)" 0 2 "Compléter Phases/${active_phase}.md avec des critères de sortie [ ]"
+    IMPORTANTS=$(( IMPORTANTS + 1 ))
+  fi
+
+  # 8.2 Phase DoD : ≥ 1 critère [x] complété (2 pts)
+  local done_count=0
+  if [[ -n "$active_phase" ]] && [[ -f "$phases_dir/${active_phase}.md" ]]; then
+    done_count=$(grep -c "^\- \[x\]" "$phases_dir/${active_phase}.md" 2>/dev/null | tr -d ' \t')
+  fi
+  if [[ "$done_count" -ge 1 ]]; then
+    check_line ok "Phase DoD : ${done_count} critère(s) accompli(s) [x]" 2 2
+    s=$(( s + 2 ))
+  else
+    check_line ko "Phase DoD : 0 critère complété — aucun [x]" 0 2 "Cocher les critères accomplis dans Phases/${active_phase}.md"
+    MINEURS=$(( MINEURS + 1 ))
+  fi
+
+  # 8.3 Inbox/demandes-brutes/ : toutes les demandes ont status: traite (1 pt)
+  local dem_dir="$IPCRAE_ROOT/Inbox/demandes-brutes"
+  local dem_total=0 dem_traite=0
+  if [[ -d "$dem_dir" ]]; then
+    while IFS= read -r f; do
+      [[ "$(basename "$f")" == "README.md" ]] && continue
+      dem_total=$(( dem_total + 1 ))
+      grep -q "^status: traite" "$f" 2>/dev/null && dem_traite=$(( dem_traite + 1 ))
+    done < <(find "$dem_dir" -name "*.md" 2>/dev/null)
+  fi
+  if [[ "$dem_total" -eq 0 ]] || [[ "$dem_traite" -eq "$dem_total" ]]; then
+    check_line ok "Demandes-brutes : ${dem_traite}/${dem_total} traitées" 1 1
+    s=$(( s + 1 ))
+  else
+    local pending=$(( dem_total - dem_traite ))
+    check_line ko "Demandes-brutes : ${pending} non traitée(s) sur ${dem_total}" 0 1 "Traiter les demandes brutes en attente dans Inbox/demandes-brutes/"
     MINEURS=$(( MINEURS + 1 ))
   fi
 
@@ -687,6 +746,7 @@ main() {
   audit_section5
   audit_section6
   audit_section7
+  audit_section8
 
   # Résumé
   local pct=$(( TOTAL_SCORE * 100 / MAX_SCORE ))
