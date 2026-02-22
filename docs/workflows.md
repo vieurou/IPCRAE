@@ -92,3 +92,37 @@ ipcrae-addProject
   4. Mettre à jour le statut du hub dans `~/IPCRAE`.
 
 Une fois terminé, votre ancien projet est entièrement pilotable via IPCRAE.
+
+---
+
+## 4. Workflow : Collaboration Multi-Agents en parallèle
+
+Objectif : exploiter plusieurs abonnements/providers en même temps avec un protocole commun lisible par tous les agents.
+
+### Étape 1 : Un agent devient orchestrateur (lead)
+```bash
+ipcrae-agent-hub start claude-main
+ipcrae-agent-hub task-add "Extraction principes vidéos" claude-main
+ipcrae-agent-hub task-add "Comparer avec méthode IPCRAE" claude-main
+```
+
+### Étape 2 : Les autres agents basculent en mode assistant
+Chaque agent lit l'état partagé :
+```bash
+ipcrae-agent-hub status
+ipcrae-agent-hub task-pick 1 gemini-research
+```
+
+### Étape 3 : Handoff asynchrone
+```bash
+ipcrae-agent-hub notify gemini-research claude-main "Tâche #1 terminée, résultats dans docs/audit/"
+ipcrae-agent-hub task-done 1 gemini-research
+```
+
+### Étape 4 : Consolidation finale par le lead
+```bash
+ipcrae-agent-hub status
+ipcrae-agent-hub stop claude-main
+```
+
+Résultat : coordination légère, explicite et traçable dans `.ipcrae/multi-agent/`.
