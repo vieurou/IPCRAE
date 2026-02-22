@@ -638,12 +638,12 @@ PYCTX
 
 cmd_start() {
   need_root
-  local project=""
-  local phase=""
+  local project="" domain="" phase=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --project) project="${2:-}"; shift ;;
-      --phase) phase="${2:-}"; shift ;;
+      --domain)  domain="${2:-}"; shift ;;
+      --phase)   phase="${2:-}"; shift ;;
     esac
     shift
   done
@@ -654,6 +654,73 @@ cmd_start() {
   printf 'Weekly: %s\n' "$(iso_week)"
   [ -f "Phases/index.md" ] && printf 'Phase index: Phases/index.md\n'
   [ -f "Journal/Weekly/$(date +%G)/$(iso_week).md" ] || cmd_weekly
+
+  # ── Auto-détection domaine depuis hub projet ──────────────────────────
+  if [ -z "$domain" ] && [ -n "$project" ]; then
+    local proj_idx="${IPCRAE_ROOT}/Projets/${project}/index.md"
+    if [ -f "$proj_idx" ]; then
+      domain=$(grep -E '^domain:|^domaine:' "$proj_idx" 2>/dev/null \
+        | head -1 | awk -F': ' '{print $2}' | tr -d '"' || true)
+    fi
+  fi
+  # Fallback : domaine actif dans context.md (Working set)
+  if [ -z "$domain" ]; then
+    domain=$(grep -E '^- Domaine actif:' "${IPCRAE_ROOT}/.ipcrae/context.md" 2>/dev/null \
+      | head -1 | awk -F': ' '{print $2}' | tr -d ' ' || true)
+  fi
+
+  # ── Génération session-context.md (chargement sélectif) ──────────────
+  local sc_path="${IPCRAE_ROOT}/.ipcrae/session-context.md"
+  {
+    printf '# Contexte session — %s / %s\n' "${domain:-global}" "${project:-tous}"
+    printf '> Généré par `ipcrae start` le %s\n' "$(date '+%Y-%m-%d %H:%M')"
+    printf '> **Chargement sélectif actif** : lire ce fichier EN PREMIER ; éviter les autres memory/\n'
+    printf '> Pour les autres domaines → `ipcrae tag <tag>`\n\n'
+
+    local mem="${IPCRAE_ROOT}/memory/${domain}.md"
+    if [ -n "$domain" ] && [ -f "$mem" ]; then
+      printf '%s\n\n## Mémoire domaine : %s\n\n' "---" "$domain"
+      cat "$mem"
+      printf '\n'
+    fi
+
+    if [ -n "$project" ]; then
+      local tracking="${IPCRAE_ROOT}/Projets/${project}/tracking.md"
+      if [ -f "$tracking" ]; then
+        printf '\n%s\n\n## État projet : %s\n\n' "---" "$project"
+        cat "$tracking"
+        printf '\n'
+      fi
+    fi
+
+    local phases="${IPCRAE_ROOT}/Phases/index.md"
+    if [ -f "$phases" ]; then
+      printf '\n%s\n\n## Phase active (résumé)\n\n' "---"
+      head -40 "$phases"
+      printf '\n'
+    fi
+  } > "$sc_path"
+
+  local sc_kb
+  sc_kb=$(( $(wc -c < "$sc_path") / 1024 ))
+  printf '%b✓  session-context.md généré (%s Ko — domaine: %s, projet: %s)%b\n' \
+    "$GREEN" "$sc_kb" "${domain:-global}" "${project:-(tous)}" "$NC"
+  printf '   → Fichier à charger EN PREMIER dans votre session IA\n'
+  printf '   → Autres domaines → ipcrae tag <tag>\n'
+
+  # ── Sync providers (régénère CLAUDE.md) ──────────────────────────────
+  sync_providers
+
+  # ── Vérification inbox ────────────────────────────────────────────────
+  if command -v ipcrae-inbox-scan &>/dev/null; then
+    ipcrae-inbox-scan --verbose "$IPCRAE_ROOT" || true
+  elif [ -f "${IPCRAE_ROOT}/.ipcrae/auto/inbox-needs-processing" ]; then
+    local flag_date
+    flag_date=$(cat "${IPCRAE_ROOT}/.ipcrae/auto/inbox-needs-processing" 2>/dev/null || echo "?")
+    printf '%b⚠  Inbox: fichiers en attente (dernière détection: %s)%b\n' \
+      "$YELLOW" "$flag_date" "$NC"
+    printf '   → Lire: %s/.ipcrae/auto/inbox-pending.md\n' "$IPCRAE_ROOT"
+  fi
 }
 
 cmd_session() {
