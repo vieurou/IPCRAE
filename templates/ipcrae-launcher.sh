@@ -711,12 +711,25 @@ cmd_start() {
   # ── Sync providers (régénère CLAUDE.md) ──────────────────────────────
   sync_providers
 
+  # ── Vérification multi-agent (session hub) ───────────────────────────
+  if command -v ipcrae-agent-hub &>/dev/null; then
+    local hub_active
+    hub_active=$(IPCRAE_ROOT="$IPCRAE_ROOT" ipcrae-agent-hub status 2>/dev/null \
+      | grep 'SESSION_ACTIVE=' | awk -F= '{print $2}' || echo "false")
+    if [ "$hub_active" = "true" ]; then
+      printf '%b🤝 Multi-agent : session active — vérifier les tâches partagées%b\n' "$CYAN" "$NC"
+      IPCRAE_ROOT="$IPCRAE_ROOT" ipcrae-agent-hub status 2>/dev/null | grep -E "LEAD_AGENT|in_progress|todo" || true
+    else
+      printf '%b   Multi-agent : aucune session active (ipcrae-agent-hub start <id> pour démarrer)%b\n' "$NC" "$NC"
+    fi
+  fi
+
   # ── Vérification inbox ────────────────────────────────────────────────
   if command -v ipcrae-inbox-scan &>/dev/null; then
     ipcrae-inbox-scan --verbose "$IPCRAE_ROOT" || true
   elif [ -f "${IPCRAE_ROOT}/.ipcrae/auto/inbox-needs-processing" ]; then
     local flag_date
-    flag_date=$(cat "${IPCRAE_ROOT}/.ipcrae/auto/inbox-needs-processing" 2>/dev/null || echo "?")
+    flag_date=$(cat "${IPCRAE_ROOT}/.ipcrae/auto/inbox-pending.md" 2>/dev/null || echo "?")
     printf '%b⚠  Inbox: fichiers en attente (dernière détection: %s)%b\n' \
       "$YELLOW" "$flag_date" "$NC"
     printf '   → Lire: %s/.ipcrae/auto/inbox-pending.md\n' "$IPCRAE_ROOT"
