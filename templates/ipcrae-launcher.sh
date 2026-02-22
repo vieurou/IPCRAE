@@ -1025,9 +1025,21 @@ cmd_health() {
   printf '%s permanents | %s MOC\n' "$zk_perm" "$zk_moc"
 
   # Mémoire
-  local mem_count
+  local mem_count mem_sparse=0
   mem_count=$(find memory/ -name "*.md" ! -name "index.md" -exec grep -l '^## ' {} \; 2>/dev/null | wc -l)
-  printf '🧠 Mémoire: %s domaines avec entrées\n' "$mem_count"
+  printf '🧠 Mémoire: %s domaines avec entrées' "$mem_count"
+  # Détecter les mémoires creuses (< 20 lignes non-vides)
+  while IFS= read -r mf; do
+    local lines; lines=$(grep -cv '^\s*$\|^#\|^---\|^<!--' "$mf" 2>/dev/null || echo 0)
+    if [ "${lines:-0}" -lt 20 ]; then
+      mem_sparse=$(( mem_sparse + 1 ))
+    fi
+  done < <(find memory/ -name "*.md" ! -name "index.md" 2>/dev/null)
+  if [ "$mem_sparse" -gt 0 ]; then
+    printf ' %b(⚠ %s mémoire(s) creuse(s) < 20 lignes → ipcrae consolidate <domaine>)%b' \
+      "$YELLOW" "$mem_sparse" "$NC"
+  fi
+  printf '\n'
 
   # Casquettes sans activité
   local stale_hats
