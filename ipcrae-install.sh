@@ -217,6 +217,11 @@ method_version: "${METHOD_VERSION}"
 default_provider: claude
 auto_git_sync: true
 auto_git_push: false
+strict_mode: false
+# Réduction de la charge contextuelle au démarrage de session
+session_context_memory_max_lines: 140
+session_context_project_max_lines: 120
+session_context_phase_max_lines: 40
 
 providers:
   claude:
@@ -673,6 +678,23 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     loginfo "✓ ipcrae-moc-auto installé dans ~/bin (génération MOC automatique)"
   else
     logwarn "scripts/ipcrae-moc-auto.sh introuvable — moc-auto non installé."
+  fi
+
+
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-strict-check.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-check.sh" "$HOME/bin/ipcrae-strict-check"
+    execute chmod +x "$HOME/bin/ipcrae-strict-check"
+    loginfo "✓ ipcrae-strict-check installé dans ~/bin (mode strict)"
+  else
+    logwarn "scripts/ipcrae-strict-check.sh introuvable — mode strict non installé."
+  fi
+
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" "$HOME/bin/ipcrae-strict-report"
+    execute chmod +x "$HOME/bin/ipcrae-strict-report"
+    loginfo "✓ ipcrae-strict-report installé dans ~/bin (analyse tendance)"
+  else
+    logwarn "scripts/ipcrae-strict-report.sh introuvable — strict-report non installé."
   fi
 
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
