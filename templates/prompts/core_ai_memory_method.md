@@ -30,3 +30,15 @@
 - Éviter les doublons entre local/projet/global.
 - Supprimer le bruit après consolidation (weekly/monthly).
 - Lier les notes Knowledge aux sources (`docs/conception/*`, ADR, etc.).
+- Les entrées de `memory/<domaine>.md` doivent nommer explicitement le projet (`Projet:`), ou `cross-project` si plusieurs.
+- Séparer les imports bruts des entrées consolidées (`Statut: import-brut|consolidé|à-compacter`).
+- Préfixer les titres ambigus avec le projet (`[IPCRAE]`, `[velotrack]`, etc.) pour lecture rapide multi-agents.
+
+## Contrat de format (memory/<domaine>.md)
+- Format minimal recommandé :
+  - `### YYYY-MM-DD — [Projet] Titre`
+  - `**Projet** : <slug|cross-project>`
+  - `**Portée** : <project-specific|cross-project|incident|review>`
+  - `**Statut** : <consolidé|import-brut|à-compacter>`
+  - `**Contexte** / **Décision** / **Raison** / **Résultat**`
+- Si une entrée devient longue, déplacer la matière détaillée dans `Knowledge/` ou `.ipcrae-project/memory/` et garder un résumé + lien dans la mémoire domaine.

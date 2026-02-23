@@ -570,10 +570,19 @@ cmd_close() {
 
   [ -z "$domain" ] && { logerr 'Usage: ipcrae close <domaine> [--project <slug>] [--note "résumé"] [--dry-run]'; return 1; }
 
+  local memory_project memory_scope
+  memory_project="${project:-cross-project}"
+  memory_scope="project-specific"
+  [ -z "$project" ] && memory_scope="cross-project"
+
   if [ "$dry_run" = true ]; then
     loginfo "[DRY-RUN] ipcrae close ${domain}$([ -n "$project" ] && echo " --project ${project}")"
     printf '\n--- Entrée mémoire qui serait ajoutée à memory/%s.md ---\n' "$domain"
-    printf '## %s - Session close\n' "$(date +'%Y-%m-%d %H:%M')"
+    printf '## %s - [%s] Session close\n' "$(date +'%Y-%m-%d %H:%M')" "$memory_project"
+    printf '**Projet** : %s\n' "$memory_project"
+    printf '**Portée** : %s\n' "$memory_scope"
+    printf '**Type** : session-close\n'
+    printf '**Statut** : consolidé\n'
     printf '**Contexte** : domaine=%s%s\n' "$domain" "$([ -n "$project" ] && echo ", project=${project}" || true)"
     printf '**Décision** : consolidation de fin de session.\n'
     printf '\n--- Fichiers qui seraient commités ---\n'
@@ -590,24 +599,26 @@ cmd_close() {
     printf '# Mémoire — %s\n\n' "$domain" > "$memory_file"
   fi
 
-  local changed=""
+  local changed
+  changed=""
   if command -v git >/dev/null 2>&1 && [ -d "${IPCRAE_ROOT}/.git" ]; then
     changed="$(git -C "$IPCRAE_ROOT" status --short 2>/dev/null | awk '{print $2}' | head -20 || true)"
   fi
-    printf '# Mémoire — %s
-
-' "$domain" > "$memory_file"
-  fi
-
-  local changed
-  changed="$(git -C "$IPCRAE_ROOT" status --short 2>/dev/null | awk '{print $2}' | head -20 || true)"
   local timestamp
   timestamp="$(date +'%Y-%m-%d %H:%M')"
 
   {
     printf '
-## %s - Session close
-' "$timestamp"
+## %s - [%s] Session close
+' "$timestamp" "$memory_project"
+    printf '**Projet** : %s
+' "$memory_project"
+    printf '**Portée** : %s
+' "$memory_scope"
+    printf '**Type** : session-close
+'
+    printf '**Statut** : consolidé
+'
     printf '**Contexte** : domaine=%s' "$domain"
     [ -n "$project" ] && printf ', project=%s' "$project"
     printf '

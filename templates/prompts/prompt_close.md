@@ -4,7 +4,7 @@ PROCÉDURE CLOSE SESSION — suivre Process/session-close.md pour le détail com
 
 - [ ] Résumé de session rédigé (ce qui a été fait, décisions prises, ce qui reste ouvert)
 - [ ] Domaine identifié : devops | electronique | musique | maison | sante | finance{{domain_hint}}
-- [ ] `memory/<domaine>.md` : entrée datée ajoutée (### YYYY-MM-DD — titre)
+- [ ] `memory/<domaine>.md` : entrée datée ajoutée avec projet explicite (`Projet:`) et titre scannable (`### YYYY-MM-DD — [Projet] titre`)
 - [ ] `Projets/<slug>/tracking.md` : tâches cochées [x], section Done mise à jour
 - [ ] `Journal/Daily/<YYYY>/<YYYY-MM-DD>.md` : session documentée
 - [ ] `.ipcrae/context.md` section "Projets en cours" : mise à jour si nécessaire
