@@ -150,6 +150,7 @@ Scripts avancés pour automatisation et intégrations externes.
 | `scripts/audit_ipcrae.sh` | Audit complet manuel | `bash scripts/audit_ipcrae.sh` |
 | `scripts/audit_non_regression.sh` | Tests de non-régression | `bash scripts/audit_non_regression.sh` |
 | `scripts/apply_ipcrae_corrections.sh` | Application corrections audit | Après audit auto |
+| `scripts/ipcrae-methodology-e2e.sh` | Test E2E reproductible de la méthode (install → bootstrap → cerveau → auto-audit → rapport) | `bash scripts/ipcrae-methodology-e2e.sh --vault /tmp/IPCRAE_CERVEAU_E2E --agent codex` |
 
 ---
 

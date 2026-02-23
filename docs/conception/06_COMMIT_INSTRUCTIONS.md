@@ -101,7 +101,7 @@ docs(tags): documenter système de tags v3.2.1
 #### Checklist
 - [ ] Code compilé
 - [ ] Tests passés
-- [ ] Documentation mise à jour
+- [ ] Documentation mise à jour (**obligatoire** si scripts/commandes/workflows changent)
 - [ ] Commits bien formattés
 - [ ] Aucun warning
 - [ ] Compatible avec la version actuelle
@@ -152,6 +152,8 @@ ipcrae-index
 ## 🔄 Workflow de Commit
 
 ### 1. Préparation du Commit
+
+Règle IPCRAE: avant `git add`, vérifier et mettre à jour la documentation impactée (`docs/workflows.md`, `docs/conception/08_COMMANDS_REFERENCE.md`, docs de conception ciblées).
 
 ```bash
 # Vérifier le statut des fichiers
