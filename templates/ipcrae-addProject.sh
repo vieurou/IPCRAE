@@ -364,6 +364,219 @@ else
     echo "ℹ️  Le projet est déjà enregistré dans le Registre Global."
 fi
 
+# 10bis. Seed minimal du cerveau global pour éviter une première ingestion "trop vide"
+YEAR_NOW="$(date +%Y)"
+TODAY="$(date +%Y-%m-%d)"
+WEEK_LABEL="$(date +%Y-W%V)"
+STAMP="$(date +%s)"
+DOMAIN_GUESS="${IPCRAE_DOMAIN:-devops}"
+PROJECT_SLUG="$(printf '%s' "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-_')"
+
+mkdir -p "$IPCRAE_ROOT/Casquettes"          "$IPCRAE_ROOT/Journal/Daily/$YEAR_NOW"          "$IPCRAE_ROOT/Inbox"          "$IPCRAE_ROOT/Knowledge/patterns"          "$IPCRAE_ROOT/memory"          "$IPCRAE_ROOT/Objectifs"          "$IPCRAE_ROOT/Phases"          "$IPCRAE_ROOT/Process"          "$IPCRAE_ROOT/Ressources/Autres"          "$IPCRAE_ROOT/Tasks/to_ai"          "$IPCRAE_ROOT/Zettelkasten/_inbox"
+
+CASQ_FILE="$IPCRAE_ROOT/Casquettes/${DOMAIN_GUESS}.md"
+[ -f "$CASQ_FILE" ] || cat > "$CASQ_FILE" << EOF
+# Casquette — ${DOMAIN_GUESS}
+
+## Périmètre
+- Pilotage des sujets ${DOMAIN_GUESS}.
+
+## Projets liés
+- [[Projets/${PROJECT_NAME}/index.md]]
+EOF
+
+DAILY_FILE="$IPCRAE_ROOT/Journal/Daily/${TODAY}.md"
+if [ ! -f "$DAILY_FILE" ]; then
+  cat > "$DAILY_FILE" << EOF
+# Daily — $TODAY
+
+## Session
+- Initialisation du projet [[Projets/${PROJECT_NAME}/index.md]] via ipcrae-addProject.
+EOF
+fi
+
+WEEKLY_FILE="$IPCRAE_ROOT/Journal/Weekly/${WEEK_LABEL}.md"
+if [ ! -f "$WEEKLY_FILE" ]; then
+  cat > "$WEEKLY_FILE" << EOF
+# Weekly — ${WEEK_LABEL}
+
+## Focus
+- Bootstrap et ingestion initiale du projet ${PROJECT_NAME}.
+EOF
+fi
+
+INBOX_FILE="$IPCRAE_ROOT/Inbox/capture-${STAMP}-${PROJECT_SLUG}.md"
+cat > "$INBOX_FILE" << EOF
+---
+type: fleeting
+status: inbox
+tags: [${PROJECT_SLUG}, ingestion, ipcrae]
+---
+
+# Capture initiale — ${PROJECT_NAME}
+- idée: documenter les risques techniques prioritaires
+- tâche: valider la première milestone GTD
+- lien/snippet: voir docs/conception/02_ARCHITECTURE.md
+EOF
+
+KNOW_FILE="$IPCRAE_ROOT/Knowledge/patterns/${PROJECT_SLUG}-bootstrap-ingestion.md"
+[ -f "$KNOW_FILE" ] || cat > "$KNOW_FILE" << EOF
+---
+type: knowledge
+tags: [ipcrae, ${PROJECT_SLUG}, bootstrap]
+project: ${PROJECT_NAME}
+domain: ${DOMAIN_GUESS}
+status: draft
+sources:
+  - path: ${PWD}/docs/conception/02_ARCHITECTURE.md
+created: ${TODAY}
+updated: ${TODAY}
+---
+
+# Pattern — bootstrap ingestion ${PROJECT_NAME}
+
+Formaliser rapidement les artefacts minimaux du cerveau avant enrichissement IA.
+EOF
+
+MEM_FILE="$IPCRAE_ROOT/memory/${DOMAIN_GUESS}.md"
+if [ ! -f "$MEM_FILE" ]; then
+  cat > "$MEM_FILE" << EOF
+# Mémoire domaine — ${DOMAIN_GUESS}
+EOF
+fi
+for i in 1 2 3; do
+cat >> "$MEM_FILE" << EOF
+
+### ${TODAY} — Bootstrap ${PROJECT_NAME} (${i}/3)
+**Contexte** : Création d'un nouveau projet et amorçage du cerveau.
+**Décision** : Créer les artefacts minimaux transverses dès addProject.
+**Raison** : Éviter une ingestion initiale sous-populée.
+**Résultat** : Traçabilité immédiate avant auto-ingestion complète.
+EOF
+done
+
+MEM_FILE_SECOND="$IPCRAE_ROOT/memory/general.md"
+if [ ! -f "$MEM_FILE_SECOND" ]; then
+  cat > "$MEM_FILE_SECOND" << EOF
+# Mémoire domaine — general
+EOF
+fi
+for i in 1 2 3; do
+cat >> "$MEM_FILE_SECOND" << EOF
+
+### ${TODAY} — Ingestion ${PROJECT_NAME} (${i}/3)
+**Contexte** : Consolidation transversale de la méthode IPCRAE.
+**Décision** : Vérifier toutes les zones du cerveau à la création projet.
+**Raison** : Réduire les trous de contexte au prochain run agent.
+**Résultat** : Base de connaissance initiale mieux distribuée.
+EOF
+done
+
+OBJ_FILE="$IPCRAE_ROOT/Objectifs/vision.md"
+if [ ! -f "$OBJ_FILE" ]; then
+  cat > "$OBJ_FILE" << EOF
+# Vision
+
+## Projets alignés
+EOF
+fi
+grep -q "${PROJECT_NAME}" "$OBJ_FILE" || echo "- ${PROJECT_NAME} : initialiser la vision et les livrables majeurs." >> "$OBJ_FILE"
+
+PHASE_FILE="$IPCRAE_ROOT/Phases/index.md"
+PHASE_ACTIVE="phase-${PROJECT_SLUG}-bootstrap"
+if [ ! -f "$PHASE_FILE" ]; then
+  cat > "$PHASE_FILE" << EOF
+# Phases — index
+
+## Phase active
+- [[${PHASE_ACTIVE}]]
+EOF
+fi
+grep -q "\[\[${PHASE_ACTIVE}\]\]" "$PHASE_FILE" || echo "- [[${PHASE_ACTIVE}]]" >> "$PHASE_FILE"
+
+PHASE_DETAIL_FILE="$IPCRAE_ROOT/Phases/${PHASE_ACTIVE}.md"
+if [ ! -f "$PHASE_DETAIL_FILE" ]; then
+  cat > "$PHASE_DETAIL_FILE" << EOF
+# ${PHASE_ACTIVE}
+
+## Definition of Done
+- [x] Hub projet créé
+- [ ] Première passe ingestion terminée
+- [ ] Auto-audit relancé après corrections
+EOF
+fi
+
+PROC_FILE="$IPCRAE_ROOT/Process/first-ingestion.md"
+[ -f "$PROC_FILE" ] || cat > "$PROC_FILE" << EOF
+# Process — first ingestion
+
+1. Créer le hub projet.
+2. Seed des artefacts minimaux transverses.
+3. Lancer auto-ingestion IA.
+4. Exécuter auto-audit et corriger gaps.
+EOF
+
+RES_FILE="$IPCRAE_ROOT/Ressources/Autres/${PROJECT_SLUG}-sources.md"
+[ -f "$RES_FILE" ] || cat > "$RES_FILE" << EOF
+# Sources — ${PROJECT_NAME}
+
+- Repo local: ${PWD}
+- Documentation d'architecture: docs/conception/02_ARCHITECTURE.md
+EOF
+
+TASK_FILE="$IPCRAE_ROOT/Tasks/to_ai/task-${STAMP}.md"
+cat > "$TASK_FILE" << EOF
+# Task IA — Ingestion ${PROJECT_NAME}
+
+- Compléter docs/conception avec contenu sans placeholders.
+- Produire au moins 2 notes zettelkasten liées.
+- Vérifier score via ipcrae-audit-check puis proposer corrections.
+EOF
+
+ZETTEL_ID="$(date +%Y%m%d)01"
+ZETTEL_FILE="$IPCRAE_ROOT/Zettelkasten/_inbox/${ZETTEL_ID}-${PROJECT_SLUG}-concept.md"
+[ -f "$ZETTEL_FILE" ] || cat > "$ZETTEL_FILE" << EOF
+---
+id: ${ZETTEL_ID}
+tags: [${PROJECT_SLUG}, ingestion, concept]
+liens: []
+source: Bootstrap projet ${PROJECT_NAME} (${TODAY})
+created: ${TODAY}
+---
+# Ingestion transversale avant implémentation
+
+Une première ingestion robuste doit créer des traces dans tous les dossiers clés du cerveau.
+EOF
+
+mkdir -p "$IPCRAE_ROOT/Zettelkasten/permanents"
+PERM_FILE="$IPCRAE_ROOT/Zettelkasten/permanents/${ZETTEL_ID}-${PROJECT_SLUG}-stabilisation.md"
+[ -f "$PERM_FILE" ] || cat > "$PERM_FILE" << EOF
+# Stabilisation ingestion — ${PROJECT_NAME}
+
+Conserver un artefact permanent minimal accélère les audits initiaux.
+EOF
+
+
+PROFILES_FILE="$IPCRAE_ROOT/.ipcrae/memory/profils-usage.md"
+mkdir -p "$(dirname "$PROFILES_FILE")"
+if [ ! -f "$PROFILES_FILE" ]; then
+  cat > "$PROFILES_FILE" << EOF
+### ${TODAY} - bootstrap
+---
+date: ${TODAY}
+time: 00:00
+session_id: ${TODAY}_bootstrap_${STAMP}
+roles_used:
+  - Architect
+project: ${PROJECT_NAME}
+score_ipcrae: 0/60
+duration: 0
+---
+EOF
+fi
+
+echo "✅ Seed cerveau global créé (Casquettes/Journal/Inbox/Knowledge/memory/Objectifs/Phases/Process/Ressources/Tasks/Zettelkasten)."
+
 echo "🎉 Projet intégré à IPCRAE avec succès !"
 
 # 11. Analyse initiale par l'IA (Auto-ingestion)
@@ -374,7 +587,7 @@ run_ai=${run_ai:-o}
 if [[ "$run_ai" =~ ^[Oo]$ ]]; then
     echo "Lancement de l'analyse initiale..."
     if command -v ipcrae &> /dev/null; then
-        ipcrae work "Ceci est le premier scan d'ingestion de ce projet. 1. Analyse le code source présent dans ce répertoire pour comprendre son rôle et son architecture. 2. Édite les fichiers docs/conception/00_VISION.md et docs/conception/02_ARCHITECTURE.md pour remplacer les placeholders [À Remplir] par tes déductions. 3. Édite le fichier $HUB_DIR/index.md pour remplir le Domaine et la description. Fais un travail concis et termine en faisant un résumé."
+        ipcrae work "Mode AUTO-INGESTION COMPLÈTE IPCRAE (obligatoire, pas minimal). Analyse en profondeur le projet puis POPULE tous les concepts IPCRAE dans le cerveau global $IPCRAE_ROOT. Produis des fichiers concrets et pas seulement un résumé. Checklist minimale à livrer: (1) docs/conception/00_VISION.md + 01_AI_RULES.md + 02_ARCHITECTURE.md remplis sans placeholders [À Remplir] ; (2) $HUB_DIR/index.md + tracking.md (>=5 next actions + >=3 milestones) + memory.md ; (3) Casquettes/<domaine>.md créé/maj si aucune casquette adaptée ; (4) Journal/Daily/<année>/<date>.md avec journalisation de session ; (5) Inbox/ avec au moins une entrée idée/tâche/lien/snippet issue de l'analyse ; (6) Knowledge/ avec au moins une note howto/pattern/runbook (frontmatter complet + sources) ; (7) memory/<domaine>.md avec au moins une entrée datée Contexte/Décision/Raison/Résultat ; (8) Objectifs/vision.md (ou quarterly) mis à jour avec alignement du projet ; (9) Phases/index.md lié au projet + DoD ; (10) Process/ avec une procédure récurrente spécifique détectée ; (11) Ressources/ avec au moins un document ou lien de référence ; (12) Tasks/to_ai/ et/ou Tasks/to_human avec actions concrètes ; (13) Zettelkasten/_inbox/ avec au moins 2 notes atomiques reliées. Ensuite lance un auto-audit explicite et donne le score avant/après + gaps restants + prochain plan d'amélioration."
     else
         echo "⚠️  Commande 'ipcrae' introuvable. Assure-toi qu'elle est dans le PATH."
     fi
