@@ -218,6 +218,62 @@ check_git_commits() {
     check_pass "$recent_commits commits"
 }
 
+
+# Fonction pour vérifier la syntaxe bash des scripts critiques
+check_bash_syntax() {
+    echo -e "
+${BLUE}🐚 Vérification syntaxique Bash${NC}
+"
+
+    local has_error=0
+
+    if bash -n templates/ipcrae-launcher.sh 2>/dev/null; then
+        echo -n "templates/ipcrae-launcher.sh: "
+        check_pass "✓ Syntaxe valide"
+    else
+        echo -n "templates/ipcrae-launcher.sh: "
+        check_fail "✗ Erreur de syntaxe"
+        has_error=1
+    fi
+
+    if bash -n ipcrae-install.sh 2>/dev/null; then
+        echo -n "ipcrae-install.sh: "
+        check_pass "✓ Syntaxe valide"
+    else
+        echo -n "ipcrae-install.sh: "
+        check_fail "✗ Erreur de syntaxe"
+        has_error=1
+    fi
+
+    if [ $has_error -eq 1 ]; then
+        echo -e "${YELLOW}⚠ Corriger les erreurs de syntaxe avant release${NC}"
+    fi
+}
+
+
+# Vérifier la présence du mécanisme de clôture auto-audit
+check_session_closure_mechanism() {
+    echo -e "
+${BLUE}🧾 Vérification clôture automatique de session${NC}
+"
+
+    if grep -q "write_session_self_audit" templates/ipcrae-launcher.sh; then
+        echo -n "Self-audit intégré au close: "
+        check_pass "✓ Oui"
+    else
+        echo -n "Self-audit intégré au close: "
+        check_warn "⚠ Non détecté"
+    fi
+
+    if grep -q "session_context_memory_max_lines" ipcrae-install.sh; then
+        echo -n "Config limites contexte installée: "
+        check_pass "✓ Oui"
+    else
+        echo -n "Config limites contexte installée: "
+        check_warn "⚠ Non détectée"
+    fi
+}
+
 # Fonction pour vérifier la cohérence des tags
 check_tags_coherence() {
     echo -e "\n${BLUE}🏷️  Vérification de la cohérence des tags${NC}\n"
@@ -418,16 +474,22 @@ main() {
     # Section 5: Commits git
     check_git_commits
 
-    # Section 6: Cohérence des tags
+    # Section 6: Syntaxe bash
+    check_bash_syntax
+
+    # Section 7: Clôture automatique de session
+    check_session_closure_mechanism
+
+    # Section 8: Cohérence des tags
     check_tags_coherence
 
-    # Section 7: Liens entre fichiers
+    # Section 9: Liens entre fichiers
     check_links_integrity
 
-    # Section 8: Références
+    # Section 10: Références
     check_references
 
-    # Section 9: Intégrité des données
+    # Section 11: Intégrité des données
     check_data_integrity
 
     # Calcul du score

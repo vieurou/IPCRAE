@@ -126,3 +126,68 @@ ipcrae-agent-hub stop claude-main
 ```
 
 Résultat : coordination légère, explicite et traçable dans `.ipcrae/multi-agent/`.
+
+---
+
+## 5. Workflow : Clôture de tâche automatisée (self-audit + contexte allégé)
+
+Objectif : réduire l'effort manuel en fin de tâche et garder les sessions IA courtes en tokens.
+
+### Étape 1 : Démarrer avec contexte limité
+`ipcrae start` génère un `session-context.md` tronqué automatiquement (mémoire/projet/phases) pour éviter de charger tout le vault.
+
+Vous pouvez ajuster les limites dans `.ipcrae/config.yaml` :
+```yaml
+session_context_memory_max_lines: 140
+session_context_project_max_lines: 120
+session_context_phase_max_lines: 40
+```
+
+### Étape 2 : Travailler normalement
+Exécuter les actions habituelles (`ipcrae work`, scripts, commits, tests).
+
+### Étape 3 : Clôturer et auto-auditer
+```bash
+ipcrae close <domaine> --project <slug> --note "résumé"
+```
+
+Cette commande produit désormais automatiquement :
+1. consolidation mémoire;
+2. synchronisation index/tags;
+3. **self-audit de session** dans `.ipcrae/auto/self-audits/`;
+4. badge de gratification session (`Or`, `Argent`, `Bronze`) selon coût tokens estimé.
+
+### Étape 4 : Exploiter le self-audit
+Lire le fichier généré pour décider l'amélioration suivante:
+- réduire davantage le contexte;
+- découper en deux passes (analyse puis patch);
+- limiter les relectures globales.
+
+---
+
+## 6. Workflow : Mode strict (discipline automatique)
+
+Objectif : appliquer la discipline IPCRAE sans effort manuel.
+
+### Activer le mode strict
+Dans `.ipcrae/config.yaml` :
+```yaml
+strict_mode: true
+```
+
+### Vérifier à la demande
+```bash
+ipcrae strict-check
+```
+
+Le check valide notamment :
+- présence d'une capture utilisateur (`Tasks/to_ai`),
+- journal actif (`Tasks/active_session.md`),
+- contexte de session borné (`.ipcrae/session-context.md`),
+- existence d'un self-audit (`.ipcrae/auto/self-audits/`).
+
+### Exécution automatique en clôture
+Quand `strict_mode: true`, `ipcrae close` lance automatiquement le strict-check après le self-audit.
+
+### Fun / motivation
+Le self-audit attribue un badge (`Or`, `Argent`, `Bronze`) selon la charge estimée de la session.
