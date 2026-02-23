@@ -198,3 +198,26 @@ Cela permet d'analyser l'évolution de ta discipline session après session.
 
 ### Fun / motivation
 Le self-audit attribue un badge (`Or`, `Argent`, `Bronze`) selon la charge estimée de la session.
+
+
+## 7. Workflow : Test méthodologique E2E reproductible
+
+Objectif : valider rapidement la chaîne complète IPCRAE sur un vault jetable, avec un rapport comparable entre runs.
+
+```bash
+bash scripts/ipcrae-methodology-e2e.sh \
+  --vault /tmp/IPCRAE_CERVEAU_E2E \
+  --agent codex \
+  --project ipcrae-methodologie-e2e \
+  --domain devops \
+  --frequency quotidien
+```
+
+Le script enchaîne automatiquement :
+- installation propre du vault,
+- bootstrap agent,
+- création d'une note de cerveau opératoire,
+- activation du mode auto-amélioration,
+- baseline audit, cycle auto-audit forcé, ré-audit,
+- génération d'un rapport dans `docs/audit/`.
+

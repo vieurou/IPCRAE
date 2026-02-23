@@ -18,6 +18,7 @@ IPCRAE est un système de gestion de travail et de vie (pro + perso) qui :
 2. **Tout doit être vérifiable** : pas d’approximation technique (versions, options, commandes).
 3. **Le système doit rester léger** : si ça devient pénible, il ne sera pas utilisé.
 4. **Séparation des rôles** : brut vs digéré, projets vs responsabilités, global vs local.
+5. **Documentation vivante obligatoire** : toute modification de scripts/workflows doit être répercutée dans `docs/` (workflow, référence de commandes, conception) avant clôture de tâche.
 
 ---
 
@@ -236,6 +237,7 @@ Objectif : ne jamais perdre une idée.
 ### 7.5 Close session
 - Commande : `ipcrae close devops --project mon-projet`
 - L'IA résume la session, extrait la sève dans `memory/<domaine>.md` et purge le reste.
+- **Gate de sortie obligatoire** : vérifier que la documentation impactée est à jour (`docs/workflows.md`, `docs/conception/08_COMMANDS_REFERENCE.md`, docs de conception concernées) avant commit/PR.
 
 ### 7.7 Process OS exécutable (CMA: Clarifier → Mapper → Amplifier)
 - `Process/map.md` devient la source de vérité (daily/weekly/monthly/on-trigger/manuel).
