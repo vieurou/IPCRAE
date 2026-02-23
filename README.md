@@ -126,6 +126,7 @@ IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
 ```
 
 - `ipcrae-addProject` bootstrappe aussi `~/bin/ipcrae-strict-check` et `~/bin/ipcrae-strict-report` si les scripts existent dans le cerveau global.
+- Les nouvelles installations seedent aussi un noyau de compréhension IPCRAE dans `Knowledge/`, `Process/` et `Ressources/Autres/` pour accélérer la première digestion et réduire les cerveaux "vides".
 
 ### 4.2 Installation détaillée
 

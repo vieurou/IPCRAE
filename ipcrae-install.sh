@@ -252,6 +252,37 @@ if prompt_yes_no "Installer templates (Daily/Weekly/Monthly/Phase/Process/Projet
   execute cp "$SCRIPT_DIR/templates/prompts/template_process.md" "Process/_template_process.md"
   execute cp "$SCRIPT_DIR/templates/prompts/template_projet.md" "Projets/_template_projet.md"
   execute cp "$SCRIPT_DIR/templates/prompts/template_casquette.md" "Casquettes/_template_casquette.md"
+
+  # Seed méthodologique par défaut (knowledge/process/ressources) pour compréhension rapide d'IPCRAE
+  if [ -d "$SCRIPT_DIR/templates/brain_seed" ]; then
+    execute mkdir -p Knowledge/howto Knowledge/patterns Knowledge/runbooks Process Ressources/Autres
+    for f in "$SCRIPT_DIR"/templates/brain_seed/Knowledge/howto/*.md; do
+      [ -f "$f" ] || continue
+      base="$(basename "$f")"
+      [ -f "Knowledge/howto/$base" ] || execute cp "$f" "Knowledge/howto/$base"
+    done
+    for f in "$SCRIPT_DIR"/templates/brain_seed/Knowledge/patterns/*.md; do
+      [ -f "$f" ] || continue
+      base="$(basename "$f")"
+      [ -f "Knowledge/patterns/$base" ] || execute cp "$f" "Knowledge/patterns/$base"
+    done
+    for f in "$SCRIPT_DIR"/templates/brain_seed/Knowledge/runbooks/*.md; do
+      [ -f "$f" ] || continue
+      base="$(basename "$f")"
+      [ -f "Knowledge/runbooks/$base" ] || execute cp "$f" "Knowledge/runbooks/$base"
+    done
+    for f in "$SCRIPT_DIR"/templates/brain_seed/Process/*.md; do
+      [ -f "$f" ] || continue
+      base="$(basename "$f")"
+      [ -f "Process/$base" ] || execute cp "$f" "Process/$base"
+    done
+    for f in "$SCRIPT_DIR"/templates/brain_seed/Ressources/Autres/*.md; do
+      [ -f "$f" ] || continue
+      base="$(basename "$f")"
+      [ -f "Ressources/Autres/$base" ] || execute cp "$f" "Ressources/Autres/$base"
+    done
+    loginfo "Seed méthodologique IPCRAE installé (Knowledge/Process/Ressources)."
+  fi
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════
