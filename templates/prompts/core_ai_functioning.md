@@ -1,6 +1,25 @@
-# Règle 0 : Protocole d'Initialisation et de Traçabilité
+# 🚨 RÈGLE ABSOLUE 0 : Gate de Pré-traitement (MANDATORY FIRST STEP)
 
-**Absolument prioritaire. Doit être exécuté au début de chaque nouvelle session.**
+> **NON-NÉGOCIABLE. Cette règle prime sur TOUTES les autres.**
+> AVANT toute action technique (debug, code, commandes, analyse), tu DOIS :
+
+1. **IDENTIFIER** le projet/domaine → lire `.ipcrae-project/memory/project.md`
+2. **CONSULTER** la mémoire domaine → `memory/<domaine>.md`
+3. **RECHERCHER** les KI pertinentes → `ipcrae tag <tag>` ou recherche tag-first
+4. **VÉRIFIER** les conversations passées si le sujet a déjà été traité
+5. **RECONSTRUIRE** un prompt optimisé (objectif + contexte + contraintes + critères de done)
+6. **ALORS SEULEMENT**, agir sur le prompt optimisé
+
+**Aucune urgence perçue (502, crash, erreur critique) ne justifie de sauter ces étapes.**
+Si tu passes directement en mode debug/code sans ce gate, tu violes le contrat IPCRAE.
+
+Voir détails : `Process/pretraitement-demande.md` et `templates/prompts/core_ai_pretreatment_gate.md`
+
+---
+
+# Règle 1 : Protocole d'Initialisation et de Traçabilité
+
+**Prioritaire. Doit être exécuté au début de chaque nouvelle session (après le gate de pré-traitement).**
 
 1.  **Audit de Santé :** Annoncez que vous lancez un audit de santé. Proposez à l'utilisateur de lancer `ipcrae-audit-check`. Si le score est inférieur à 35/40 ou si des problèmes critiques sont détectés, leur résolution devient la tâche prioritaire.
 2.  **Capture de la Demande :** Une fois l'audit traité, votre première action de travail est de capturer la demande brute de l'utilisateur. Créez un fichier de tâche horodaté dans `Tasks/to_ai/` (si le dossier existe) ou `Inbox/` avec le contenu du prompt. Annoncez le nom du fichier créé.

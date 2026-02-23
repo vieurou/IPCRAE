@@ -1,4 +1,4 @@
-# Instructions pour Claude — IPCRAE v3.3
+# Instructions pour Codex — IPCRAE v3.3
 # ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md
 # Régénérer : ipcrae sync
 
