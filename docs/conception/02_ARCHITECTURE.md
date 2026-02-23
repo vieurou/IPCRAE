@@ -21,6 +21,8 @@ Knowledge/ (tags YAML)      ←→       (indexé par ipcrae-index)           ip
 **Flux GTD (utilisateur)** :
 - Capturer (Inbox) → Clarifier → Organiser (Projets/Casquettes/Knowledge) → Agir
 
+*Voir `docs/workflows.md` pour les workflows GTD détaillés : capture automatique, routage décisionnel, et transformation en projets/actions.*
+
 ## 2. Décisions de Conception (ADR)
 
 - **ADR-001** : Stockage 100% Markdown local — simplicité, compatibilité Obsidian, versioning Git sans dépendance externe.
@@ -43,6 +45,9 @@ IPCRAE_ROOT/
 │   ├── prompts/              # Templates agents & workflows (core + domaines)
 │   ├── cache/tag-index.json  # Cache tags (dérivé, reconstructible)
 │   └── multi-agent/          # État partagé lead/assistants (state, tasks, notifications)
+│       ├── state.env         # Variables d'état de session
+│       ├── tasks.tsv         # Backlog de tâches partagées (TSV)
+│       └── notifications.log # Historique des notifications inter-agents
 ├── memory/
 │   ├── devops.md | electronique.md | musique.md | maison.md | sante.md | finance.md
 │   └── index.md
@@ -50,8 +55,15 @@ IPCRAE_ROOT/
 │   ├── howto/ | runbooks/ | patterns/ | MOC/
 │   └── _template_knowledge.md
 ├── Projets/                  # Hubs centraux par projet (index + tracking + memory)
+│   └── <slug>/
+│       ├── index.md          # Dashboard projet
+│       ├── memory.md         # Mémoire spécifique au projet
+│       ├── demandes/        # Demandes clarifiées/organisées (via GTD)
+│       └── ...               # Notes, ressources, etc.
 ├── Casquettes/               # Responsabilités continues (areas)
-├── Inbox/waiting-for.md
+├── Inbox/
+│   ├── demandes-brutes/      # Capture brute non triée (format texte brut)
+│   └── waiting-for.md
 ├── Journal/{Daily,Weekly,Monthly}/
 ├── Phases/index.md           # Source de priorités active
 ├── Process/                  # Procédures récurrentes (checklists)
@@ -93,6 +105,23 @@ updated: YYYY-MM-DD
 | `ipcrae-migrate-safe` | Migration non destructive (backup tar.gz + merge non-overwrite des prompts) |
 | `ipcrae-uninstall` | Purge du système |
 
+### Commandes launcher intégrées
+
+Le script principal `ipcrae-launcher.sh` (templates/ipcrae-launcher.sh) fournit des commandes supplémentaires non installées dans ~/bin :
+
+| Commande | Rôle |
+|----------|------|
+| `ipcrae demandes [status|done]` | Suivi de l'état des demandes brutes dans `Inbox/demandes-brutes/` |
+| `ipcrae process [nom]` | Créer/ouvrir un process récurrent dans `Process/` |
+| `ipcrae update` | Met à jour IPCRAE via git pull puis relance l'installateur |
+| `ipcrae sync-git` | Sauvegarde Git du vault entier (add, commit, push vers remote) |
+| `ipcrae prompt build --agent <domaine>` | Compile les couches de prompts en un seul fichier |
+| `ipcrae prompt check` | Vérifie la cohérence des sections obligatoires dans tous les agents |
+| `ipcrae prompt --list` | Liste les agents disponibles |
+| `ipcrae allcontext "<texte>"` | Pipeline d'analyse/ingestion universel (rôles + contexte + tracking) |
+| `ipcrae archive <slug>` | Archive un projet terminé (Projets/ → Archives/) |
+| `ipcrae remote [list|set-brain|set-project]` | Gestion des remotes git (cerveau + projets) |
+
 ### Mode CDE (Context Driven Engineering — projet local)
 
 Quand un repo local intègre IPCRAE via `ipcrae-addProject` :
@@ -109,3 +138,194 @@ Quand un repo local intègre IPCRAE via `ipcrae-addProject` :
 ├── .ipcrae-memory -> ~/IPCRAE  # Symlink vers vault global
 └── .ai-instructions.md      # Directive : lire mémoire globale, écrire local
 ```
+
+## 4. Configuration Git Automatique
+
+IPCRAE supporte la synchronisation automatique du vault et des projets via Git.
+
+### Structure de configuration (`.ipcrae/config.yaml`)
+
+```yaml
+# Provider IA par défaut
+default_provider: claude
+
+# Synchronisation Git automatique
+git:
+  # Activer/désactiver la synchro auto (true/false)
+  auto_sync: true
+  
+  # Remote du cerveau (vault global)
+  brain_remote: origin
+  
+  # URL du cerveau (pour setup initial)
+  brain_url: https://github.com/vieurou/IPCRAE.git
+  
+  # Remotes des projets (mapping slug → remote)
+  project_remotes:
+    mon-projet: git@github.com:vieurou/mon-projet.git
+    autre-projet: https://github.com/vieurou/autre-projet.git
+  
+  # Comportement de commit
+  commit:
+    # Message par défaut
+    template: "[IPCRAE] Auto-sync: {date}"
+    
+    # Fichiers à exclure
+    exclude:
+      - "*.bak-*"
+      - ".ipcrae/local-notes/*"
+      - ".DS_Store"
+```
+
+### Flux de synchronisation
+
+```
+1. Session IA active
+   ↓
+2. `ipcrae close <domaine>` → consolidation mémoire
+   ↓
+3. Vérification IPCRAE_AUTO_GIT (env var ou config)
+   ↓ (si activé)
+4. `ipcrae sync-git` → add + commit + push
+   ↓
+5. Git push vers remote approprié:
+   - Cerveau → brain_remote
+   - Projet → project_remotes[<slug>]
+```
+
+### Commandes Git
+
+| Commande | Action |
+|----------|--------|
+| `ipcrae sync-git` | Sauvegarde Git manuelle (add, commit, push) |
+| `ipcrae remote list` | Liste tous les remotes configurés |
+| `ipcrae remote set-brain <url>` | Configure le remote du cerveau |
+| `ipcrae remote set-project <slug> <url>` | Configure le remote d'un projet |
+| `git log --oneline --graph` | Visualiser l'historique du vault |
+
+## 5. Protocole Multi-Agent File-Based
+
+IPCRAE utilise un protocole sans serveur basé sur fichiers pour la coordination multi-agents (lead + assistants).
+
+### Architecture
+
+```
+                    ┌─────────────────────────────────────┐
+                    │      Lead Agent (orchestrateur)      │
+                    │    - Lit state.env                   │
+                    │    - Lit/tasks.tsv                   │
+                    │    - Écrit notifications.log         │
+                    └─────────────────────────────────────┘
+                              │            │
+                              │ (tasks.tsv) │ (state.env)
+                              ▼            ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │              Répertoire .ipcrae/multi-agent/                     │
+    │                                                                   │
+    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+    │  │ state.env   │  │ tasks.tsv   │  │ notifications.log        │  │
+    │  │             │  │             │  │                         │  │
+    │  │ SESSION_ID= │  │ #ID STATUS  │  │ [2025-02-22 21:00:00]   │  │
+    │  │ phase=work  │  │ t1 pending  │  │ Lead: Début session     │  │
+    │  │ lead=...    │  │ t2 done     │  │ [2025-02-22 21:05:00]   │  │
+    │  │ assistants= │  │ t3 active   │  │ Assistant1: Tâche t1 ok  │  │
+    │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+    └─────────────────────────────────────────────────────────────────┘
+                              ▲            ▲
+                              │            │
+                              │ (lecture)  │ (écriture)
+                              │            │
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                Assistant Agents (parallèles)                      │
+    │                                                                   │
+    │  Assistant 1           Assistant 2           Assistant 3        │
+    │  - Lit tasks.tsv       - Lit tasks.tsv       - Lit tasks.tsv   │
+    │  - Prend tâche t1      - Prend tâche t2      - Prend tâche t3  │
+    │  - Exécute             - Exécute             - Exécute          │
+    │  - Notifie done        - Notifie done        - Notifie done     │
+    └─────────────────────────────────────────────────────────────────┘
+```
+
+### Format des fichiers
+
+#### `state.env` - État de session
+
+```bash
+# Identifiants
+SESSION_ID=20250222-210000
+SESSION_START=2025-02-22T21:00:00+01:00
+
+# Phase actuelle
+PHASE=planning|execution|synthesis
+
+# Agents
+LEAD_AGENT=claude
+ASSISTANT_AGENTS=gemini,codex,kilo
+
+# Contexte
+CURRENT_PROJECT=mon-projet
+CURRENT_DOMAIN=devops
+
+# Métriques
+TASKS_TOTAL=10
+TASKS_COMPLETED=5
+TASKS_ACTIVE=3
+```
+
+#### `tasks.tsv` - Backlog partagé
+
+```tsv
+ID	STATUS	ASSIGNEE	DESCRIPTION	PRIORITY	CREATED	UPDATED
+t1	pending		Analyser architecture du projet	high	2025-02-22	2025-02-22
+t2	active	gemini	Implémenter auth JWT	high	2025-02-22	2025-02-22
+t3	done	codex	Créer tests unitaires	medium	2025-02-22	2025-02-22
+t4	pending		Documenter API endpoints	low	2025-02-22	2025-02-22
+t5	pending		Setup Docker Compose	high	2025-02-22	2025-02-22
+```
+
+**Status possibles**: `pending`, `active`, `done`, `blocked`, `cancelled`
+**Priority**: `high`, `medium`, `low`
+
+#### `notifications.log` - Historique inter-agents
+
+```log
+[2025-02-22 21:00:00] [LEAD] Session démarrée. ID: 20250222-210000
+[2025-02-22 21:01:23] [LEAD] Tâche t1 créée: "Analyser architecture du projet"
+[2025-02-22 21:02:15] [GEMINI] Tâche t2 assignée à gemini
+[2025-02-22 21:03:45] [GEMINI] Tâche t2 complétée
+[2025-02-22 21:04:00] [LEAD] Tâche t2 marquée done
+[2025-02-22 21:05:00] [LEAD] Phase passée: planning → execution
+```
+
+### Flux de coordination
+
+```
+1. Lead Agent initialise state.env
+   ↓
+2. Lead remplit tasks.tsv avec backlog initial
+   ↓
+3. Assistants pollent tasks.tsv périodiquement
+   ↓
+4. Assistant A prend tâche t1 (STATUS: pending → active, ASSIGNEE: A)
+   ↓
+5. Assistant A exécute, notifie dans notifications.log
+   ↓
+6. Assistant A marque tâche t1 done (STATUS: done)
+   ↓
+7. Lead détecte changement, consolide dans memory/
+   ↓
+8. Répéter 4-7 jusqu'à backlog vide
+   ↓
+9. Lead passe PHASE: execution → synthesis
+   ↓
+10. Lead génère rapport final, ferme session
+```
+
+### Avantages du protocole file-based
+
+- **Sans serveur**: Pas de dépendance à un service externe
+- **Versionnable**: L'historique complet est dans Git
+- **Debuggable**: Fichiers texte lisibles par l'humain
+- **Scalable**: Supporte N assistants parallèles
+- **Résilient**: Les fichiers survivent aux crashes agents
+- **Obsidian-friendly**: Intégration directe dans le vault
