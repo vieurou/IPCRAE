@@ -121,10 +121,49 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$IPCRAE_ROOT" ]; then
-  local_default="$HOME/IPCRAE"
-  if [ "$AUTO_YES" = true ]; then IPCRAE_ROOT="$local_default"
-  else printf 'Dossier racine IPCRAE:\n'; read -r -p "→ [$local_default] " IPCRAE_ROOT
-    IPCRAE_ROOT=${IPCRAE_ROOT:-$local_default}; fi
+  # Scan proactif des cerveaux existants (hors dossier dev IPCRAE = SCRIPT_DIR)
+  _BRAIN_CANDIDATES=("$HOME/brain" "$HOME/IPCRAE" "$HOME/.brain" "$HOME/cerveau")
+  _detected_brain=""
+  for _loc in "${_BRAIN_CANDIDATES[@]}"; do
+    _real_loc="$(normalize_root "$_loc")"
+    if [ -f "$_real_loc/.ipcrae/config.yaml" ] && [ "$_real_loc" != "$SCRIPT_DIR" ]; then
+      _detected_brain="$_real_loc"
+      break
+    fi
+  done
+
+  if [ -n "$_detected_brain" ]; then
+    logwarn "Cerveau IPCRAE existant détecté : $_detected_brain"
+    if [ "$AUTO_YES" = true ]; then
+      IPCRAE_ROOT="$_detected_brain"
+      loginfo "Mode auto : utilisation du cerveau existant."
+    else
+      echo ""
+      echo "  1) Utiliser ce cerveau existant  ($_detected_brain)"
+      echo "  2) Créer un nouveau cerveau (chemin à préciser)"
+      read -r -p "Choix [1/2] (défaut: 1): " _brain_choice
+      _brain_choice="${_brain_choice:-1}"
+      if [ "$_brain_choice" = "2" ]; then
+        read -r -p "Chemin du nouveau cerveau [~/brain] : " IPCRAE_ROOT
+        IPCRAE_ROOT="$(normalize_root "${IPCRAE_ROOT:-$HOME/brain}")"
+        loginfo "Nouveau cerveau : $IPCRAE_ROOT"
+      else
+        IPCRAE_ROOT="$_detected_brain"
+        loginfo "Cerveau existant sélectionné : $IPCRAE_ROOT"
+      fi
+    fi
+  else
+    # Aucun cerveau détecté : proposer ~/brain comme défaut (et non ~/IPCRAE)
+    local_default="$HOME/brain"
+    if [ "$AUTO_YES" = true ]; then
+      IPCRAE_ROOT="$local_default"
+    else
+      printf '\nOù créer le cerveau IPCRAE ?\n'
+      printf '  (Ce dossier est distinct du projet de développement IPCRAE)\n'
+      read -r -p "→ [$local_default] " IPCRAE_ROOT
+      IPCRAE_ROOT="$(normalize_root "${IPCRAE_ROOT:-$local_default}")"
+    fi
+  fi
 fi
 
 IPCRAE_ROOT="$(normalize_root "$IPCRAE_ROOT")"
@@ -141,7 +180,39 @@ printf '%b║  IPCRAE Étendu v3 — Install multi-provider ║%b\n' "$BLUE" "$N
 printf '%b╚═══════════════════════════════════════════╝%b\n\n' "$BLUE" "$NC"
 loginfo "Cible: $IPCRAE_ROOT"
 
-[ -d "$IPCRAE_ROOT" ] && { logwarn "Le dossier existe."; prompt_yes_no "Continuer ?" "y" || exit 1; }
+if [ -d "$IPCRAE_ROOT" ]; then
+  if [ -f "$IPCRAE_ROOT/.ipcrae/config.yaml" ]; then
+    logwarn "Cerveau IPCRAE existant détecté dans : $IPCRAE_ROOT"
+    if [ "$AUTO_YES" = true ]; then
+      _install_choice="2"
+    else
+      echo ""
+      echo "  1) Utiliser ce cerveau et mettre à jour les scripts uniquement"
+      echo "  2) Réinstaller complètement (conserver les fichiers existants, pas d'écrasement)"
+      echo "  3) Spécifier un autre chemin (créer un nouveau cerveau)"
+      read -r -p "Choix [1-3] (défaut: 1): " _install_choice
+      _install_choice="${_install_choice:-1}"
+    fi
+    case "$_install_choice" in
+      3)
+        read -r -p "Nouveau chemin du cerveau [~/brain] : " IPCRAE_ROOT
+        IPCRAE_ROOT="$(normalize_root "${IPCRAE_ROOT:-$HOME/brain}")"
+        loginfo "Nouveau cerveau : $IPCRAE_ROOT"
+        ;;
+      1)
+        loginfo "Mode mise à jour scripts uniquement — structure conservée."
+        SCRIPTS_ONLY=true
+        ;;
+      *)
+        loginfo "Réinstallation complète — fichiers existants conservés (pas d'écrasement)."
+        ;;
+    esac
+  else
+    logwarn "Le dossier existe mais n'est pas un cerveau IPCRAE."
+    prompt_yes_no "Continuer l'installation dans ce dossier ?" "y" || exit 1
+  fi
+fi
+SCRIPTS_ONLY="${SCRIPTS_ONLY:-false}"
 if [ "$DRY_RUN" = true ]; then
   loginfo "[DRY-RUN] mkdir -p $IPCRAE_ROOT && cd $IPCRAE_ROOT"
 else
@@ -181,6 +252,8 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════
 # 1) ARBORESCENCE
 # ═══════════════════════════════════════════════════════════════════════════
+if [ "$SCRIPTS_ONLY" != true ]; then
+
 section "Arborescence"
 execute mkdir -p Inbox Projets Casquettes Ressources Archives Agents Scripts Process Phases Objectifs .ipcrae
 execute mkdir -p Journal/{Daily,Weekly,Monthly}
@@ -562,6 +635,8 @@ node_modules/
   write_safe ".claudeignore" "$ignore"
   write_safe ".geminiignore" "$ignore"
 fi
+
+fi # fin SCRIPTS_ONLY guard (sections 1-6)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 7) INSTALLATION DES LANCEURS (IPCRAE + IPCRAE-ADDPROJECT)
