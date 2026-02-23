@@ -95,6 +95,12 @@ ${request_text}
 - Journal mis à jour : (path)
 - Tracking projet mis à jour : (path)
 
+### Imports bruts / sources brutes (obligatoire si présent)
+- Imports bruts utilisés : (paths exacts, ex: Ressources/..., Inbox/infos à traiter/...)
+- Origine des imports bruts : (email, web, dump, notes, etc.)
+- Liens vers tâches/artefacts : (Tasks/to_ai/... + Knowledge/... + Process/... + Journal/...)
+- Statut d'intégration : (ingéré | partiel | à compacter)
+
 ### Git / livraison
 - Commits : (hash + message)
 - Tags : (session-YYYYMMDD-domaine, etc.)
