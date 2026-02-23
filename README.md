@@ -302,6 +302,8 @@ Par défaut (`auto_git_sync: true`), IPCRAE va auto-commit vos nouvelles mémoir
 ### Outils de Refactoring IA
 - `ipcrae consolidate [domaine]` : Ferme la feature CDE d'un projet local, extrait l'intel vers `memory/` et purge les brouillons.
 - `ipcrae ingest [domaine]` : Scan IA profond d'un repo tiers inactif, rédige son readme technique et l'injecte dans le vault IPCRAE.
+  - En **première digestion**, l'objectif n'est pas un simple résumé : il faut **populer tous les dossiers IPCRAE pertinents** (Projets, Casquettes, Journal, Inbox, Knowledge, memory, Objectifs, Phases, Process, Ressources, Tasks, Zettelkasten) avec des artefacts minimums traçables.
+  - Référence opératoire : `templates/prompts/prompt_ingest.md` (matrice de population + gate anti-sous-population).
 
 ---
 
