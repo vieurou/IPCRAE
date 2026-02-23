@@ -231,6 +231,22 @@ if [ -d "$IPCRAE_ROOT" ]; then
     [ -d "$IPCRAE_ROOT/Journal" ] && ln -sfn "../.ipcrae-memory/Journal" "$LOCAL_IPCRAE_DIR/journal-global"
 fi
 
+
+# 7bis. Bootstrap outils strict mode (si présents)
+# Garantit que l'initialisation projet rend disponible ipcrae-strict-check
+# même si l'utilisateur n'a pas relancé son shell après installation IPCRAE.
+if [ -x "$HOME/bin/ipcrae-strict-check" ]; then
+    echo "✅ strict-check déjà disponible dans ~/bin"
+elif [ -x "$IPCRAE_ROOT/scripts/ipcrae-strict-check.sh" ]; then
+    mkdir -p "$HOME/bin"
+    cp "$IPCRAE_ROOT/scripts/ipcrae-strict-check.sh" "$HOME/bin/ipcrae-strict-check"
+    chmod +x "$HOME/bin/ipcrae-strict-check"
+    echo "✅ Installé : ~/bin/ipcrae-strict-check (depuis cerveau global)"
+else
+    echo "⚠ strict-check introuvable (installer/mettre à jour IPCRAE recommandé)"
+fi
+
+
 cat << 'EOF' > "$LOCAL_NOTES_DIR/README.md"
 # Local Notes (Projet)
 

@@ -39,3 +39,10 @@ Toujours rendre 4 blocs courts :
 - Ne pas traiter une demande brute directement quand du contexte manque.
 - Construire un **prompt optimisé** avec : objectif, contraintes, contexte projet, mémoire pertinente, format de sortie attendu, critères de validation.
 - Puis exécuter ce prompt optimisé et tracer ce qui a été injecté.
+
+## Rituel de clôture obligatoire (Self-audit + coût tokens)
+En fin de tâche, ajouter un mini-bilan en 3 points:
+1. **Conformité IPCRAE**: capture demande, traçabilité, vérification, mémoire, commit.
+2. **Coût tokens estimé**: Bas (0–2k) / Moyen (2k–8k) / Élevé (>8k), avec raison principale.
+3. **Optimisation suivante**: 1 action concrète pour réduire le coût sans perdre la qualité.
+

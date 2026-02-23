@@ -117,9 +117,14 @@ cd /chemin/vers/mon-projet
 # 3) Initialiser la couche conception + liens vers mémoire globale
 IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
 
-# 4) Vérifier l'environnement
+# 4) (optionnel) Vérifier la discipline stricte
+"$HOME/bin/ipcrae-strict-check" || true
+
+# 5) Vérifier l'environnement
 "$HOME/bin/ipcrae" doctor
 ```
+
+- `ipcrae-addProject` bootstrappe aussi `~/bin/ipcrae-strict-check` si le script existe dans le cerveau global.
 
 ### 4.2 Installation détaillée
 
