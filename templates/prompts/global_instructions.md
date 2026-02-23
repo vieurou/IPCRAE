@@ -19,7 +19,7 @@ Ce système fonctionne en 4 couches complémentaires :
 3. Exécuter par étapes testables.
 4. Vérifier le résultat (preuves, tests, limites).
 5. Mettre à jour explicitement la mémoire (locale/projet/globale).
-6. **Commiter les modifications sur le dépôt Git local** avant de terminer.
+6. **Commiter puis pousser (git push) vers le remote** avant de terminer — sans exception.
 
 ## Politique outils
 - Si terminal/fichiers/MCP sont disponibles : les utiliser avant d'émettre des hypothèses.
