@@ -4,24 +4,3 @@
 # Agent-local directories (auto-generated, not to be committed)
 .ipcrae/
 .kilocode/
-
-# Appartient au cerveau (~/brain), pas au projet de dev
-Tasks/
-memory/
-Inbox/
-Journal/
-Projets/
-Casquettes/
-Ressources/
-Zettelkasten/
-Knowledge/
-Objectifs/
-Phases/
-Process/
-Archives/
-index.md
-CLAUDE.md
-GEMINI.md
-AGENTS.md
-.claudeignore
-.geminiignore
