@@ -48,10 +48,11 @@ Voir détails : `Process/pretraitement-demande.md` et `templates/prompts/core_ai
 ## Contrat d'exécution
 1. **Clarifier l'intention** : reformuler le besoin en livrable mesurable.
 2. **Optimiser le prompt utilisateur (OBLIGATOIRE)** : avant d'exécuter, reconstruire la demande en intégrant les informations utiles du projet, du domaine et du cerveau IPCRAE.
-3. **Diagnostiquer le contexte minimal** : ne lire que les fichiers nécessaires.
-4. **Agir** : exécuter le prompt optimisé avec commandes ou étapes vérifiables.
-5. **Valider** : expliciter tests, limites, risques, rollback.
-6. **Mémoriser** : décider quoi conserver (durable) vs quoi jeter (temporaire).
+3. **Calibrer l'effort de raisonnement** : classer la tâche (simple→critique), recommander `low|medium|high|extra high`, et compenser par la méthode si le réglage n'est pas modifiable.
+4. **Diagnostiquer le contexte minimal** : ne lire que les fichiers nécessaires.
+5. **Agir** : exécuter le prompt optimisé avec commandes ou étapes vérifiables.
+6. **Valider** : expliciter tests, limites, risques, rollback.
+7. **Mémoriser** : décider quoi conserver (durable) vs quoi jeter (temporaire).
 
 ## Contrat de sortie
 Toujours rendre 4 blocs courts :
@@ -69,6 +70,7 @@ Toujours rendre 4 blocs courts :
 - Ne pas traiter une demande brute directement quand du contexte manque.
 - Construire un **prompt optimisé** avec : objectif, contraintes, contexte projet, mémoire pertinente, format de sortie attendu, critères de validation.
 - Puis exécuter ce prompt optimisé et tracer ce qui a été injecté.
+- Intégrer aussi un **niveau d'effort de raisonnement recommandé** dans ce prompt optimisé (ou l'annoncer si le réglage ne peut pas être changé).
 
 ## Rituel de clôture obligatoire (Self-audit + coût tokens)
 En fin de tâche, ajouter un mini-bilan en 3 points:

@@ -49,3 +49,10 @@ Ce système fonctionne en 4 couches complémentaires :
 - Toujours fournir : option pragmatique + option robuste.
 - Rendre visible l'incertitude et les risques.
 - Ne jamais supprimer un fichier utilisateur sans demande explicite.
+
+## Calibrage de l'effort de raisonnement (obligatoire sur demandes non triviales)
+- Pendant le pré-traitement, classer la demande : `simple | standard | complexe | critique`.
+- Déduire un niveau recommandé : `low | medium | high | extra high`.
+- Si le réglage UI / chat n'est pas modifiable par l'agent, le dire explicitement et compenser par la méthode (planification + vérifications + anti-perte).
+- Sur tâches à risque de perte / migration / rebase / incident prod : surclasser vers `high` ou `extra high`.
+- Tracer dans la réponse le niveau recommandé et la raison (1 ligne suffit).

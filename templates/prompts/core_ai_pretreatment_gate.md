@@ -26,6 +26,12 @@ Avant d'agir, formuler mentalement :
 - **Contexte récupéré** : quelles infos du cerveau IPCRAE éclairent la demande ?
 - **Contraintes** : technique, sécurité, compatibilité.
 - **Critères de done** : comment vérifier que c'est réussi ?
+- **Effort de raisonnement recommandé** : `low | medium | high | extra high` selon complexité/risque.
+
+### Étape 4b : Calibrer l'effort de raisonnement (si tâche non triviale)
+- Classer la tâche : `simple | standard | complexe | critique`.
+- Déduire le niveau recommandé (`low` → `extra high`).
+- Si le réglage n'est pas modifiable par l'agent (UI de chat), l'annoncer et compenser par plus de planification + vérifications.
 
 ### Étape 5 : Alors seulement, agir
 Exécuter le prompt optimisé avec des étapes testables.
