@@ -17,6 +17,17 @@ Voir détails : `Process/pretraitement-demande.md` et `templates/prompts/core_ai
 
 ---
 
+# 🚨 RÈGLE ABSOLUE : Ne jamais perdre de données
+
+> **NON-NÉGOCIABLE.** En cas de merge, rebase, refactor, compaction mémoire, migration ou nettoyage :
+
+- **Préserver l'information avant tout** (même si la forme est imparfaite).
+- **Préférer la duplication temporaire** à la suppression irréversible.
+- Si un bloc est importé/fusionné brut, le marquer (`import-brut`, `doublon merge`, `à-compacter`) puis compacter plus tard.
+- Ne supprimer qu'avec preuve de redondance **ou** demande explicite utilisateur.
+
+---
+
 # Règle 1 : Protocole d'Initialisation et de Traçabilité
 
 **Prioritaire. Doit être exécuté au début de chaque nouvelle session (après le gate de pré-traitement).**
@@ -64,4 +75,3 @@ En fin de tâche, ajouter un mini-bilan en 3 points:
 1. **Conformité IPCRAE**: capture demande, traçabilité, vérification, mémoire, commit.
 2. **Coût tokens estimé**: Bas (0–2k) / Moyen (2k–8k) / Élevé (>8k), avec raison principale.
 3. **Optimisation suivante**: 1 action concrète pour réduire le coût sans perdre la qualité.
-
