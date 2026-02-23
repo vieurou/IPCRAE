@@ -171,6 +171,52 @@ Suivre `Process/auto-amelioration.md` : l'ingestion d'un nouveau projet est un d
 
 ---
 
+
+## Pourquoi la première digestion crée souvent trop peu de fichiers (diagnostic)
+
+Causes fréquentes observées:
+1. Prompt d'ingestion interprété en mode "résumé" au lieu de mode "population du cerveau".
+2. Absence de quotas minimaux par dossier (l'agent s'arrête après `docs/conception` + `Projets/`).
+3. Pas de gate de validation inter-dossiers avant clôture.
+4. Confusion entre artefacts projet local et artefacts cerveau global IPCRAE.
+
+## Matrice de population minimale (obligatoire dès la première ingestion)
+
+L'ingestion n'est **pas terminée** tant que chaque concept applicable n'a pas au moins une trace écrite:
+
+- `Projets/{{project_name}}/` : `index.md`, `tracking.md`, `memory.md`
+- `Casquettes/` : créer/mettre à jour une casquette de domaine si absente
+- `Journal/Daily/{{year}}/{{date}}.md` : journalisation de la session d'ingestion
+- `Inbox/` : au moins 3 captures distinctes (idée, tâche, lien/snippet)
+- `Knowledge/` : au moins 1 note avec frontmatter complet + `sources:`
+- `memory/{{domain}}.md` : au moins 1 entrée datée complète
+- `Objectifs/` : relier le projet à `vision.md` ou à un fichier quarterly
+- `Phases/` : rattacher le projet à la phase active + définir DoD minimale
+- `Process/` : créer/mettre à jour 1 procédure récurrente détectée
+- `Ressources/` : ajouter au moins 1 document/lien de référence
+- `Tasks/to_ai/` et/ou `Tasks/to_human/` : créer des actions concrètes
+- `Zettelkasten/_inbox/` : au moins 2 notes atomiques reliées
+
+## Gate anti-sous-population (avant clôture)
+
+L'agent doit produire un tableau de couverture et interdire la clôture si une ligne est vide:
+
+| Concept | Statut | Preuve fichier |
+|---|---|---|
+| Projets | ✓/✗ | ... |
+| Casquettes | ✓/✗ | ... |
+| Journal | ✓/✗ | ... |
+| Inbox | ✓/✗ | ... |
+| Knowledge | ✓/✗ | ... |
+| memory | ✓/✗ | ... |
+| Objectifs | ✓/✗ | ... |
+| Phases | ✓/✗ | ... |
+| Process | ✓/✗ | ... |
+| Ressources | ✓/✗ | ... |
+| Tasks | ✓/✗ | ... |
+| Zettelkasten | ✓/✗ | ... |
+
+
 ## DÉFINITION DE DONE (vérifier avant de déclarer l'ingestion terminée)
 
 - [ ] `Projets/{{project_name}}/index.md` — zéro [À Remplir]
