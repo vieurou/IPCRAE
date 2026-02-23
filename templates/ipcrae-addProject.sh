@@ -4,7 +4,22 @@ set -euo pipefail
 # IPCRAE - Initialisation de la structure de Conception Agile par IA (AIDD/CDE)
 # Ce script crée un squelette documentaire optimisé pour la lecture par un agent IA.
 
-IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/IPCRAE}"
+# Résoudre IPCRAE_ROOT : priorité à la variable d'env, sinon demander interactivement.
+if [ -z "${IPCRAE_ROOT:-}" ]; then
+  _default="$HOME/IPCRAE"
+  if [ -t 0 ]; then
+    printf 'Chemin du cerveau IPCRAE (dossier racine) :\n'
+    read -r -p "→ [$_default] " IPCRAE_ROOT
+    IPCRAE_ROOT="${IPCRAE_ROOT:-$_default}"
+  else
+    IPCRAE_ROOT="$_default"
+  fi
+fi
+# Expansion robuste de ~
+case "$IPCRAE_ROOT" in
+  "~")  IPCRAE_ROOT="$HOME" ;;
+  "~/"*) IPCRAE_ROOT="$HOME/${IPCRAE_ROOT#~/}" ;;
+esac
 CONCEPTION_DIR="docs/conception"
 CONCEPTS_DIR="$CONCEPTION_DIR/concepts"
 LOCAL_IPCRAE_DIR=".ipcrae-project"
