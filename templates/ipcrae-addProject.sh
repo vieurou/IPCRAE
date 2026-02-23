@@ -615,6 +615,57 @@ fi
 
 echo "✅ Seed cerveau global créé (Casquettes/Journal/Inbox/Knowledge/memory/Objectifs/Phases/Process/Ressources/Tasks/Zettelkasten)."
 
+# ── 10ter. Git post-commit hook — digestion incrémentale du cerveau ─────────
+# À chaque commit dans le projet, le hook crée une tâche légère dans le cerveau
+# (Tasks/to_ai/) listant les fichiers modifiés. L'IA traite ces tâches au
+# prochain ipcrae start — pas d'ingestion lourde en temps réel.
+if [ -d ".git" ]; then
+  HOOK_FILE=".git/hooks/post-commit"
+  # N'écraser le hook que s'il n'existe pas déjà ou ne contient pas la marque IPCRAE
+  if [ ! -f "$HOOK_FILE" ] || ! grep -q "IPCRAE_BRAIN_SYNC" "$HOOK_FILE" 2>/dev/null; then
+    cat >> "$HOOK_FILE" << 'HOOKEOF'
+#!/usr/bin/env bash
+# IPCRAE_BRAIN_SYNC — ne pas supprimer ce bloc
+_IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/brain}"
+_TASKS_DIR="$_IPCRAE_ROOT/Tasks/to_ai"
+if [ -d "$_IPCRAE_ROOT" ]; then
+  _stamp="$(date +%s)"
+  _today="$(date +%Y-%m-%d)"
+  _proj="$(basename "$PWD")"
+  _changed="$(git diff --name-only HEAD~1 HEAD 2>/dev/null | head -30 | sed 's/^/  - /')"
+  _msg="$(git log -1 --pretty=format:'%s' 2>/dev/null)"
+  mkdir -p "$_TASKS_DIR"
+  cat > "$_TASKS_DIR/task-${_stamp}.md" << EOF
+---
+type: task
+status: pending
+project: ${_proj}
+created: ${_today}
+trigger: post-commit
+---
+# Re-ingestion partielle — ${_proj}
+
+**Commit** : ${_msg}
+**Date** : ${_today}
+
+## Fichiers modifiés
+${_changed}
+
+## Action demandée à l'IA
+Mettre à jour les fichiers IPCRAE concernés (VISION, ARCHITECTURE, memory, Knowledge)
+en fonction des changements ci-dessus. Ne pas réécrire ce qui n'a pas changé.
+EOF
+fi
+HOOKEOF
+    chmod +x "$HOOK_FILE"
+    echo "✅ Git post-commit hook installé — le cerveau sera notifié à chaque commit."
+  else
+    echo "ℹ️  Git post-commit hook IPCRAE déjà présent."
+  fi
+else
+  echo "⚠️  Pas de dépôt Git détecté — post-commit hook non installé."
+fi
+
 echo "🎉 Projet intégré à IPCRAE avec succès !"
 
 # 11. Analyse initiale par l'IA (Auto-ingestion)
