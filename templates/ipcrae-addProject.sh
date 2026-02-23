@@ -3,10 +3,28 @@
 set -euo pipefail
 # IPCRAE - Initialisation de la structure de Conception Agile par IA (AIDD/CDE)
 # Ce script crée un squelette documentaire optimisé pour la lecture par un agent IA.
+# Usage: ipcrae-addProject [CHEMIN_PROJET]
+#   -y, --yes   Mode non-interactif (AUTO_YES=true)
+
+AUTO_YES="${AUTO_YES:-false}"
+# Parsing argument chemin et flags
+for _arg in "$@"; do
+  case "$_arg" in
+    -y|--yes) AUTO_YES=true ;;
+    -*) echo "Option inconnue: $_arg" >&2; exit 1 ;;
+    *)
+      if [ -d "$_arg" ]; then
+        cd "$_arg" || { echo "Impossible de naviguer vers '$_arg'" >&2; exit 1; }
+      else
+        echo "Répertoire cible introuvable: '$_arg'" >&2; exit 1
+      fi
+      ;;
+  esac
+done
 
 # Résoudre IPCRAE_ROOT : priorité à la variable d'env, sinon demander interactivement.
 if [ -z "${IPCRAE_ROOT:-}" ]; then
-  _default="$HOME/IPCRAE"
+  _default="$HOME/brain"
   if [ -t 0 ]; then
     printf 'Chemin du cerveau IPCRAE (dossier racine) :\n'
     read -r -p "→ [$_default] " IPCRAE_ROOT
@@ -50,6 +68,7 @@ EOF
 echo "✅ Créé : $LOCAL_IPCRAE_DIR/.gitignore"
 
 # 1. 00_VISION.md
+if [ ! -f "$CONCEPTION_DIR/00_VISION.md" ]; then
 cat << 'EOF' > "$CONCEPTION_DIR/00_VISION.md"
 # Vision et Objectifs du Projet
 
@@ -72,8 +91,12 @@ cat << 'EOF' > "$CONCEPTION_DIR/00_VISION.md"
 
 EOF
 echo "✅ Créé : $CONCEPTION_DIR/00_VISION.md"
+else
+  echo "ℹ️  Conservé (existant) : $CONCEPTION_DIR/00_VISION.md"
+fi
 
 # 2. 01_AI_RULES.md (Règles spécifiques projet)
+if [ ! -f "$CONCEPTION_DIR/01_AI_RULES.md" ]; then
 cat << 'EOF' > "$CONCEPTION_DIR/01_AI_RULES.md"
 # Règles de l'IA pour ce Projet
 
@@ -93,8 +116,12 @@ Tout code produit doit être validé via `npm test` avant d'être considéré co
 
 EOF
 echo "✅ Créé : $CONCEPTION_DIR/01_AI_RULES.md"
+else
+  echo "ℹ️  Conservé (existant) : $CONCEPTION_DIR/01_AI_RULES.md"
+fi
 
 # 3. 02_ARCHITECTURE.md
+if [ ! -f "$CONCEPTION_DIR/02_ARCHITECTURE.md" ]; then
 cat << 'EOF' > "$CONCEPTION_DIR/02_ARCHITECTURE.md"
 # Architecture et Décisions Techniques
 
@@ -110,6 +137,9 @@ cat << 'EOF' > "$CONCEPTION_DIR/02_ARCHITECTURE.md"
 
 EOF
 echo "✅ Créé : $CONCEPTION_DIR/02_ARCHITECTURE.md"
+else
+  echo "ℹ️  Conservé (existant) : $CONCEPTION_DIR/02_ARCHITECTURE.md"
+fi
 
 # 4. _TEMPLATE_CONCEPT.md
 cat << 'EOF' > "$CONCEPTS_DIR/_TEMPLATE_CONCEPT.md"
@@ -154,6 +184,7 @@ EOF
 echo "✅ Créé : $CONCEPTS_DIR/_TEMPLATE_CONCEPT.md"
 
 # 5. Guide de lecture pour l'IA (priorité local + global)
+if [ ! -f "$CONCEPTION_DIR/03_IPCRAE_BRIDGE.md" ]; then
 cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRAE_BRIDGE.md"
 # IPCRAE Bridge — Contrat CDE explicite
 
@@ -194,6 +225,9 @@ updated: YYYY-MM-DD
 EOF
 
 echo "✅ Créé : $CONCEPTION_DIR/03_IPCRAE_BRIDGE.md"
+else
+  echo "ℹ️  Conservé (existant) : $CONCEPTION_DIR/03_IPCRAE_BRIDGE.md"
+fi
 
 # 6. Création des fichiers de règles universels pour les agents IA
 # ⚠ Stratégie: ne PAS dupliquer le cerveau global dans chaque repo.
@@ -232,7 +266,11 @@ if [ "${IPCRAE_EMBED_PROMPTS:-false}" = "true" ]; then
   RULES_CONTENT+="$(cat "$IPCRAE_ROOT/.ipcrae/instructions.md" 2>/dev/null || echo "Instructions globales introuvables.")"
 fi
 
-echo "$RULES_CONTENT" > ".ai-instructions.md" && echo "✅ Créé : .ai-instructions.md"
+if [ ! -f ".ai-instructions.md" ]; then
+  echo "$RULES_CONTENT" > ".ai-instructions.md" && echo "✅ Créé : .ai-instructions.md"
+else
+  echo "ℹ️  Conservé (existant) : .ai-instructions.md"
+fi
 
 # 7. Liens vers le Cerveau Global + raccourcis ciblés
 # On crée un lien symbolique vers l'IPCRAE global pour que l'IA puisse lire la mémoire,
@@ -581,8 +619,13 @@ echo "🎉 Projet intégré à IPCRAE avec succès !"
 
 # 11. Analyse initiale par l'IA (Auto-ingestion)
 echo ""
-read -r -p "🤖 Veux-tu lancer l'agent IA maintenant pour analyser le code et auto-remplir les templates ? [O/n] " run_ai
-run_ai=${run_ai:-o}
+if [ "$AUTO_YES" = true ]; then
+  run_ai="n"
+  echo "Mode AUTO_YES : analyse IA différée (relancer manuellement avec : ipcrae work)."
+else
+  read -r -p "🤖 Veux-tu lancer l'agent IA maintenant pour analyser le code et auto-remplir les templates ? [O/n] " run_ai
+  run_ai=${run_ai:-o}
+fi
 
 if [[ "$run_ai" =~ ^[Oo]$ ]]; then
     echo "Lancement de l'analyse initiale..."
