@@ -416,9 +416,17 @@ ipcrae-prompt-optimize claude "Créer une weekly actionable"
 ```
 
 ### Pourquoi ça consomme moins de tokens
-- Le contexte est tronqué et nettoyé (`ipcrae-tokenpack`) : suppression des lignes vides/commentaires + limite de taille.
+- Le contexte est résumé de manière extractive (`ipcrae-tokenpack`) : priorité aux sections objectifs/contraintes/décisions + limite de taille.
 - Les prompts imposent une sortie **courte et actionnable** (contrat quick win + plan robuste).
-- Le bridge route automatiquement vers l’agent le plus pertinent, évite les prompts longs manuels répétés, standardise le format de demande, et met en cache les réponses pour éviter les appels identiques.
+- Le bridge route automatiquement vers l’agent le plus pertinent, évite les prompts longs manuels répétés, standardise le format de demande, met en cache avec empreinte contexte, et adapte le routage via feedback qualité/coût par type de tâche.
+
+
+
+### Nouvelles optimisations (v3.3+)
+- **Cache intelligent context-aware** : invalidation implicite via empreinte des fichiers clés (`.ipcrae/context.md`, `instructions.md`, `Phases/index.md`, `Inbox/waiting-for.md`).
+- **Routing adaptatif** : le score provider combine heuristique initiale + feedback historisé (`runs/success/quality/cost`) par type de tâche.
+- **Budget tokens adaptatif** : budget soft par type de tâche (debug/archi/synthèse) + hard cap en mots (`--hard-cap`).
+- **Scoring qualité/coût** : journalisation continue pour comparer la valeur des sorties en fonction du coût proxy.
 
 ### Veille agents CLI et stratégie d'usage
 - **Claude CLI** : excellent pour architecture, arbitrages, risques.
@@ -428,8 +436,8 @@ ipcrae-prompt-optimize claude "Créer une weekly actionable"
 Recommandation : utiliser `ipcrae-prompt-optimize` avant chaque délégation, puis `ipcrae-agent-bridge` en routage auto (ou `--all` pour comparaison critique).
 
 ### Améliorations utiles à ajouter ensuite
-1. **Cache de réponses** (`.ipcrae/cache/`) avec hash prompt+contexte pour éviter de reconsommer des tokens.
-2. **Scoring automatique des réponses agents** (exactitude, actionnabilité, coût).
-3. **Mode consensus** : synthèse automatique des 2 meilleurs agents.
-4. **Routage intelligent** par type de tâche (debug, archi, rédaction, revue sécurité).
+1. **Mode consensus** : synthèse automatique des 2 meilleurs agents.
+2. **Routage intelligent avancé** avec apprentissage pondéré par domaine/projet (pas seulement type de tâche global).
+3. **Scoring qualité/coût enrichi** avec signaux utilisateurs explicites (thumbs-up/down) et vérifications automatiques.
+4. **Cache sémantique multi-niveaux** (question similaire + contexte compatible) pour réutiliser des réponses proches.
 
