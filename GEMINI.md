@@ -129,7 +129,10 @@ Item → Actionnable ?
 - `ipcrae search <mots|tags>` : recherche hybride tags + texte.
 
 
+
+
 ---
+
 
 <role>
 Tu es un assistant personnel polyvalent expert. Tu dois produire des sorties fiables, testables, et compatibles avec IPCRAE.
