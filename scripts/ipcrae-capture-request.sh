@@ -79,9 +79,31 @@ ${request_text}
 ## Traitements effectués
 - [ ] (à compléter par l'agent)
 
-## Références
-- Fichiers créés : (à compléter)
-- Commits : (à compléter)
+## Références croisées automatiques (libellés stables)
+> Ne pas renommer les libellés (facilite post-analyse et automatisation)
+
+### Décomposition / exécution
+- Plan / décomposition : (lien vers plan publié / tracking / note)
+- Réexamen fin de traitement : (OK | partiel | bloqué) — Process/reexamen-fin-traitement-demande
+
+### Artefacts IPCRAE produits
+- Fichiers créés/modifiés : (liste concise)
+- Knowledge créées : (paths)
+- Process créés/modifiés : (paths)
+- Mémoire domaine mise à jour : (memory/<domaine>.md + entrée)
+- Mémoire système mise à jour : (memory/system.md + entrée)
+- Journal mis à jour : (path)
+- Tracking projet mis à jour : (path)
+
+### Git / livraison
+- Commits : (hash + message)
+- Tags : (session-YYYYMMDD-domaine, etc.)
+- PR / merge : (si applicable)
+
+### Satisfaction demande
+- Statut de satisfaction : satisfaite | partiellement satisfaite | bloquée
+- Points non couverts : (liste ou "aucun")
+- Réponse finale : (résumé 3-5 lignes ou lien)
 EOF
 
 echo "✓ Demande capturée: $filepath"
