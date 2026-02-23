@@ -119,12 +119,13 @@ IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
 
 # 4) (optionnel) Vérifier la discipline stricte
 "$HOME/bin/ipcrae-strict-check" || true
+"$HOME/bin/ipcrae-strict-report" || true
 
 # 5) Vérifier l'environnement
 "$HOME/bin/ipcrae" doctor
 ```
 
-- `ipcrae-addProject` bootstrappe aussi `~/bin/ipcrae-strict-check` si le script existe dans le cerveau global.
+- `ipcrae-addProject` bootstrappe aussi `~/bin/ipcrae-strict-check` et `~/bin/ipcrae-strict-report` si les scripts existent dans le cerveau global.
 
 ### 4.2 Installation détaillée
 

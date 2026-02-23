@@ -178,6 +178,7 @@ strict_mode: true
 ### Vérifier à la demande
 ```bash
 ipcrae strict-check
+ipcrae strict-report 10
 ```
 
 Le check valide notamment :
@@ -188,6 +189,12 @@ Le check valide notamment :
 
 ### Exécution automatique en clôture
 Quand `strict_mode: true`, `ipcrae close` lance automatiquement le strict-check après le self-audit.
+
+
+### Journalisation + analyse de comportement
+`ipcrae strict-check` écrit désormais un historique dans `.ipcrae/auto/strict-check-history.md` (score, warnings/failures, recommandation).
+Cela permet d'analyser l'évolution de ta discipline session après session.
+`ipcrae strict-report` synthétise la tendance (moyenne, delta, recommandation courante).
 
 ### Fun / motivation
 Le self-audit attribue un badge (`Or`, `Argent`, `Bronze`) selon la charge estimée de la session.

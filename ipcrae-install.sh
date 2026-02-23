@@ -689,6 +689,14 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
     logwarn "scripts/ipcrae-strict-check.sh introuvable — mode strict non installé."
   fi
 
+  if [ -f "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" ]; then
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" "$HOME/bin/ipcrae-strict-report"
+    execute chmod +x "$HOME/bin/ipcrae-strict-report"
+    loginfo "✓ ipcrae-strict-report installé dans ~/bin (analyse tendance)"
+  else
+    logwarn "scripts/ipcrae-strict-report.sh introuvable — strict-report non installé."
+  fi
+
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
     loginfo "Ajouté ~/bin au PATH dans ~/.bashrc. Redémarrez le terminal en tapant 'bash'."

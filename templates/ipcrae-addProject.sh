@@ -262,6 +262,18 @@ else
 fi
 
 
+if [ -x "$HOME/bin/ipcrae-strict-report" ]; then
+    echo "✅ strict-report déjà disponible dans ~/bin"
+elif [ -x "$IPCRAE_ROOT/scripts/ipcrae-strict-report.sh" ]; then
+    mkdir -p "$HOME/bin"
+    cp "$IPCRAE_ROOT/scripts/ipcrae-strict-report.sh" "$HOME/bin/ipcrae-strict-report"
+    chmod +x "$HOME/bin/ipcrae-strict-report"
+    echo "✅ Installé : ~/bin/ipcrae-strict-report (depuis cerveau global)"
+else
+    echo "⚠ strict-report introuvable (installer/mettre à jour IPCRAE recommandé)"
+fi
+
+
 cat << 'EOF' > "$LOCAL_NOTES_DIR/README.md"
 # Local Notes (Projet)
 

@@ -3,15 +3,35 @@ set -euo pipefail
 
 IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/IPCRAE}"
 MODE="summary"
-[ "${1:-}" = "--json" ] && MODE="json"
+WRITE_LOG="false"
+
+for arg in "$@"; do
+  case "$arg" in
+    --json) MODE="json" ;;
+    --log) WRITE_LOG="true" ;;
+  esac
+done
 
 ok=0
 warn=0
 fail=0
+WARNINGS=()
+FAILURES=()
 
-pass() { ok=$((ok+1)); [ "$MODE" = "summary" ] && printf '✓ %s\n' "$1"; }
-warning() { warn=$((warn+1)); [ "$MODE" = "summary" ] && printf '⚠ %s\n' "$1"; }
-error() { fail=$((fail+1)); [ "$MODE" = "summary" ] && printf '✗ %s\n' "$1"; }
+pass() {
+  ok=$((ok+1))
+  [ "$MODE" = "summary" ] && printf '✓ %s\n' "$1"
+}
+warning() {
+  warn=$((warn+1))
+  WARNINGS+=("$1")
+  [ "$MODE" = "summary" ] && printf '⚠ %s\n' "$1"
+}
+error() {
+  fail=$((fail+1))
+  FAILURES+=("$1")
+  [ "$MODE" = "summary" ] && printf '✗ %s\n' "$1"
+}
 
 if [ -d "$IPCRAE_ROOT" ]; then
   pass "IPCRAE_ROOT accessible: $IPCRAE_ROOT"
@@ -64,12 +84,40 @@ else
 fi
 
 score=$(( ok*2 - fail*2 - warn ))
-[ $score -lt 0 ] && score=0
+[ "$score" -lt 0 ] && score=0
+
+recommendation="Conserver le mode strict et limiter le contexte à session-context + tags ciblés."
+if [ "$fail" -gt 0 ]; then
+  recommendation="Corriger d'abord les échecs critiques (session-context et IPCRAE_ROOT)."
+elif [ "$warn" -gt 1 ]; then
+  recommendation="Ajouter la capture user + journal active_session pour améliorer la discipline."
+fi
 
 if [ "$MODE" = "json" ]; then
-  printf '{"ok":%d,"warn":%d,"fail":%d,"score":%d}\n' "$ok" "$warn" "$fail" "$score"
+  printf '{"ok":%d,"warn":%d,"fail":%d,"score":%d,"recommendation":"%s"}\n' "$ok" "$warn" "$fail" "$score" "$recommendation"
 else
   printf 'Score strict: %d (ok=%d, warn=%d, fail=%d)\n' "$score" "$ok" "$warn" "$fail"
+  printf 'Recommandation: %s\n' "$recommendation"
+fi
+
+if [ "$WRITE_LOG" = "true" ]; then
+  log_dir="$IPCRAE_ROOT/.ipcrae/auto"
+  mkdir -p "$log_dir"
+  log_file="$log_dir/strict-check-history.md"
+  {
+    printf '## %s\n' "$(date '+%Y-%m-%d %H:%M')"
+    printf -- '- Score: %s\n' "$score"
+    printf -- '- OK/WARN/FAIL: %s/%s/%s\n' "$ok" "$warn" "$fail"
+    if [ ${#WARNINGS[@]} -gt 0 ]; then
+      printf -- '- Warnings:\n'
+      for w in "${WARNINGS[@]}"; do printf -- '  - %s\n' "$w"; done
+    fi
+    if [ ${#FAILURES[@]} -gt 0 ]; then
+      printf -- '- Failures:\n'
+      for f in "${FAILURES[@]}"; do printf -- '  - %s\n' "$f"; done
+    fi
+    printf -- '- Recommandation: %s\n\n' "$recommendation"
+  } >> "$log_file"
 fi
 
 if [ "$fail" -gt 0 ]; then

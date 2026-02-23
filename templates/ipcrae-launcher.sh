@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 # IPCRAE Étendu v3.3 — Lanceur multi-provider
 # Commandes : start, work, sprint, daily, weekly, monthly, close, sync,
-#             zettel, moc, health, doctor, strict-check, review, launch, menu
+#             zettel, moc, health, doctor, strict-check, strict-report, review, launch, menu
 # Providers : Claude, Gemini, Codex, (Kilo via VS Code)
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
@@ -1307,7 +1307,7 @@ cmd_strict_check() {
     return 0
   fi
 
-  if IPCRAE_ROOT="$IPCRAE_ROOT" "$checker"; then
+  if IPCRAE_ROOT="$IPCRAE_ROOT" "$checker" --log; then
     loginfo "Strict mode: conforme"
   else
     logwarn "Strict mode: écarts détectés"
@@ -1315,6 +1315,26 @@ cmd_strict_check() {
   fi
 }
 
+
+
+cmd_strict_report() {
+  need_root
+  section "Strict mode report"
+
+  local reporter=""
+  if command -v ipcrae-strict-report >/dev/null 2>&1; then
+    reporter="ipcrae-strict-report"
+  elif [ -x "$HOME/bin/ipcrae-strict-report" ]; then
+    reporter="$HOME/bin/ipcrae-strict-report"
+  elif [ -x "${IPCRAE_ROOT}/scripts/ipcrae-strict-report.sh" ]; then
+    reporter="${IPCRAE_ROOT}/scripts/ipcrae-strict-report.sh"
+  else
+    logwarn "ipcrae-strict-report introuvable."
+    return 0
+  fi
+
+  IPCRAE_ROOT="$IPCRAE_ROOT" "$reporter" "${1:-10}"
+}
 
 # ── Health ────────────────────────────────────────────────────
 cmd_health() {
@@ -2296,6 +2316,7 @@ cmd_menu() {
     "Health check" \
     "Doctor environnement" \
     "Strict check" \
+    "Strict report" \
     "Reconstruire index tags" \
     "Chercher par tag" \
     "Sync providers" \
@@ -2322,14 +2343,15 @@ cmd_menu() {
       14) cmd_health; break ;;
       15) cmd_doctor; break ;;
       16) cmd_strict_check; break ;;
-      17) cmd_index; break ;;
-      18) read -r -p "Tag: " _tag; cmd_tag "$_tag"; break ;;
-      19) sync_providers; break ;;
-      20) cmd_migrate_safe; break ;;
-      21) list_providers; break ;;
-      22) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      23) cmd_process; break ;;
-      24) break ;;
+      17) cmd_strict_report; break ;;
+      18) cmd_index; break ;;
+      19) read -r -p "Tag: " _tag; cmd_tag "$_tag"; break ;;
+      20) sync_providers; break ;;
+      21) cmd_migrate_safe; break ;;
+      22) list_providers; break ;;
+      23) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      24) cmd_process; break ;;
+      25) break ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -2409,8 +2431,6 @@ main() {
     show_dashboard
     return 0
   fi
-  local provider="" cmd=""
-  local -a cmd_args=()
 
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -2442,6 +2462,7 @@ main() {
     health)      cmd_health ;;
     doctor)      cmd_doctor "$@" ;;
     strict-check) cmd_strict_check ;;
+    strict-report) cmd_strict_report "$@" ;;
     review)      cmd_review "$@" ;;
     capture)     cmd_capture "$@" ;;
     consolidate) cmd_consolidate "$@" ;;
