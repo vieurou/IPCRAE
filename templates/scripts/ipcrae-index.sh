@@ -19,10 +19,21 @@ EXCLUDE = {'.git', '.ipcrae'}
 def excluded(p):
     return any(part in EXCLUDE or part.startswith('.') for part in p.relative_to(root).parts)
 
+def safe_rel(md):
+    try:
+        r = md.relative_to(root).as_posix()
+        r.encode('utf-8')
+        return r
+    except (ValueError, UnicodeEncodeError):
+        return None
+
 tags = {}
 total = 0
 for md in root.rglob('*.md'):
     if excluded(md):
+        continue
+    rel = safe_rel(md)
+    if rel is None:
         continue
     total += 1
     try:
@@ -47,7 +58,6 @@ for md in root.rglob('*.md'):
         project = project_line.split(':', 1)[1].strip().strip("\"'")
         if project:
             found.append(f'project:{project}')
-    rel = md.relative_to(root).as_posix()
     for t in found:
         tags.setdefault(t, []).append(rel)
 

@@ -1301,6 +1301,46 @@ cmd_search() {
     || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
 }
 
+cmd_links() {
+  need_root
+  local file="${1:-}"
+  [ -z "$file" ] && { logerr "Usage: ipcrae links <fichier>"; return 1; }
+  [ -f "${IPCRAE_ROOT}/.ipcrae/cache/link-index.json" ] || cmd_index
+  python3 - "$file" <<'PYLINKS'
+import json, sys
+from pathlib import Path
+target = sys.argv[1]
+idx = json.loads(Path('.ipcrae/cache/link-index.json').read_text(encoding='utf-8'))
+files = idx.get('forward', {}).get(target, [])
+if not files:
+    print(f"Aucun lien sortant pour: {target}")
+    raise SystemExit(1)
+print(f"Liens depuis {target} ({len(files)}) :")
+for f in files:
+    print(f"  -> {f}")
+PYLINKS
+}
+
+cmd_backlinks() {
+  need_root
+  local file="${1:-}"
+  [ -z "$file" ] && { logerr "Usage: ipcrae backlinks <fichier>"; return 1; }
+  [ -f "${IPCRAE_ROOT}/.ipcrae/cache/link-index.json" ] || cmd_index
+  python3 - "$file" <<'PYBACK'
+import json, sys
+from pathlib import Path
+target = sys.argv[1]
+idx = json.loads(Path('.ipcrae/cache/link-index.json').read_text(encoding='utf-8'))
+files = idx.get('backlinks', {}).get(target, [])
+if not files:
+    print(f"Aucun fichier ne reference: {target}")
+    raise SystemExit(1)
+print(f"Fichiers referencant {target} ({len(files)}) :")
+for f in files:
+    print(f"  <- {f}")
+PYBACK
+}
+
 
 # ── Review ───────────────────────────────────────────────────
 cmd_review() {
@@ -2071,6 +2111,8 @@ main() {
     index)             cmd_index ;;
     tag)               cmd_tag "${cmd_args[0]:-}" ;;
     search)            cmd_search "${cmd_args[*]:-}" ;;
+    links)             cmd_links "${cmd_args[0]:-}" ;;
+    backlinks)         cmd_backlinks "${cmd_args[0]:-}" ;;
     review)            cmd_review "${cmd_args[0]:-}" "$provider" ;;
     update)            cmd_update ;;
     consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
