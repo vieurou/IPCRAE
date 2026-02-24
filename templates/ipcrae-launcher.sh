@@ -1241,7 +1241,7 @@ cmd_doctor() {
     local fpath="$IPCRAE_ROOT/$f" tpl_path="$prompts_dir/$tpl"
     if [ ! -f "$fpath" ]; then
       printf '  ✗ %s manquant\n' "$f"
-    elif ! grep -q "GENERE - editer .ipcrae/prompts/" "$fpath" 2>/dev/null; then
+    elif ! grep -q ".ipcrae/prompts/" "$fpath" 2>/dev/null; then
       printf '  ✗ %s format dépassé (lancer: ipcrae sync)\n' "$f"
     elif [ -f "$tpl_path" ] && [ "$tpl_path" -nt "$fpath" ]; then
       printf '  ⚠ %s potentiellement obsolète (template modifié → ipcrae sync)\n' "$f"
