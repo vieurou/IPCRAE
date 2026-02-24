@@ -19,6 +19,7 @@ IPCRAE est un système de gestion de travail et de vie (pro + perso) qui :
 3. **Le système doit rester léger** : si ça devient pénible, il ne sera pas utilisé.
 4. **Séparation des rôles** : brut vs digéré, projets vs responsabilités, global vs local.
 5. **Documentation vivante obligatoire** : toute modification de scripts/workflows doit être répercutée dans `docs/` (workflow, référence de commandes, conception) avant clôture de tâche.
+6. **Synchronisation et cohérence** : toute modification d'une source de vérité (prompts, instructions, seeds, process, scripts) doit être propagée aux fichiers liés + `ipcrae sync` + `ipcrae index` avant clôture.
 
 ---
 
@@ -94,6 +95,8 @@ IPCRAE_ROOT/
 ├── CLAUDE.md / GEMINI.md   # Contextes IA générés auto (source : context.md + instructions.md)
 └── index.md                # Dashboard central
 ```
+
+Note : le repo code **ne** contient pas de `Process/` vivant. Les process de référence sont stockés dans `templates/brain_seed/Process/` et copiés dans le cerveau lors de l'installation.
 
 ### Règle “brut vs digéré”
 - `Ressources/` = **brut** (extraits, liens, docs, notes littérales).
@@ -440,4 +443,3 @@ Recommandation : utiliser `ipcrae-prompt-optimize` avant chaque délégation, pu
 2. **Routage intelligent avancé** avec apprentissage pondéré par domaine/projet (pas seulement type de tâche global).
 3. **Scoring qualité/coût enrichi** avec signaux utilisateurs explicites (thumbs-up/down) et vérifications automatiques.
 4. **Cache sémantique multi-niveaux** (question similaire + contexte compatible) pour réutiliser des réponses proches.
-

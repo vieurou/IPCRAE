@@ -74,6 +74,8 @@ IPCRAE_ROOT/
 └── index.md                  # Dashboard central
 ```
 
+Note : les process “seed” sont stockés côté repo dans `templates/brain_seed/Process/` puis copiés vers `Process/` du cerveau à l’installation.
+
 ### Frontmatter canonique (Knowledge/)
 
 ```yaml

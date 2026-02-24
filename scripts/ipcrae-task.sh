@@ -9,19 +9,12 @@
 set -e
 set -o pipefail
 
-# Assurer que IPCRAE_ROOT est défini, sinon utiliser le répertoire parent du script
+# Assurer que IPCRAE_ROOT est défini (cerveau uniquement)
 if [ -z "$IPCRAE_ROOT" ]; then
-    # Heuristique simple: remonter jusqu'à trouver un dossier .git ou .ipcrae-project
-    CURRENT_DIR=$(pwd)
-    while [ "$CURRENT_DIR" != "/" ]; do
-        if [ -d "$CURRENT_DIR/.git" ] || [ -d "$CURRENT_DIR/.ipcrae-project" ]; then
-            IPCRAE_ROOT="$CURRENT_DIR"
-            break
-        fi
-        CURRENT_DIR=$(dirname "$CURRENT_DIR")
-    done
-    if [ -z "$IPCRAE_ROOT" ]; then
-        echo "Erreur: Impossible de déterminer IPCRAE_ROOT. Veuillez le définir." >&2
+    if [ -f "$HOME/IPCRAE/.ipcrae/config.yaml" ]; then
+        IPCRAE_ROOT="$HOME/IPCRAE"
+    else
+        echo "Erreur: IPCRAE_ROOT non défini. Ex: export IPCRAE_ROOT=\"$HOME/IPCRAE\"" >&2
         exit 1
     fi
 fi

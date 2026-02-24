@@ -34,6 +34,12 @@ Ce système fonctionne en 4 couches complémentaires :
   3) `ipcrae search <mots|tags>` en fallback.
 - Toute nouvelle note réutilisable doit être écrite dans `Knowledge/` avec frontmatter canonique.
 
+## Contrat synchronisation & cohérence (obligatoire)
+- Toute modification d'une source de vérité (prompts, instructions, seeds, scripts, process) doit être répercutée dans les fichiers liés (docs, templates, brain_seed, index).
+- `ipcrae sync` après toute modification des prompts/instructions.
+- `ipcrae index` après modification des tags/frontmatter.
+- Ne pas clôturer une tâche si des fichiers liés ou l'index sont désynchronisés.
+
 
 ## Pré-traitement obligatoire des demandes utilisateur
 - Avant toute exécution, reconstruire un prompt optimisé :

@@ -168,6 +168,14 @@ fi
 
 IPCRAE_ROOT="$(normalize_root "$IPCRAE_ROOT")"
 
+# Empêcher l'installation du cerveau dans le repo code (DEV/IPCRAE)
+case "$IPCRAE_ROOT" in
+  "$SCRIPT_DIR"|"$SCRIPT_DIR"/*)
+    logerr "IPCRAE_ROOT ne doit pas pointer vers le repo code (${SCRIPT_DIR}). Choisis un cerveau séparé (ex: ~/IPCRAE)."
+    exit 1
+    ;;
+esac
+
 case "$IPCRAE_ROOT" in
   ""|"/")
     logerr "Chemin cible invalide: '$IPCRAE_ROOT'"
@@ -328,7 +336,7 @@ if prompt_yes_no "Installer templates (Daily/Weekly/Monthly/Phase/Process/Projet
 
   # Seed méthodologique par défaut (knowledge/process/ressources) pour compréhension rapide d'IPCRAE
   if [ -d "$SCRIPT_DIR/templates/brain_seed" ]; then
-    execute mkdir -p Knowledge/howto Knowledge/patterns Knowledge/runbooks Process Ressources/Autres
+    execute mkdir -p Knowledge/howto Knowledge/patterns Knowledge/runbooks Process Ressources/Autres Tasks/to_ai Tasks/to_user Tasks/history
     for f in "$SCRIPT_DIR"/templates/brain_seed/Knowledge/howto/*.md; do
       [ -f "$f" ] || continue
       base="$(basename "$f")"
