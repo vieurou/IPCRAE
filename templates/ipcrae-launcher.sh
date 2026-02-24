@@ -1183,7 +1183,6 @@ cmd_doctor() {
   printf '\n%bFichiers IPCRAE%b\n' "$YELLOW" "$NC"
   for f in \
     "$IPCRAE_ROOT/.ipcrae/context.md" \
-    "$IPCRAE_ROOT/.ipcrae/instructions.md" \
     "$IPCRAE_ROOT/CLAUDE.md" \
     "$IPCRAE_ROOT/GEMINI.md" \
     "$IPCRAE_ROOT/AGENTS.md"; do
@@ -1205,7 +1204,7 @@ cmd_doctor() {
     if [ -n "$changed" ]; then
       while IFS= read -r f; do
         case "$f" in
-          .ipcrae/context.md|.ipcrae/instructions.md|.ipcrae/prompts/*) need_sync=1 ;;
+          .ipcrae/context.md|.ipcrae/prompts/*) need_sync=1 ;;
           Knowledge/*|Zettelkasten/*|Process/*|Ressources/*) need_index=1 ;;
         esac
       done <<< "$changed"
@@ -1235,23 +1234,21 @@ cmd_doctor() {
     printf '  ⚠ tag-index.json manquant → ipcrae index\n'
   fi
 
-  local ctx ins body
-  ctx="$IPCRAE_ROOT/.ipcrae/context.md"
-  ins="$IPCRAE_ROOT/.ipcrae/instructions.md"
-  if [ -f "$ctx" ] && [ -f "$ins" ]; then
-    body="$(cat "$ctx"; printf '\n\n---\n\n'; cat "$ins")"
-    for t in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
-      local f="${t%%:*}" n="${t##*:}" tmp
-      tmp="$(mktemp)"
-      printf '# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n' "$n" "$METHOD_VERSION" "$body" > "$tmp"
-      if [ -f "$IPCRAE_ROOT/$f" ] && cmp -s "$tmp" "$IPCRAE_ROOT/$f"; then
-        printf '  ✓ %s à jour\n' "$f"
-      else
-        printf '  ✗ %s non synchronisé (lancer: ipcrae sync)\n' "$f"
-      fi
-      rm -f "$tmp"
-    done
-  fi
+  # ── Check fichiers provider (format léger v3.3+) ──────────────────────
+  local prompts_dir="$IPCRAE_ROOT/.ipcrae/prompts"
+  for t in "CLAUDE.md:provider_claude.md" "GEMINI.md:provider_gemini.md" "CODEX.md:provider_codex.md" "AGENTS.md:provider_codex.md"; do
+    local f="${t%%:*}" tpl="${t##*:}"
+    local fpath="$IPCRAE_ROOT/$f" tpl_path="$prompts_dir/$tpl"
+    if [ ! -f "$fpath" ]; then
+      printf '  ✗ %s manquant\n' "$f"
+    elif ! grep -q "GENERE - editer .ipcrae/prompts/" "$fpath" 2>/dev/null; then
+      printf '  ✗ %s format dépassé (lancer: ipcrae sync)\n' "$f"
+    elif [ -f "$tpl_path" ] && [ "$tpl_path" -nt "$fpath" ]; then
+      printf '  ⚠ %s potentiellement obsolète (template modifié → ipcrae sync)\n' "$f"
+    else
+      printf '  ✓ %s à jour\n' "$f"
+    fi
+  done
 
   printf "\n%bContrat d'injection de contexte (CDE)%b\n" "$YELLOW" "$NC"
   [ -d "$orig_cwd/docs/conception" ] && printf '  ✓ docs/conception/\n' || printf '  ✗ docs/conception/\n'
