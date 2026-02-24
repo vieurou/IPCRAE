@@ -28,7 +28,7 @@ Knowledge/ (tags YAML)      ←→       (indexé par ipcrae-index)           ip
 - **ADR-001** : Stockage 100% Markdown local — simplicité, compatibilité Obsidian, versioning Git sans dépendance externe.
 - **ADR-002** : Multi-provider IA (Claude/Gemini/Codex/Kilo) — pas de lock-in fournisseur ; `ipcrae-agent-bridge` compare les sorties.
 - **ADR-003** : Mémoire IA par domaine (`memory/devops.md`, `memory/musique.md`...) — réduction du bruit contextuel, isolation des domaines métier.
-- **ADR-004** : Fichiers providers (`CLAUDE.md`, `GEMINI.md`) générés depuis `context.md + instructions.md` via `ipcrae sync` — source unique de vérité, édition manuelle interdite.
+- **ADR-004** : Fichiers providers (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`) générés depuis `.ipcrae/prompts/provider_{name}.md` via `ipcrae sync` — entrées légères (pointeurs vers core files), édition manuelle interdite.
 - **ADR-005** : `write_safe` avec backup automatique (`*.bak-<timestamp>`) et mode `--dry-run` — installation non destructive, rollback possible.
 - **ADR-006** : Cache tags (`.ipcrae/cache/tag-index.json`) dérivé depuis le frontmatter YAML, jamais source de vérité — reconstructible à tout moment via `ipcrae index`.
 
@@ -63,6 +63,7 @@ IPCRAE_ROOT/
 ├── Casquettes/               # Responsabilités continues (areas)
 ├── Inbox/
 │   ├── demandes-brutes/      # Capture brute non triée (format texte brut)
+│   │   └── traites/          # Demandes traitées (archivage)
 │   └── waiting-for.md
 ├── Journal/{Daily,Weekly,Monthly}/
 ├── Phases/index.md           # Source de priorités active
@@ -147,37 +148,38 @@ IPCRAE supporte la synchronisation automatique du vault et des projets via Git.
 
 ### Structure de configuration (`.ipcrae/config.yaml`)
 
+Format **plat** (clés au top level, pas de section `git:` imbriquée) :
+
 ```yaml
 # Provider IA par défaut
 default_provider: claude
 
-# Synchronisation Git automatique
-git:
-  # Activer/désactiver la synchro auto (true/false)
-  auto_sync: true
-  
-  # Remote du cerveau (vault global)
-  brain_remote: origin
-  
-  # URL du cerveau (pour setup initial)
-  brain_url: https://github.com/vieurou/IPCRAE.git
-  
-  # Remotes des projets (mapping slug → remote)
-  project_remotes:
-    mon-projet: git@github.com:vieurou/mon-projet.git
-    autre-projet: https://github.com/vieurou/autre-projet.git
-  
-  # Comportement de commit
-  commit:
-    # Message par défaut
-    template: "[IPCRAE] Auto-sync: {date}"
-    
-    # Fichiers à exclure
-    exclude:
-      - "*.bak-*"
-      - ".ipcrae/local-notes/*"
-      - ".DS_Store"
+# Synchronisation Git automatique (true/false)
+# Peut aussi être forcé via la variable d'env IPCRAE_AUTO_GIT (priorité sur config)
+auto_git_sync: true
+
+# Push automatique après commit (true/false)
+auto_git_push: false
+
+# Remote du cerveau (nom du git remote à utiliser)
+brain_remote: origin
+
+# Remotes des projets (mapping slug → remote ou URL)
+project_remotes:
+  mon-projet: git@github.com:vieurou/mon-projet.git
+  autre-projet: https://github.com/vieurou/autre-projet.git
 ```
+
+### Variable d'environnement `IPCRAE_AUTO_GIT`
+
+Priorité sur `auto_git_sync` dans `config.yaml`. Utile pour les overrides temporaires :
+
+```bash
+IPCRAE_AUTO_GIT=false ipcrae close devops   # Désactiver le commit auto pour cette session
+IPCRAE_AUTO_GIT=true  ipcrae daily          # Forcer le commit même si config=false
+```
+
+Ordre de résolution : `IPCRAE_AUTO_GIT` env var → `auto_git_sync` dans config.yaml → `false` (défaut).
 
 ### Flux de synchronisation
 
