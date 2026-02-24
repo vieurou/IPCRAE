@@ -1780,13 +1780,25 @@ cmd_allcontext() {
     logerr "Usage: ipcrae allcontext \"<texte de la demande>\" [--dry-run] [--show-all]"
     return 1
   fi
-  # Script dans DEV/IPCRAE/scripts/ (installé) ou fallback inline
-  local script_path="${HOME}/DEV/IPCRAE/scripts/ipcrae-allcontext.sh"
+  # Script dans IPCRAE/scripts/ (installé) ou fallback inline
+  local script_path="${IPCRAE_ROOT}/scripts/ipcrae-allcontext.sh"
   if [ -f "$script_path" ]; then
     bash "$script_path" "$@"
   else
     logerr "Script ipcrae-allcontext.sh introuvable: $script_path"
-    logerr "Clonez DEV/IPCRAE ou copiez le script dans ~/DEV/IPCRAE/scripts/"
+    logerr "Vérifiez l'installation IPCRAE"
+    return 1
+  fi
+}
+
+# ── Inbox Scan ────────────────────────────────────────────────
+cmd_inbox() {
+  need_root
+  local script_path="${IPCRAE_ROOT}/scripts/ipcrae-inbox-scan.sh"
+  if [ -f "$script_path" ]; then
+    bash "$script_path" "$@"
+  else
+    logerr "Script introuvable: $script_path"
     return 1
   fi
 }
@@ -1923,6 +1935,30 @@ cmd_update() {
   fi
 }
 
+# ── Checkpoint — commit rapide mid-session ────────────────────
+cmd_checkpoint() {
+  need_root
+  local reason="${1:-checkpoint}"
+
+  if [ ! -d "${IPCRAE_ROOT}/.git" ]; then
+    logwarn "Checkpoint: ${IPCRAE_ROOT} n'est pas un dépôt Git."
+    return 1
+  fi
+
+  (
+    cd "${IPCRAE_ROOT}"
+    git add -A
+    if git diff --cached --quiet; then
+      loginfo "Checkpoint: rien à committer (cerveau déjà à jour)."
+      return 0
+    fi
+    local msg="chore(brain): checkpoint — ${reason} ($(date +'%Y-%m-%d %H:%M:%S'))"
+    git commit -m "$msg" || return 1
+    git push || logwarn "Push échoué (commit local conservé)."
+    loginfo "✓ Checkpoint : ${msg}"
+  )
+}
+
 # ── Git Vault Sync ────────────────────────────────────────────
 cmd_sync_git() {
   need_root
@@ -2021,6 +2057,8 @@ cmd_menu() {
     "Zettelkasten (nouvelle note)" \
     "MOC (Map of Content)" \
     "Capture rapide (Inbox)" \
+    "AllContext (analyse universelle)" \
+    "Inbox Scan (scan automatique)" \
     "Lancer session IA" \
     "Lancer session IA (mode expert)" \
     "Consolidation des notes" \
@@ -2045,23 +2083,25 @@ cmd_menu() {
       5)  read -r -p "Titre: " _t; cmd_zettel "$_t"; break ;;
       6)  read -r -p "Thème: " _t; cmd_moc "$_t"; break ;;
       7)  read -r -p "Note: " _n; cmd_capture "$_n"; break ;;
-      8)  launch_ai "$(get_default_provider)"; break ;;
-      9)  read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
+      8)  read -r -p "Demande: " _d; cmd_allcontext --demande "$_d"; break ;;
+      9)  cmd_inbox scan; break ;;
+      10) launch_ai "$(get_default_provider)"; break ;;
+      11) read -r -p "Mode expert (DevOps, Electronique, Musique…): " m
           launch_ai "$(get_default_provider)" "$m"; break ;;
-      10) cmd_consolidate; break ;;
-      11) cmd_update; break ;;
-      12) cmd_sync_git; break ;;
-      13) read -r -p "Domaine: " _d; cmd_close "$_d"; break ;;
-      14) cmd_health; break ;;
-      15) cmd_doctor; break ;;
-      16) cmd_index; break ;;
-      17) read -r -p "Tag: " _tag; cmd_tag "$_tag"; break ;;
-      18) sync_providers; break ;;
-      19) cmd_migrate_safe; break ;;
-      20) list_providers; break ;;
-      21) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
-      22) cmd_process; break ;;
-      23) exit 0 ;;
+      12) cmd_consolidate; break ;;
+      13) cmd_update; break ;;
+      14) cmd_sync_git; break ;;
+      15) read -r -p "Domaine: " _d; cmd_close "$_d"; break ;;
+      16) cmd_health; break ;;
+      17) cmd_doctor; break ;;
+      18) cmd_index; break ;;
+      19) read -r -p "Tag: " _tag; cmd_tag "$_tag"; break ;;
+      20) sync_providers; break ;;
+      21) cmd_migrate_safe; break ;;
+      22) list_providers; break ;;
+      23) open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md"; break ;;
+      24) cmd_process; break ;;
+      25) exit 0 ;;
       *)  echo "Choix invalide." ;;
     esac
   done
@@ -2100,6 +2140,7 @@ Commandes:
   process [nom]            Créer/ouvrir un process ou l'index
   consolidate <domaine>    Lancer une IA pour compacter la mémoire
   allcontext "<texte>"     Pipeline d'analyse/ingestion universel (rôles + contexte + tracking)
+  inbox scan               Scan automatique de l'Inbox (bash pur, < 1 seconde)
   addProject --slug <s>    Créer un hub projet vault (index + tracking + memory + demandes/)
   archive <slug>           Archiver un projet terminé (Projets/ → Archives/, context.md nettoyé)
   demandes [status|done]   Suivi de l'état des demandes brutes (Inbox/demandes-brutes/)
@@ -2107,6 +2148,7 @@ Commandes:
   prompt check             Vérifier la cohérence des sections obligatoires dans tous les agents
   prompt --list            Lister les agents disponibles
   update                   Met à jour via git pull puis relance l'installateur
+  checkpoint [raison]      Commit rapide mid-session (sans close) — protège contre interruption
   sync-git                 Sauvegarde Git du vault entier (add, commit, push)
   migrate-safe             Upgrade IPCRAE sans perte (backup + merge non destructif)
   <texte_libre>            Mode expert (ex: ipcrae DevOps)
@@ -2170,6 +2212,7 @@ main() {
     remote)            cmd_remote "${cmd_args[@]:-}" ;;
     close)             cmd_close "${cmd_args[@]:-}" ;;
     sync)              sync_providers ;;
+    checkpoint)        cmd_checkpoint "${cmd_args[*]:-}" ;;
     sync-git)          cmd_sync_git ;;
     migrate-safe)      cmd_migrate_safe ;;
     list)              list_providers ;;
@@ -2186,6 +2229,7 @@ main() {
     update)            cmd_update ;;
     consolidate)       cmd_consolidate "${cmd_args[0]:-}" ;;
     allcontext)        cmd_allcontext "${cmd_args[@]:-}" ;;
+    inbox)             cmd_inbox "${cmd_args[@]:-}" ;;
     prompt)            cmd_prompt_build "${cmd_args[@]:-}" ;;
     addProject|add-project) cmd_add_project "${cmd_args[@]:-}" ;;
     archive)           cmd_archive "${cmd_args[@]:-}" ;;
