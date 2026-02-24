@@ -4,3 +4,6 @@
 # Agent-local directories (auto-generated, not to be committed)
 .ipcrae/
 .kilocode/
+
+# VS Code MCP debug tools (instance-specific, auto-generated)
+.mcp-debug-tools/config.json
