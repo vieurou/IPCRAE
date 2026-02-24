@@ -258,24 +258,88 @@ list_providers() {
 sync_providers() {
   loginfo "Synchronisation des fichiers provider..."
   local ctx="${IPCRAE_ROOT}/.ipcrae/context.md"
-  local ins="${IPCRAE_ROOT}/.ipcrae/instructions.md"
-  if [ ! -f "$ctx" ] || [ ! -f "$ins" ]; then
-    logerr "Sources manquantes (.ipcrae/context.md ou instructions.md)"
+  local prompts_dir="${IPCRAE_ROOT}/.ipcrae/prompts"
+
+  if [ ! -f "$ctx" ]; then
+    logerr "Source manquante (.ipcrae/context.md)"
     exit 1
   fi
 
-  local body
-  body="$(cat "$ctx"; printf '\n\n---\n\n'; cat "$ins")"
+  # ── Copier les templates provider vers le cerveau ──────────────────────
+  local src_prompts
+  src_prompts="$(dirname "$(readlink -f "$0")")"
+  # Chercher les provider templates dans le répertoire du launcher ou des templates installés
+  for tpl in provider_claude.md provider_codex.md provider_gemini.md; do
+    local found=""
+    for d in "$src_prompts" "${IPCRAE_ROOT}/.ipcrae/prompts" /usr/local/share/ipcrae/prompts; do
+      if [ -f "$d/$tpl" ]; then found="$d/$tpl"; break; fi
+    done
+    if [ -n "$found" ] && [ "$found" != "${prompts_dir}/${tpl}" ]; then
+      cp "$found" "${prompts_dir}/${tpl}" 2>/dev/null && \
+        printf '  ✓ prompts/%s (mis à jour)\n' "$tpl"
+    fi
+  done
 
-  for target in "CLAUDE.md:Claude" "GEMINI.md:Gemini" "AGENTS.md:Codex"; do
-    local file="${target%%:*}" name="${target##*:}"
-    printf "# Instructions pour %s — IPCRAE v%s\n# ⚠ GÉNÉRÉ — éditer .ipcrae/context.md + instructions.md\n# Régénérer : ipcrae sync\n\n%s\n" \
-      "$name" "$METHOD_VERSION" "$body" > "${IPCRAE_ROOT}/${file}"
+  # ── Liste des fichiers core (ordre de lecture recommandé) ──────────────
+  local core_list
+  core_list="$(printf '%s\n' \
+    "1. \`.ipcrae/prompts/core_ai_pretreatment_gate.md\` — Gate de pré-traitement (RÈGLE 0, NON-NÉGOCIABLE)" \
+    "2. \`.ipcrae/prompts/core_ai_functioning.md\` — Fonctionnement IA commun" \
+    "3. \`.ipcrae/prompts/core_ai_workflow_ipcra.md\` — Workflow d'exécution IPCRAE" \
+    "4. \`.ipcrae/prompts/core_ai_memory_method.md\` — Gouvernance mémoire" \
+    "5. \`.ipcrae/context.md\` — Contexte projet (identité, structure, phases, projets)")"
+
+  local agents_list
+  agents_list="$(printf '%s\n' \
+    "- \`.ipcrae/prompts/agent_devops.md\` → DevOps / infra" \
+    "- \`.ipcrae/prompts/agent_electronique.md\` → Électronique / IoT" \
+    "- \`.ipcrae/prompts/agent_musique.md\` → Production musicale" \
+    "- \`.ipcrae/prompts/agent_maison.md\` → Maison / DIY" \
+    "- \`.ipcrae/prompts/agent_finance.md\` → Finance" \
+    "- \`.ipcrae/prompts/agent_sante.md\` → Santé")"
+
+  # ── Générer les fichiers provider (entrées légères) ───────────────────
+  # Format: FICHIER:NOM_AGENT:TEMPLATE_PROVIDER
+  # AGENTS.md = alias Codex (convention Codex CLI)
+  for target in \
+    "CLAUDE.md:Claude Code:provider_claude.md" \
+    "GEMINI.md:Gemini CLI:provider_gemini.md" \
+    "CODEX.md:Codex CLI:provider_codex.md" \
+    "AGENTS.md:Codex CLI:provider_codex.md"; do
+    local file="${target%%:*}"
+    local rest="${target#*:}"
+    local name="${rest%%:*}"
+    local tpl="${rest##*:}"
+    local tpl_path="${prompts_dir}/${tpl}"
+
+    {
+      printf '# Instructions pour %s — IPCRAE v%s\n' "$name" "$METHOD_VERSION"
+      printf '# GENERÉ — éditer .ipcrae/prompts/%s\n' "$tpl"
+      printf '# Régénérer : ipcrae sync\n\n'
+      printf '## Racine cerveau\n'
+      printf '`%s` (variable IPCRAE_ROOT)\n\n' "$IPCRAE_ROOT"
+      printf '## Fichiers à lire au démarrage (dans l'"'"'ordre)\n'
+      printf '%s\n\n' "$core_list"
+      printf 'Puis selon le domaine de la demande :\n'
+      printf '%s\n\n' "$agents_list"
+      if [ -f "$tpl_path" ]; then
+        cat "$tpl_path"
+      fi
+    } > "${IPCRAE_ROOT}/${file}"
     printf '  ✓ %s\n' "$file"
   done
 
+  # ── KiloCode ──────────────────────────────────────────────────────────
   mkdir -p "${IPCRAE_ROOT}/.kilocode/rules"
-  printf '# Instructions IPCRAE pour Kilo Code\n# ⚠ GÉNÉRÉ\n\n%s\n' "$body" > "${IPCRAE_ROOT}/.kilocode/rules/ipcrae.md"
+  {
+    printf '# Instructions IPCRAE pour Kilo Code\n# GENERÉ\n\n'
+    printf '## Racine cerveau\n'
+    printf '`%s` (variable IPCRAE_ROOT)\n\n' "$IPCRAE_ROOT"
+    printf '## Fichiers à lire au démarrage (dans l'"'"'ordre)\n'
+    printf '%s\n\n' "$core_list"
+    printf 'Puis selon le domaine de la demande :\n'
+    printf '%s\n' "$agents_list"
+  } > "${IPCRAE_ROOT}/.kilocode/rules/ipcrae.md"
   printf '  ✓ .kilocode/rules/ipcrae.md\n'
 
   # ── Propager règles KiloCode dans tous les projets DEV connus ──────────
@@ -286,9 +350,17 @@ sync_providers() {
     while IFS= read -r dev_path; do
       if [ -d "$dev_path/.kilocode" ] || [ -d "$dev_path" ]; then
         mkdir -p "$dev_path/.kilocode/rules"
-        printf '# Instructions IPCRAE pour Kilo Code — projet: %s\n# ⚠ GÉNÉRÉ par ipcrae sync depuis %s\n# IPCRAE_ROOT=%s\n\n%s\n' \
-          "$(basename "$dev_path")" "$IPCRAE_ROOT" "$IPCRAE_ROOT" "$body" \
-          > "$dev_path/.kilocode/rules/ipcrae.md"
+        {
+          printf '# Instructions IPCRAE pour Kilo Code — projet: %s\n' "$(basename "$dev_path")"
+          printf '# GENERÉ par ipcrae sync depuis %s\n' "$IPCRAE_ROOT"
+          printf '# IPCRAE_ROOT=%s\n\n' "$IPCRAE_ROOT"
+          printf '## Racine cerveau\n'
+          printf '`%s` (variable IPCRAE_ROOT)\n\n' "$IPCRAE_ROOT"
+          printf '## Fichiers à lire au démarrage (dans l'"'"'ordre)\n'
+          printf '%s\n\n' "$core_list"
+          printf 'Puis selon le domaine de la demande :\n'
+          printf '%s\n' "$agents_list"
+        } > "$dev_path/.kilocode/rules/ipcrae.md"
         printf '  ✓ %s/.kilocode/rules/ipcrae.md\n' "$(basename "$dev_path")"
       fi
     done <<< "$dev_paths"
