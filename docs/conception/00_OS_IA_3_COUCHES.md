@@ -35,4 +35,4 @@ Formaliser la séparation **stockage local / agent / interface terminal** et les
 4. `.ipcrae/cache/tag-index.json` présent.
 5. En mode projet local: symlink/hub projet cohérent (mode dégradé toléré mais signalé).
 
-Ces invariants sont vérifiés par `ipcrae doctor`.
+Ces invariants sont vérifiés par `ipcrae doctor` (inclut désormais un check de cohérence `sync/index`).
