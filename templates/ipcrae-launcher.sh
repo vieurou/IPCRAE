@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_VERSION="3.3.0"
 METHOD_VERSION="3.3"
-IPCRAE_ROOT="${IPCRAE_ROOT:-${HOME}/IPCRAE}"
+IPCRAE_ROOT="${IPCRAE_brain:-${IPCRAE_BRAIN:-${IPCRAE_ROOT:-${HOME}/brain}}}"
 IPCRAE_CONFIG="${IPCRAE_ROOT}/.ipcrae/config.yaml"
 VAULT_NAME="$(basename "$IPCRAE_ROOT")"
 
@@ -1998,9 +1998,9 @@ cmd_migrate_safe() {
   need_root
   section "Migration safe IPCRAE"
 
-  local migrator="${HOME}/bin/ipcrae-migrate-safe"
+  local migrator="${IPCRAE_ROOT}/.bin/ipcrae-migrate-safe"
   if [ ! -x "$migrator" ]; then
-    logwarn "ipcrae-migrate-safe introuvable dans ~/bin. Tentative locale..."
+    logwarn "ipcrae-migrate-safe introuvable dans ${IPCRAE_ROOT}/.bin. Tentative locale..."
     if [ -x "${IPCRAE_ROOT}/templates/ipcrae-migrate-safe.sh" ]; then
       migrator="${IPCRAE_ROOT}/templates/ipcrae-migrate-safe.sh"
     else

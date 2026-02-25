@@ -22,8 +22,12 @@ for _arg in "$@"; do
   esac
 done
 
-# Résoudre IPCRAE_ROOT : priorité à la variable d'env, sinon demander interactivement.
-if [ -z "${IPCRAE_ROOT:-}" ]; then
+# Résoudre le cerveau global (priorité variable dédiée, puis compat historique).
+if [ -n "${IPCRAE_brain:-}" ]; then
+  IPCRAE_ROOT="${IPCRAE_brain}"
+elif [ -n "${IPCRAE_BRAIN:-}" ]; then
+  IPCRAE_ROOT="${IPCRAE_BRAIN}"
+elif [ -z "${IPCRAE_ROOT:-}" ]; then
   _default="$HOME/brain"
   if [ -t 0 ]; then
     printf 'Chemin du cerveau IPCRAE (dossier racine) :\n'
@@ -38,6 +42,7 @@ case "$IPCRAE_ROOT" in
   "~")  IPCRAE_ROOT="$HOME" ;;
   "~/"*) IPCRAE_ROOT="$HOME/${IPCRAE_ROOT#~/}" ;;
 esac
+BRAIN_BIN_DIR="$IPCRAE_ROOT/.bin"
 CONCEPTION_DIR="docs/conception"
 CONCEPTS_DIR="$CONCEPTION_DIR/concepts"
 LOCAL_IPCRAE_DIR=".ipcrae-project"
@@ -196,7 +201,7 @@ cat << 'EOF' > "$CONCEPTION_DIR/03_IPCRAE_BRIDGE.md"
 - Notes volatiles: todo techniques, logs de debug, hypothèses temporaires.
 - Ce contenu n'est pas une source de vérité durable.
 
-## Ce qui est exporté vers `~/IPCRAE/Projets/<projet>/`
+## Ce qui est exporté vers `~/brain/Projets/<projet>/`
 - `index.md`: état global, liens, contexte de pilotage.
 - `tracking.md`: next actions et milestones.
 - `memory.md`: synthèse projet consolidée.
@@ -288,25 +293,25 @@ fi
 # 7bis. Bootstrap outils strict mode (si présents)
 # Garantit que l'initialisation projet rend disponible ipcrae-strict-check
 # même si l'utilisateur n'a pas relancé son shell après installation IPCRAE.
-if [ -x "$HOME/bin/ipcrae-strict-check" ]; then
-    echo "✅ strict-check déjà disponible dans ~/bin"
+if [ -x "$BRAIN_BIN_DIR/ipcrae-strict-check" ]; then
+    echo "✅ strict-check déjà disponible dans $BRAIN_BIN_DIR"
 elif [ -x "$IPCRAE_ROOT/scripts/ipcrae-strict-check.sh" ]; then
-    mkdir -p "$HOME/bin"
-    cp "$IPCRAE_ROOT/scripts/ipcrae-strict-check.sh" "$HOME/bin/ipcrae-strict-check"
-    chmod +x "$HOME/bin/ipcrae-strict-check"
-    echo "✅ Installé : ~/bin/ipcrae-strict-check (depuis cerveau global)"
+    mkdir -p "$BRAIN_BIN_DIR"
+    cp "$IPCRAE_ROOT/scripts/ipcrae-strict-check.sh" "$BRAIN_BIN_DIR/ipcrae-strict-check"
+    chmod +x "$BRAIN_BIN_DIR/ipcrae-strict-check"
+    echo "✅ Installé : $BRAIN_BIN_DIR/ipcrae-strict-check (depuis cerveau global)"
 else
     echo "⚠ strict-check introuvable (installer/mettre à jour IPCRAE recommandé)"
 fi
 
 
-if [ -x "$HOME/bin/ipcrae-strict-report" ]; then
-    echo "✅ strict-report déjà disponible dans ~/bin"
+if [ -x "$BRAIN_BIN_DIR/ipcrae-strict-report" ]; then
+    echo "✅ strict-report déjà disponible dans $BRAIN_BIN_DIR"
 elif [ -x "$IPCRAE_ROOT/scripts/ipcrae-strict-report.sh" ]; then
-    mkdir -p "$HOME/bin"
-    cp "$IPCRAE_ROOT/scripts/ipcrae-strict-report.sh" "$HOME/bin/ipcrae-strict-report"
-    chmod +x "$HOME/bin/ipcrae-strict-report"
-    echo "✅ Installé : ~/bin/ipcrae-strict-report (depuis cerveau global)"
+    mkdir -p "$BRAIN_BIN_DIR"
+    cp "$IPCRAE_ROOT/scripts/ipcrae-strict-report.sh" "$BRAIN_BIN_DIR/ipcrae-strict-report"
+    chmod +x "$BRAIN_BIN_DIR/ipcrae-strict-report"
+    echo "✅ Installé : $BRAIN_BIN_DIR/ipcrae-strict-report (depuis cerveau global)"
 else
     echo "⚠ strict-report introuvable (installer/mettre à jour IPCRAE recommandé)"
 fi
@@ -626,7 +631,7 @@ if [ -d ".git" ]; then
     cat >> "$HOOK_FILE" << 'HOOKEOF'
 #!/usr/bin/env bash
 # IPCRAE_BRAIN_SYNC — ne pas supprimer ce bloc
-_IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/brain}"
+_IPCRAE_ROOT="${IPCRAE_brain:-${IPCRAE_BRAIN:-${IPCRAE_ROOT:-$HOME/brain}}}"
 _TASKS_DIR="$_IPCRAE_ROOT/Tasks/to_ai"
 if [ -d "$_IPCRAE_ROOT" ]; then
   _stamp="$(date +%s)"

@@ -11,7 +11,7 @@ GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'
 RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 AUTO_YES="${AUTO_YES:-false}"
 DRY_RUN="${DRY_RUN:-false}"
-IPCRAE_ROOT="${IPCRAE_ROOT:-}"
+IPCRAE_ROOT="${IPCRAE_brain:-${IPCRAE_BRAIN:-${IPCRAE_ROOT:-}}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 execute() {
@@ -651,30 +651,31 @@ fi # fin SCRIPTS_ONLY guard (sections 1-6)
 # ═══════════════════════════════════════════════════════════════════════════
 section "Installation des scripts CLI dans le PATH"
 
-if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
-  execute mkdir -p "$HOME/bin"
+if prompt_yes_no "Installer les scripts CLI dans $IPCRAE_ROOT/.bin ?" "y"; then
+  BIN_DIR="$IPCRAE_ROOT/.bin"
+  execute mkdir -p "$BIN_DIR"
 
   if [ -f "$SCRIPT_DIR/templates/ipcrae-launcher.sh" ]; then
-    execute cp "$SCRIPT_DIR/templates/ipcrae-launcher.sh" "$HOME/bin/ipcrae"
-    execute chmod +x "$HOME/bin/ipcrae"
+    execute cp "$SCRIPT_DIR/templates/ipcrae-launcher.sh" "$BIN_DIR/ipcrae"
+    execute chmod +x "$BIN_DIR/ipcrae"
     # NE PAS hardcoder IPCRAE_ROOT dans le binaire : on exporte la variable d'env
     # dans les shells (voir section "Variables d'environnement" ci-dessous).
-    # Le launcher utilise déjà ${IPCRAE_ROOT:-${HOME}/IPCRAE} comme fallback dynamique.
+    # Le launcher utilise IPCRAE_brain (ou compat IPCRAE_ROOT) avec fallback ~/brain.
   else
     logerr "Template templates/ipcrae-launcher.sh introuvable !"
     exit 1
   fi
   
   if [ -f "$SCRIPT_DIR/templates/ipcrae-addProject.sh" ]; then
-    execute cp "$SCRIPT_DIR/templates/ipcrae-addProject.sh" "$HOME/bin/ipcrae-addProject"
+    execute cp "$SCRIPT_DIR/templates/ipcrae-addProject.sh" "$BIN_DIR/ipcrae-addProject"
   else
     logerr "Template templates/ipcrae-addProject.sh introuvable !"
     exit 1
   fi
 
   if [ -f "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" ]; then
-    execute cp "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" "$HOME/bin/ipcrae-migrate-safe"
-    execute chmod +x "$HOME/bin/ipcrae-migrate-safe"
+    execute cp "$SCRIPT_DIR/templates/ipcrae-migrate-safe.sh" "$BIN_DIR/ipcrae-migrate-safe"
+    execute chmod +x "$BIN_DIR/ipcrae-migrate-safe"
   else
     logwarn "Template templates/ipcrae-migrate-safe.sh introuvable (migration safe non installée)."
   fi
@@ -688,34 +689,34 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
   fi
 
   if [ -d "$SCRIPT_DIR/templates/scripts" ]; then
-    execute mkdir -p "$IPCRAE_ROOT/Scripts" "$HOME/bin"
+    execute mkdir -p "$IPCRAE_ROOT/Scripts" "$BIN_DIR"
     execute cp "$SCRIPT_DIR"/templates/scripts/*.sh "$IPCRAE_ROOT/Scripts/"
     execute chmod +x "$IPCRAE_ROOT"/Scripts/*.sh
 
-    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tokenpack.sh" "$HOME/bin/ipcrae-tokenpack"
-    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-bridge.sh" "$HOME/bin/ipcrae-agent-bridge"
-    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$HOME/bin/ipcrae-prompt-optimize"
-    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-hub.sh" "$HOME/bin/ipcrae-agent-hub"
-    execute chmod +x "$HOME/bin/ipcrae-tokenpack" "$HOME/bin/ipcrae-agent-bridge" "$HOME/bin/ipcrae-prompt-optimize" "$HOME/bin/ipcrae-agent-hub"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tokenpack.sh" "$BIN_DIR/ipcrae-tokenpack"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-bridge.sh" "$BIN_DIR/ipcrae-agent-bridge"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-prompt-optimize.sh" "$BIN_DIR/ipcrae-prompt-optimize"
+    execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-agent-hub.sh" "$BIN_DIR/ipcrae-agent-hub"
+    execute chmod +x "$BIN_DIR/ipcrae-tokenpack" "$BIN_DIR/ipcrae-agent-bridge" "$BIN_DIR/ipcrae-prompt-optimize" "$BIN_DIR/ipcrae-agent-hub"
     loginfo "✓ Scripts token/multi-agent installés (ipcrae-tokenpack, ipcrae-agent-bridge, ipcrae-prompt-optimize, ipcrae-agent-hub)"
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"
-      execute chmod +x "$HOME/bin/ipcrae-index"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$BIN_DIR/ipcrae-index"
+      execute chmod +x "$BIN_DIR/ipcrae-index"
       loginfo "✓ Script optionnel installé: ipcrae-index"
     else
       logwarn "Script ipcrae-index introuvable."
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$HOME/bin/ipcrae-tag-index"
-      execute chmod +x "$HOME/bin/ipcrae-tag-index"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$BIN_DIR/ipcrae-tag-index"
+      execute chmod +x "$BIN_DIR/ipcrae-tag-index"
       loginfo "✓ Script optionnel installé: ipcrae-tag-index"
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
-      execute chmod +x "$HOME/bin/ipcrae-tag"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$BIN_DIR/ipcrae-tag"
+      execute chmod +x "$BIN_DIR/ipcrae-tag"
       loginfo "✓ Script optionnel installé: ipcrae-tag"
     else
       logwarn "Script ipcrae-tag introuvable."
@@ -723,32 +724,32 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
 
     # Tags system (new v3.2.1)
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$HOME/bin/ipcrae-tag-index"
-      execute chmod +x "$HOME/bin/ipcrae-tag-index"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag-index.sh" "$BIN_DIR/ipcrae-tag-index"
+      execute chmod +x "$BIN_DIR/ipcrae-tag-index"
       loginfo "✓ Script tag-index installé: ipcrae-tag-index"
     else
       logwarn "tag-index template missing"
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$HOME/bin/ipcrae-tag"
-      execute chmod +x "$HOME/bin/ipcrae-tag"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-tag.sh" "$BIN_DIR/ipcrae-tag"
+      execute chmod +x "$BIN_DIR/ipcrae-tag"
       loginfo "✓ Script tag installé: ipcrae-tag"
     else
       logwarn "tag template missing"
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$HOME/bin/ipcrae-index"
-      execute chmod +x "$HOME/bin/ipcrae-index"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-index.sh" "$BIN_DIR/ipcrae-index"
+      execute chmod +x "$BIN_DIR/ipcrae-index"
       loginfo "✓ Script index installé: ipcrae-index"
     else
       logwarn "index template missing"
     fi
 
     if [ -f "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" ]; then
-      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" "$HOME/bin/ipcrae-uninstall"
-      execute chmod +x "$HOME/bin/ipcrae-uninstall"
+      execute cp "$SCRIPT_DIR/templates/scripts/ipcrae-uninstall.sh" "$BIN_DIR/ipcrae-uninstall"
+      execute chmod +x "$BIN_DIR/ipcrae-uninstall"
       loginfo "✓ Script de purge installé: ipcrae-uninstall"
     fi
   else
@@ -757,79 +758,89 @@ if prompt_yes_no "Installer ~/bin/ipcrae et ~/bin/ipcrae-addProject ?" "y"; then
 
   # ── Mode auto-amélioration ─────────────────────────────────────────────
   if [ -f "$SCRIPT_DIR/scripts/ipcrae-auto.sh" ]; then
-    execute cp "$SCRIPT_DIR/scripts/ipcrae-auto.sh"             "$HOME/bin/ipcrae-auto"
-    execute cp "$SCRIPT_DIR/scripts/auto_audit.sh"              "$HOME/bin/ipcrae-auto-core"
-    execute cp "$SCRIPT_DIR/scripts/audit_ipcrae.sh"            "$HOME/bin/ipcrae-audit-check"
-    execute cp "$SCRIPT_DIR/scripts/apply_ipcrae_corrections.sh" "$HOME/bin/ipcrae-auto-apply"
-    execute chmod +x "$HOME/bin/ipcrae-auto" "$HOME/bin/ipcrae-auto-core" \
-                     "$HOME/bin/ipcrae-audit-check" "$HOME/bin/ipcrae-auto-apply"
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-auto.sh"             "$BIN_DIR/ipcrae-auto"
+    execute cp "$SCRIPT_DIR/scripts/auto_audit.sh"              "$BIN_DIR/ipcrae-auto-core"
+    execute cp "$SCRIPT_DIR/scripts/audit_ipcrae.sh"            "$BIN_DIR/ipcrae-audit-check"
+    execute cp "$SCRIPT_DIR/scripts/apply_ipcrae_corrections.sh" "$BIN_DIR/ipcrae-auto-apply"
+    execute chmod +x "$BIN_DIR/ipcrae-auto" "$BIN_DIR/ipcrae-auto-core" \
+                     "$BIN_DIR/ipcrae-audit-check" "$BIN_DIR/ipcrae-auto-apply"
     loginfo "✓ Mode auto-amélioration installé: ipcrae-auto (+ ipcrae-auto-core, ipcrae-audit-check, ipcrae-auto-apply)"
   else
     logwarn "scripts/ipcrae-auto.sh introuvable — mode auto-amélioration non installé."
   fi
 
-  chmod +x "$HOME/bin/ipcrae-addProject"
-  loginfo "✓ Script ipcrae-addProject installé dans ~/bin"
+  execute chmod +x "$BIN_DIR/ipcrae-addProject"
+  loginfo "✓ Script ipcrae-addProject installé dans $BIN_DIR"
 
   # ── Inbox scan + capture request ──────────────────────────────────────
   if [ -f "$SCRIPT_DIR/scripts/ipcrae-inbox-scan.sh" ]; then
-    execute cp "$SCRIPT_DIR/scripts/ipcrae-inbox-scan.sh"     "$HOME/bin/ipcrae-inbox-scan"
-    execute chmod +x "$HOME/bin/ipcrae-inbox-scan"
-    loginfo "✓ ipcrae-inbox-scan installé dans ~/bin (scan Inbox sans IA)"
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-inbox-scan.sh"     "$BIN_DIR/ipcrae-inbox-scan"
+    execute chmod +x "$BIN_DIR/ipcrae-inbox-scan"
+    loginfo "✓ ipcrae-inbox-scan installé dans $BIN_DIR (scan Inbox sans IA)"
   else
     logwarn "scripts/ipcrae-inbox-scan.sh introuvable — scan inbox non installé."
   fi
   if [ -f "$SCRIPT_DIR/scripts/ipcrae-capture-request.sh" ]; then
-    execute cp "$SCRIPT_DIR/scripts/ipcrae-capture-request.sh" "$HOME/bin/ipcrae-capture-request"
-    execute chmod +x "$HOME/bin/ipcrae-capture-request"
-    loginfo "✓ ipcrae-capture-request installé dans ~/bin"
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-capture-request.sh" "$BIN_DIR/ipcrae-capture-request"
+    execute chmod +x "$BIN_DIR/ipcrae-capture-request"
+    loginfo "✓ ipcrae-capture-request installé dans $BIN_DIR"
   else
     logwarn "scripts/ipcrae-capture-request.sh introuvable — capture request non installé."
   fi
   if [ -f "$SCRIPT_DIR/scripts/ipcrae-moc-auto.sh" ]; then
-    execute cp "$SCRIPT_DIR/scripts/ipcrae-moc-auto.sh" "$HOME/bin/ipcrae-moc-auto"
-    execute chmod +x "$HOME/bin/ipcrae-moc-auto"
-    loginfo "✓ ipcrae-moc-auto installé dans ~/bin (génération MOC automatique)"
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-moc-auto.sh" "$BIN_DIR/ipcrae-moc-auto"
+    execute chmod +x "$BIN_DIR/ipcrae-moc-auto"
+    loginfo "✓ ipcrae-moc-auto installé dans $BIN_DIR (génération MOC automatique)"
   else
     logwarn "scripts/ipcrae-moc-auto.sh introuvable — moc-auto non installé."
   fi
 
 
   if [ -f "$SCRIPT_DIR/scripts/ipcrae-strict-check.sh" ]; then
-    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-check.sh" "$HOME/bin/ipcrae-strict-check"
-    execute chmod +x "$HOME/bin/ipcrae-strict-check"
-    loginfo "✓ ipcrae-strict-check installé dans ~/bin (mode strict)"
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-check.sh" "$BIN_DIR/ipcrae-strict-check"
+    execute chmod +x "$BIN_DIR/ipcrae-strict-check"
+    loginfo "✓ ipcrae-strict-check installé dans $BIN_DIR (mode strict)"
   else
     logwarn "scripts/ipcrae-strict-check.sh introuvable — mode strict non installé."
   fi
 
   if [ -f "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" ]; then
-    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" "$HOME/bin/ipcrae-strict-report"
-    execute chmod +x "$HOME/bin/ipcrae-strict-report"
-    loginfo "✓ ipcrae-strict-report installé dans ~/bin (analyse tendance)"
+    execute cp "$SCRIPT_DIR/scripts/ipcrae-strict-report.sh" "$BIN_DIR/ipcrae-strict-report"
+    execute chmod +x "$BIN_DIR/ipcrae-strict-report"
+    loginfo "✓ ipcrae-strict-report installé dans $BIN_DIR (analyse tendance)"
   else
     logwarn "scripts/ipcrae-strict-report.sh introuvable — strict-report non installé."
   fi
 
-  if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-    echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
-    loginfo "Ajouté ~/bin au PATH dans ~/.bashrc. Redémarrez le terminal en tapant 'bash'."
+  if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    for _shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+      [ -f "$_shell_rc" ] || continue
+      if ! grep -Fq "$BIN_DIR" "$_shell_rc" 2>/dev/null; then
+        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$_shell_rc"
+        loginfo "Ajouté $BIN_DIR au PATH dans $_shell_rc"
+      fi
+    done
   fi
 
   # ── Variables d'environnement (portabilité multi-machine) ──────────────
-  # Exporter IPCRAE_ROOT dans .bashrc et .zshrc pour que tous les scripts
-  # et prompts puissent s'appuyer sur $IPCRAE_ROOT sans chemin en dur.
-  # Le launcher utilise déjà ${IPCRAE_ROOT:-${HOME}/IPCRAE} comme fallback,
+  # Exporter IPCRAE_brain (variable dédiée au cerveau) + alias compat IPCRAE_ROOT.
+  # Le launcher utilise IPCRAE_brain (ou compat IPCRAE_ROOT) avec fallback ~/brain,
   # mais l'export garantit la portabilité sur toute machine avec un HOME différent.
   for _shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     [ -f "$_shell_rc" ] || continue
-    if grep -q 'export IPCRAE_ROOT=' "$_shell_rc" 2>/dev/null; then
-      # Mettre à jour si déjà présent (installation sur chemin non-standard)
-      sed -i "s|^export IPCRAE_ROOT=.*|export IPCRAE_ROOT=\"${IPCRAE_ROOT}\"|" "$_shell_rc"
-      loginfo "IPCRAE_ROOT mis à jour dans $_shell_rc"
+    if grep -q '^export IPCRAE_brain=' "$_shell_rc" 2>/dev/null; then
+      sed -i "s|^export IPCRAE_brain=.*|export IPCRAE_brain=\"${IPCRAE_ROOT}\"|" "$_shell_rc"
+      loginfo "IPCRAE_brain mis à jour dans $_shell_rc"
     else
-      printf 'export IPCRAE_ROOT="%s"\n' "$IPCRAE_ROOT" >> "$_shell_rc"
-      loginfo "IPCRAE_ROOT exporté dans $_shell_rc"
+      printf 'export IPCRAE_brain="%s"\n' "$IPCRAE_ROOT" >> "$_shell_rc"
+      loginfo "IPCRAE_brain exporté dans $_shell_rc"
+    fi
+    if grep -q '^export IPCRAE_ROOT=' "$_shell_rc" 2>/dev/null; then
+      sed -i 's|^export IPCRAE_ROOT=.*|export IPCRAE_ROOT="${IPCRAE_ROOT:-$IPCRAE_brain}"|' "$_shell_rc"
+      loginfo "Alias compat IPCRAE_ROOT mis à jour dans $_shell_rc"
+    else
+      printf 'export IPCRAE_ROOT="${IPCRAE_ROOT:-$IPCRAE_brain}"\n' >> "$_shell_rc"
+      loginfo "Alias compat IPCRAE_ROOT exporté dans $_shell_rc"
     fi
   done
 fi
