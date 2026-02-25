@@ -11,6 +11,15 @@ Si l'info n'est pas dans le cerveau, elle n'existe pas.
 
 ---
 
+
+## Modes d'exécution (optimisation coût/qualité)
+
+- **Mode FAST** : correctif simple, peu de fichiers, 1 check ciblé.
+- **Mode STANDARD** : mode par défaut, plan court + validations pertinentes.
+- **Mode DEEP** : sujet critique (infra/sécurité/migration), validations renforcées et rollback.
+
+Règle : choisir le mode le plus léger qui reste sûr.
+
 ## Pipeline obligatoire
 
 ### 1. Ingest
@@ -79,7 +88,7 @@ ipcrae close <domaine> --project <slug>
 
 - Après chaque **action significative** (décision, étape, info découverte) → commit.
 - Commande rapide : `ipcrae checkpoint` (commit brain mid-session sans close complet).
-- Minimum : 1 commit toutes les 30 min si session longue.
+- Minimum : 1 commit toutes les 30 min si session longue (ou à chaque jalon fonctionnel).
 
 ---
 

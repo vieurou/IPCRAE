@@ -277,7 +277,7 @@ fi
 # les archives et l'historique même en travaillant dans un repo local.
 if [ -d "$IPCRAE_ROOT" ]; then
     ln -sfn "$IPCRAE_ROOT" ".ipcrae-memory"
-    echo "✅ Créé : Lien symbolique .ipcrae-memory -> \$IPCRAE_ROOT"
+    echo "✅ Créé : Lien symbolique .ipcrae-memory -> $IPCRAE_ROOT"
 
     [ -d "$IPCRAE_ROOT/memory" ] && ln -sfn "../.ipcrae-memory/memory" "$LOCAL_IPCRAE_DIR/memory-global"
     [ -d "$IPCRAE_ROOT/Archives" ] && ln -sfn "../.ipcrae-memory/Archives" "$LOCAL_IPCRAE_DIR/archives-global"
@@ -410,7 +410,7 @@ STAMP="$(date +%s)"
 DOMAIN_GUESS="${IPCRAE_DOMAIN:-devops}"
 PROJECT_SLUG="$(printf '%s' "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-_')"
 
-mkdir -p "$IPCRAE_ROOT/Casquettes"          "$IPCRAE_ROOT/Journal/Daily/$YEAR_NOW"          "$IPCRAE_ROOT/Inbox"          "$IPCRAE_ROOT/Knowledge/patterns"          "$IPCRAE_ROOT/memory"          "$IPCRAE_ROOT/Objectifs"          "$IPCRAE_ROOT/Phases"          "$IPCRAE_ROOT/Process"          "$IPCRAE_ROOT/Ressources/Autres"          "$IPCRAE_ROOT/Tasks/to_ai"          "$IPCRAE_ROOT/Zettelkasten/_inbox"
+mkdir -p "$IPCRAE_ROOT/Casquettes"          "$IPCRAE_ROOT/Journal/Daily/$YEAR_NOW"          "$IPCRAE_ROOT/.ipcrae"          "$IPCRAE_ROOT/.ipcrae/auto/self-audits"          "$IPCRAE_ROOT/Inbox"          "$IPCRAE_ROOT/Knowledge/patterns"          "$IPCRAE_ROOT/memory"          "$IPCRAE_ROOT/Objectifs"          "$IPCRAE_ROOT/Phases"          "$IPCRAE_ROOT/Process"          "$IPCRAE_ROOT/Ressources/Autres"          "$IPCRAE_ROOT/Tasks/to_ai"          "$IPCRAE_ROOT/Zettelkasten/_inbox"
 
 CASQ_FILE="$IPCRAE_ROOT/Casquettes/${DOMAIN_GUESS}.md"
 [ -f "$CASQ_FILE" ] || cat > "$CASQ_FILE" << EOF
@@ -456,6 +456,18 @@ tags: [${PROJECT_SLUG}, ingestion, ipcrae]
 - tâche: valider la première milestone GTD
 - lien/snippet: voir docs/conception/02_ARCHITECTURE.md
 EOF
+
+ACTIVE_SESSION_FILE="$IPCRAE_ROOT/Tasks/active_session.md"
+if [ ! -f "$ACTIVE_SESSION_FILE" ]; then
+  cat > "$ACTIVE_SESSION_FILE" << EOF
+# Active Session
+
+- date: ${TODAY}
+- project: ${PROJECT_NAME}
+- status: bootstrap
+- note: session initialisée par ipcrae-addProject
+EOF
+fi
 
 KNOW_FILE="$IPCRAE_ROOT/Knowledge/patterns/${PROJECT_SLUG}-bootstrap-ingestion.md"
 [ -f "$KNOW_FILE" ] || cat > "$KNOW_FILE" << EOF
@@ -613,6 +625,24 @@ duration: 0
 EOF
 fi
 
+# Seed minimal pour mode strict : évite l'échec immédiat de ipcrae-strict-check
+SESSION_CONTEXT_FILE="$IPCRAE_ROOT/.ipcrae/session-context.md"
+if [ ! -f "$SESSION_CONTEXT_FILE" ]; then
+  cat > "$SESSION_CONTEXT_FILE" << EOF
+# Session Context (seed)
+
+Projet: ${PROJECT_NAME}
+Date: ${TODAY}
+
+## Objectif de session
+- Initialiser le projet dans IPCRAE (bootstrap addProject).
+
+## Points d'attention
+- Compléter docs/conception avec des informations réelles.
+- Lancer \`ipcrae start --project ${PROJECT_NAME} --phase <phase>\` pour une session complète.
+EOF
+fi
+
 echo "✅ Seed cerveau global créé (Casquettes/Journal/Inbox/Knowledge/memory/Objectifs/Phases/Process/Ressources/Tasks/Zettelkasten)."
 
 # ── 10ter. Git post-commit hook — digestion incrémentale du cerveau ─────────
@@ -623,10 +653,10 @@ if [ -d ".git" ]; then
   HOOK_FILE=".git/hooks/post-commit"
   # N'écraser le hook que s'il n'existe pas déjà ou ne contient pas la marque IPCRAE
   if [ ! -f "$HOOK_FILE" ] || ! grep -q "IPCRAE_BRAIN_SYNC" "$HOOK_FILE" 2>/dev/null; then
-    cat >> "$HOOK_FILE" << 'HOOKEOF'
+    cat > "$HOOK_FILE" << 'HOOKEOF'
 #!/usr/bin/env bash
 # IPCRAE_BRAIN_SYNC — ne pas supprimer ce bloc
-_IPCRAE_ROOT="${IPCRAE_ROOT:-$HOME/brain}"
+_IPCRAE_ROOT="${IPCRAE_ROOT:-__IPCRAE_ROOT_DEFAULT__}"
 _TASKS_DIR="$_IPCRAE_ROOT/Tasks/to_ai"
 if [ -d "$_IPCRAE_ROOT" ]; then
   _stamp="$(date +%s)"
@@ -657,6 +687,9 @@ en fonction des changements ci-dessus. Ne pas réécrire ce qui n'a pas changé.
 EOF
 fi
 HOOKEOF
+    # Injecter un fallback déterministe vers le cerveau configuré à l'installation
+    _ipcrae_root_escaped=$(printf '%s\n' "$IPCRAE_ROOT" | sed 's/[\&]/\\&/g')
+    sed -i "s|__IPCRAE_ROOT_DEFAULT__|${_ipcrae_root_escaped}|g" "$HOOK_FILE"
     chmod +x "$HOOK_FILE"
     echo "✅ Git post-commit hook installé — le cerveau sera notifié à chaque commit."
   else
