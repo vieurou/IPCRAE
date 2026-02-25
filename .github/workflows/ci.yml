@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  bash-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash syntax checks
+        run: |
+          bash tests/test_launcher_syntax.sh
+
+      - name: Launcher smoke checks
+        run: |
+          bash tests/test_launcher_search_smoke.sh
+
+      - name: E2E install + addProject + strict-check
+        run: |
+          bash tests/test_e2e_install_addproject_strict.sh
