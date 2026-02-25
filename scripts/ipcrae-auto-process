@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# ipcrae-auto-process - Traitement automatique des demandes brutes
+# Usage: ipcrae-auto-process [--dry-run]
+# Intégration: Appelé automatiquement par ipcrae close avant l'audit
+
+set -euo pipefail
+
+# Configuration
+INBOX_DIR="${IPCRAE_ROOT:-${HOME}/IPCRAE}/Inbox/demandes-brutes"
+TRAITES_DIR="$INBOX_DIR/traites"
+DRY_RUN=false
+
+# Couleurs
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RESET='\033[0m'
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [--dry-run]"
+      exit 1
+      ;;
+  esac
+done
+
+# Créer le dossier traites si nécessaire
+if [ ! -d "$TRAITES_DIR" ]; then
+  if [ "$DRY_RUN" = true ]; then
+    echo "[DRY RUN] Créerait: $TRAITES_DIR"
+  else
+    mkdir -p "$TRAITES_DIR"
+    echo "${BLUE}✓${RESET} Dossier créé: $TRAITES_DIR"
+  fi
+fi
+
+# Trouver les fichiers de demandes brutes (exclure README.md)
+MAPFILE=()
+while IFS= read -r -d $'\0' file; do
+  filename=$(basename "$file")
+  if [ "$filename" != "README.md" ]; then
+    MAPFILE+=("$file")
+  fi
+done < <(grep -lZ "type: demande-brute" "$INBOX_DIR"/*.md 2>/dev/null || true)
+
+TOTAL_DEMANDES=${#MAPFILE[@]}
+
+if [ "$TOTAL_DEMANDES" -eq 0 ]; then
+  echo "${GREEN}✅${RESET} Aucune demande brute à traiter"
+  exit 0
+fi
+
+echo "${BLUE}📝${RESET} Traitement de $TOTAL_DEMANDES demande(s) brute(s)..."
+echo ""
+
+PROCESSED=0
+for file in "${MAPFILE[@]}"; do
+  # Lire le frontmatter pour déterminer le type
+  if grep -q "type: test" "$file"; then
+    ACTION="Test - Marquage automatique"
+    MOVE_TO_TRAITES=true
+  elif grep -q "status: traite" "$file"; then
+    ACTION="Déjà traitée - Déplacement"
+    MOVE_TO_TRAITES=true
+  else
+    ACTION="Manuelle - Ignorée"
+    MOVE_TO_TRAITES=false
+  fi
+  
+  # Traiter selon l'action
+  if [ "$MOVE_TO_TRAITES" = true ]; then
+    if [ "$DRY_RUN" = true ]; then
+      echo "${BLUE}[DRY RUN]${RESET} 📝 $(basename "$file") - $ACTION"
+    else
+      # Marquer comme traitée
+      sed -i 's/status:.*/status: traite/' "$file"
+      
+      # Déplacer vers traites
+      mv "$file" "$TRAITES_DIR/"
+      
+      echo "${GREEN}✅${RESET} $(basename "$file") - $ACTION"
+      ((PROCESSED++))
+    fi
+  else
+    echo "${YELLOW}⚠️${RESET} $(basename "$file") - $ACTION (manuelle requise)"
+  fi
+done
+
+echo ""
+if [ "$DRY_RUN" = true ]; then
+  echo "[DRY RUN] $PROCESSED demande(s) auraient été traitées"
+else
+  echo "${BLUE}📊${RESET} Résumé: $PROCESSED/$TOTAL_DEMANDES demande(s) traitée(s) automatiquement"
+  
+  # Vérifier s'il reste des demandes manuelles
+  REMAINING=$(find "$INBOX_DIR" -maxdepth 1 -name "*.md" -exec grep -l "type: demande-brute" {} \; | grep -v "README.md" | wc -l)
+  if [ "$REMAINING" -gt 0 ]; then
+    echo "${YELLOW}⚠️${RESET} $REMAINING demande(s) nécessitent un traitement manuel"
+    echo "   Utilisez: ipcrae process-requests --manual"
+  fi
+fi
+
+exit 0

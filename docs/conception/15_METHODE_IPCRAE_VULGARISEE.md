@@ -470,7 +470,7 @@ graph TD
     C1 --> V3[02_ARCHITECTURE.md]
     
     ADD --> C2[Créer hub dans cerveau]
-    C2 --> HUB[~/IPCRAE/Projets/MonNouveauProjet/]
+    C2 --> HUB[~/brain/Projets/MonNouveauProjet/]
     HUB --> INDEX[index.md]
     HUB --> MEMORY[memory.md]
     HUB --> DEMANDES[demandes/]
@@ -479,7 +479,7 @@ graph TD
     C3 --> AI[Instructions pour l'IA locale]
     
     ADD --> C4[Créer symlink]
-    C4 --> SYMLINK[.ipcrae-memory -> ~/IPCRAE]
+    C4 --> SYMLINK[.ipcrae-memory -> ~/brain]
     
     ADD --> INGEST[Auto-ingestion ?]
     INGEST -->|OUI| SCAN[Scanner code existant]
@@ -851,10 +851,10 @@ graph TD
     DOCS --> V3[02_ARCHITECTURE.md]
     
     BRIDGE --> HUB[Création hub cerveau]
-    HUB --> BRAIN[~/IPCRAE/Projets/Projet/]
+    HUB --> BRAIN[~/brain/Projets/Projet/]
     
     BRIDGE --> SYMLINK[Création symlink]
-    SYMLINK --> LINK[.ipcrae-memory -> ~/IPCRAE]
+    SYMLINK --> LINK[.ipcrae-memory -> ~/brain]
     
     BRIDGE --> INSTRUCT[Création instructions]
     INSTRUCT --> AI[.ai-instructions.md]
@@ -895,7 +895,7 @@ graph TB
     end
     
     subgraph Brain["Cerveau Global"]
-        BRAIN[~/IPCRAE/]
+        BRAIN[~/brain/]
         BRAIN --> HUB[Projets/Projet/]
         HUB --> HUB_INDEX[index.md]
         HUB --> HUB_MEM[memory.md]
@@ -923,14 +923,14 @@ graph TB
 
 ## Lecture du Contexte
 1. Lire `.ipcrae/memory/devops.md` (mémoire globale DevOps)
-2. Lire `~/IPCRAE/Projets/Projet/memory.md` (mémoire projet)
+2. Lire `~/brain/Projets/Projet/memory.md` (mémoire projet)
 3. Lire `docs/conception/02_ARCHITECTURE.md` (architecture locale)
 4. Appliquer les règles de `01_AI_RULES.md`
 
 ## Écriture dans le Projet
 1. Écrire les modifications dans le repo local
 2. Documenter les décisions dans `docs/conception/`
-3. Mettre à jour la mémoire projet `~/IPCRAE/Projets/Projet/memory.md`
+3. Mettre à jour la mémoire projet `~/brain/Projets/Projet/memory.md`
 4. Consulter avant de modifier la mémoire globale
 
 ## Règles Spécifiques
@@ -1181,8 +1181,8 @@ Le mode auto-amélioration est activé par défaut. L'IA propose automatiquement
 
 ```bash
 # Cloner le repo
-git clone https://github.com/vieurou/IPCRAE.git ~/IPCRAE
-cd ~/IPCRAE
+git clone https://github.com/vieurou/IPCRAE.git ~/brain
+cd ~/brain
 
 # Exécuter l'installateur
 ./ipcrae-install.sh

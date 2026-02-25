@@ -1,55 +1,111 @@
-# 🚨 Gate de Pré-traitement — MANDATORY FIRST STEP
+---
+type: prompt
+tags: [ipcrae, regle0, gate, pretraitement, session, conformite]
+domain: devops
+status: active
+created: 2026-02-25
+sources:
+  - vault:.ipcrae/prompts/core_ai_functioning.md
+  - vault:.ipcrae/prompts/core_ai_workflow_ipcra.md
+  - vault:Knowledge/patterns/pretraitement-demande-ipcrae.md
+  - vault:Knowledge/howto/openclaw-ipcrae-integration.md
+---
 
-> **Ce gate est NON-NÉGOCIABLE. Il doit être exécuté AVANT toute action technique (debug, code, commandes, analyse).**
-> Aucune urgence perçue (502, crash, erreur) ne justifie de sauter ce gate.
+# 🚨 RÈGLE 0 — Gate de Pré-traitement IPCRAE
 
-## Séquence obligatoire
+> **Ce fichier est injecté en tête de chaque session agent.**
+> Il représente la gate obligatoire avant toute réponse ou exécution.
+> Source de vérité : `core_ai_functioning.md` + `core_ai_workflow_ipcra.md`
 
-Avant de répondre à TOUTE demande utilisateur, exécuter dans l'ordre :
+---
 
-### Étape 1 : Identifier le contexte projet
-- Quel projet est concerné ? Lire `.ipcrae-project/memory/project.md` (si existant).
-- Quelle phase est active ? Consulter `Phases/index.md`.
+## Séquence obligatoire (dans l'ordre)
 
-### Étape 2 : Consulter la mémoire pertinente
-- Lire la mémoire domaine (`memory/<domaine>.md`) correspondant à la demande.
-- Lire la mémoire projet (`.ipcrae-project/memory/`) pour les contraintes locales.
+### Étape 1 — Audit de santé (si session fraîche)
+- Proposer `ipcrae-audit-check` si score inconnu
+- Si score < 35/40 ou problème critique détecté → résolution prioritaire avant tout
 
-### Étape 3 : Rechercher les connaissances existantes (tag-first)
-- Chercher par tags : `ipcrae tag <tag>` ou équivalent (grep frontmatter).
-- Consulter les Knowledge Items pertinents dans `Knowledge/`.
-- Vérifier les conversations passées si le sujet a déjà été traité.
+### Étape 2 — Lire (dans l'ordre, sélectif)
+1. `.ipcrae/context.md` — identité, structure, projets actifs
+2. `core_ai_functioning.md` — mission + contrat d'exécution
+3. `core_ai_workflow_ipcra.md` — pipeline obligatoire
+4. `core_ai_memory_method.md` — gouvernance mémoire
+5. `agent_<domaine>.md` — spécialisation si domaine identifié
 
-### Étape 4 : Reconstruire un prompt optimisé
-Avant d'agir, formuler mentalement :
-- **Objectif explicite** : que doit-on livrer ?
-- **Contexte récupéré** : quelles infos du cerveau IPCRAE éclairent la demande ?
-- **Contraintes** : technique, sécurité, compatibilité.
-- **Critères de done** : comment vérifier que c'est réussi ?
-- **Effort de raisonnement recommandé** : `low | medium | high | extra high` selon complexité/risque.
+### Étape 3 — Capturer la demande brute (OBLIGATOIRE avant tout)
 
-### Étape 4b : Calibrer l'effort de raisonnement (si tâche non triviale)
-- Classer la tâche : `simple | standard | complexe | critique`.
-- Déduire le niveau recommandé (`low` → `extra high`).
-- Si le réglage n'est pas modifiable par l'agent (UI de chat), l'annoncer et compenser par plus de planification + vérifications.
+Créer dans `Inbox/demandes-brutes/<slug-YYYYMMDD-HHMM>.md` :
 
-### Étape 5 : Alors seulement, agir
-Exécuter le prompt optimisé avec des étapes testables.
+```yaml
+---
+type: demande-brute
+date: YYYY-MM-DD HH:MM
+status: en-cours
+project: <slug-projet>
+domain: <devops|electronique|musique|maison|finance|sante>
+---
+# Demande brute
+<contenu exact de la demande utilisateur>
+```
 
-## ❌ Exemples de violations (comportements interdits)
+### Étape 4 — Construire le prompt optimisé
 
-| Demande | Violation | Bon comportement |
-|---------|-----------|------------------|
-| "J'ai des 502" | Lancer `docker ps` immédiatement | D'abord lire la mémoire projet, chercher les KI sur l'infra, puis diagnostiquer |
-| "Ajoute un champ au modèle" | Modifier le fichier directement | D'abord vérifier les patterns existants dans les KI, le modèle actuel, les conventions du projet |
-| "Le script crash" | Lire le script et proposer un fix | D'abord chercher si le bug est documenté, lire la mémoire domaine, puis analyser |
+Ne jamais répondre directement à la demande brute. Reconstruire avec :
+- **Objectif explicite** : reformuler en livrable mesurable
+- **Contexte projet** : mémoire domaine, phase active, tracking
+- **Contraintes** : sécurité, réversibilité, budget tokens
+- **Format de sortie** et critères de done
+- **Niveau d'effort recommandé** : low / medium / high / extra-high
 
-## ✅ Signal de compliance
+### Étape 5 — Exécuter avec traçabilité
 
-Si le gate a été respecté, l'agent doit pouvoir répondre à ces questions :
-1. Quel contexte projet ai-je consulté ?
-2. Quelles KI/mémoire ai-je lues ?
-3. Le problème a-t-il déjà été traité dans une conversation passée ?
-4. Mon prompt optimisé intègre-t-il ces informations ?
+Pour chaque action significative (décision, étape, bug résolu) :
+- Écrire dans `memory/<domaine>.md` (décision durable)
+- Cocher `[x]` dans `tracking.md` du projet
+- Committer le cerveau : `git add -A && git commit` (ou `ipcrae checkpoint`)
 
-Si une de ces réponses est "aucun" ou "je ne sais pas", le gate n'a pas été respecté.
+---
+
+## Template de décomposition (à utiliser pour toute demande > 2 actions)
+
+```markdown
+## Décomposition IPCRAE — [titre court]
+
+**Objectif** : [livrable mesurable]
+**Projet** : [slug] | **Domaine** : [domaine] | **Phase** : [phase active]
+
+**Tâches atomiques** :
+🔴 [urgent+important] ...
+🟠 [important] ...
+
+**Checks DoD** :
+- [ ] Demande capturée dans Inbox/demandes-brutes/
+- [ ] Tracking.md mis à jour
+- [ ] Cerveau commité
+- [ ] Demande déplacée vers traites/
+```
+
+---
+
+## Rituel de clôture (fin de session ou de tâche)
+
+1. **Résumé exécutif** (3 lignes max)
+2. **Conformité IPCRAE** :
+   - Capture demande : ✅/❌
+   - Tracking mis à jour : ✅/❌
+   - Cerveau commité : ✅/❌
+   - Demande déplacée vers `traites/` : ✅/❌
+3. **Coût tokens** : Bas (<2k) / Moyen (2–8k) / Élevé (>8k)
+4. **Optimisation suivante** : 1 action pour réduire le coût
+
+---
+
+## Violations fréquentes (à éviter)
+
+| Violation | Impact |
+|-----------|--------|
+| Répondre sans capture de la demande | Traçabilité perdue |
+| Utiliser son propre protocole à la place d'IPCRAE | Non-conformité totale |
+| Lire des fichiers non nécessaires (context bloat) | Coût tokens élevé |
+| Agir sans décomposer une demande complexe | Risque d'angles morts |
+| Ne pas committer le cerveau en cours de session | Info perdue si interruption |

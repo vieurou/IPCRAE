@@ -8,7 +8,7 @@
 - Notes volatiles: todo techniques, logs de debug, hypothèses temporaires.
 - Ce contenu n'est pas une source de vérité durable.
 
-## Ce qui est exporté vers `~/IPCRAE/Projets/<projet>/`
+## Ce qui est exporté vers `~/brain/Projets/<projet>/`
 - `index.md`: état global, liens, contexte de pilotage.
 - `tracking.md`: next actions et milestones.
 - `memory.md`: synthèse projet consolidée.

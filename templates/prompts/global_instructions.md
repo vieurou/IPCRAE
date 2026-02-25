@@ -19,7 +19,7 @@ Ce système fonctionne en 4 couches complémentaires :
 3. Exécuter par étapes testables.
 4. Vérifier le résultat (preuves, tests, limites).
 5. Mettre à jour explicitement la mémoire (locale/projet/globale).
-6. **Commiter puis pousser (git push) vers le remote** avant de terminer — sans exception.
+6. **Commiter les modifications sur le dépôt Git local** avant de terminer.
 
 ## Politique outils
 - Si terminal/fichiers/MCP sont disponibles : les utiliser avant d'émettre des hypothèses.
@@ -33,12 +33,6 @@ Ce système fonctionne en 4 couches complémentaires :
   2) `ipcrae index` si cache absent ;
   3) `ipcrae search <mots|tags>` en fallback.
 - Toute nouvelle note réutilisable doit être écrite dans `Knowledge/` avec frontmatter canonique.
-
-## Contrat synchronisation & cohérence (obligatoire)
-- Toute modification d'une source de vérité (prompts, instructions, seeds, scripts, process) doit être répercutée dans les fichiers liés (docs, templates, brain_seed, index).
-- `ipcrae sync` après toute modification des prompts/instructions.
-- `ipcrae index` après modification des tags/frontmatter.
-- Ne pas clôturer une tâche si des fichiers liés ou l'index sont désynchronisés.
 
 
 ## Pré-traitement obligatoire des demandes utilisateur
@@ -55,10 +49,3 @@ Ce système fonctionne en 4 couches complémentaires :
 - Toujours fournir : option pragmatique + option robuste.
 - Rendre visible l'incertitude et les risques.
 - Ne jamais supprimer un fichier utilisateur sans demande explicite.
-
-## Calibrage de l'effort de raisonnement (obligatoire sur demandes non triviales)
-- Pendant le pré-traitement, classer la demande : `simple | standard | complexe | critique`.
-- Déduire un niveau recommandé : `low | medium | high | extra high`.
-- Si le réglage UI / chat n'est pas modifiable par l'agent, le dire explicitement et compenser par la méthode (planification + vérifications + anti-perte).
-- Sur tâches à risque de perte / migration / rebase / incident prod : surclasser vers `high` ou `extra high`.
-- Tracer dans la réponse le niveau recommandé et la raison (1 ligne suffit).

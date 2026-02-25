@@ -1,87 +1,131 @@
 #!/bin/bash
-# ===========================================================================
-# ipcrae-capture-request — Capture une demande utilisateur brute dans le vault
-# ===========================================================================
-# Usage: ipcrae-capture-request "texte de la demande" [OPTIONS]
-# Options:
-#   --project <slug>     Projet concerné
-#   --domain <domaine>   Domaine (devops|electronique|musique|...)
-#   --title <titre>      Titre court (auto-généré si absent)
-#   --status <status>    en-cours|traite|en-attente (défaut: en-cours)
-# ===========================================================================
+
+# IPCRAE Capture Request (v2)
+#
+# Capture une demande brute et la sauvegarde dans l'Inbox avec métadonnées.
+# Doc: Knowledge/howto/capture-demande-brute.md
 
 set -euo pipefail
 
-IPCRAE_ROOT="${IPCRAE_ROOT:-${HOME}/IPCRAE}"
+# --- Variables & Constantes ---
+if [[ -z "${IPCRAE_ROOT:-}" ]]; then
+  IPCRAE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+
 DEST_DIR="${IPCRAE_ROOT}/Inbox/demandes-brutes"
+TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
+DATE_ISO=$(date "+%Y-%m-%d %H:%M")
 
-request_text=""
-project=""
-domain=""
-title=""
-status="en-cours"
+# --- Fonctions ---
+show_help() {
+  cat << EOF
+Utilisation: $(basename "$0") "demande..." [--project <slug>] [--domain <domaine>] [--title "<titre>"]
+       echo "demande..." | $(basename "$0") [--project <slug>] ...
 
-# Parser les arguments
+Capture une demande brute et la sauvegarde dans Inbox/demandes-brutes/.
+
+Options:
+  --project <slug>    Slug du projet associé.
+  --domain <domaine>  Domaine de connaissance associé.
+  --title "<titre>"   Titre court pour la demande.
+  -h, --help          Affiche cette aide.
+EOF
+}
+
+# Slugify function
+slugify() {
+  echo "$1" | iconv -t ascii//TRANSLIT | sed -r 's/[^a-zA-Z0-9]+/-/g' | sed -r 's/^-+\|-+$//g' | tr '[:upper:]' '[:lower:]'
+}
+
+# --- Parsing des Arguments ---
+PROJECT_SLUG="non-specifie"
+DOMAIN="general"
+TITLE=""
+REQUEST_CONTENT=""
+
+# Gérer l'entrée depuis stdin en premier
+if ! [ -t 0 ]; then
+    REQUEST_CONTENT=$(cat)
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project)  project="${2:-}"; shift 2 ;;
-    --domain)   domain="${2:-}"; shift 2 ;;
-    --title)    title="${2:-}"; shift 2 ;;
-    --status)   status="${2:-}"; shift 2 ;;
-    --*)        echo "Option inconnue: $1" >&2; exit 2 ;;
-    *)
-      if [[ -z "$request_text" ]]; then
-        request_text="$1"
+    --project)
+      PROJECT_SLUG="$2"
+      shift 2
+      ;;
+    --domain)
+      DOMAIN="$2"
+      shift 2
+      ;;
+    --title)
+      TITLE="$2"
+      shift 2
+      ;;
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    -*) # C'est une option non reconnue
+      echo "Erreur: Option non reconnue: $1" >&2
+      show_help
+      exit 1
+      ;;
+    *) # C'est l'argument positionnel (la demande)
+      if [[ -n "$REQUEST_CONTENT" ]]; then
+        echo "Erreur: La demande a été fournie à la fois via stdin et en argument." >&2
+        exit 1
       fi
+      REQUEST_CONTENT="$1"
       shift
       ;;
   esac
 done
 
-# Lire depuis stdin si pas de texte en argument
-if [[ -z "$request_text" ]]; then
-  if [[ ! -t 0 ]]; then
-    request_text=$(cat)
-  else
-    echo "Usage: ipcrae-capture-request 'texte de la demande' [--project slug] [--domain domaine]" >&2
+# Vérifier que le contenu de la requête n'est pas vide
+if [[ -z "$REQUEST_CONTENT" ]]; then
+    echo "Erreur: Aucune demande fournie." >&2
+    show_help
     exit 1
-  fi
 fi
 
-# Générer le titre et le nom de fichier
-if [[ -z "$title" ]]; then
-  title=$(echo "$request_text" | head -c 60 | tr '\n' ' ' | sed 's/[^a-zA-Z0-9 àâäéèêëïîôùûü]//g' | xargs)
+# --- Logique Principale ---
+
+# Créer un titre et un slug si non fournis
+if [[ -z "$TITLE" ]]; then
+  TITLE=$(echo "$REQUEST_CONTENT" | cut -d ' ' -f 1-5)...
 fi
+SLUG=$(slugify "$TITLE")
 
-timestamp=$(date +%Y-%m-%d-%H%M%S)
-slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' àâäéèêëïîôùûü' '-aaaeeeeiiouu' | \
-       sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | cut -c1-40)
-filename="${timestamp}-${slug:-demande}.md"
-filepath="${DEST_DIR}/${filename}"
+# Construire le nom de fichier
+FILENAME="${TIMESTAMP}-${SLUG}.md"
+FILE_PATH="${DEST_DIR}/${FILENAME}"
 
+# Créer le dossier s'il n'existe pas
 mkdir -p "$DEST_DIR"
 
-cat > "$filepath" << EOF
+# Générer le contenu du fichier avec frontmatter
+cat > "$FILE_PATH" << EOF
 ---
 type: demande-brute
-date: $(date '+%Y-%m-%d %H:%M')
-status: ${status}
-project: ${project:-}
-domain: ${domain:-}
+date: ${DATE_ISO}
+status: en-cours
+project: ${PROJECT_SLUG}
+domain: ${DOMAIN}
 ---
 
-# Demande brute — ${title}
+# Demande brute — ${TITLE}
 
 ## Texte original (VERBATIM)
-
-${request_text}
+${REQUEST_CONTENT}
 
 ## Traitements effectués
-- [ ] (à compléter par l'agent)
+- [ ] ...
+
+## Références
+- Fichiers créés :
 
 ## Références croisées automatiques (libellés stables)
-> Ne pas renommer les libellés (facilite post-analyse et automatisation)
-
 ### Décomposition / exécution
 - Plan / décomposition : (lien vers plan publié / tracking / note)
 - Réexamen fin de traitement : (OK | partiel | bloqué) — Process/reexamen-fin-traitement-demande
@@ -112,5 +156,4 @@ ${request_text}
 - Réponse finale : (résumé 3-5 lignes ou lien)
 EOF
 
-echo "✓ Demande capturée: $filepath"
-echo "$filepath"
+echo "Demande capturée avec succès dans: ${FILE_PATH}"

@@ -1,0 +1,187 @@
+#!/bin/bash
+
+# ipcrae-badges - Système de badges pour les agents IA
+# Récompense les agents pour leurs contributions au système IPCRAE
+
+set -euo pipefail
+
+# Configuration
+BADGES_FILE="${IPCRAE_ROOT:-${HOME}/IPCRAE}/.ipcrae/memory/badges.md"
+PROFILS_FILE="${IPCRAE_ROOT:-${HOME}/IPCRAE}/.ipcrae/memory/profils-usage.md"
+
+# Couleurs
+RESET='\033[0m'
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+
+# Créer le fichier de badges s'il n'existe pas
+if [ ! -f "$BADGES_FILE" ]; then
+  mkdir -p "$(dirname "$BADGES_FILE")"
+  cat > "$BADGES_FILE" << EOF
+---
+type: memory
+tags: [badges, gamification, agents]
+domain: all
+status: active
+created: $(date +%Y-%m-%d)
+---
+
+# Système de Badges IPCRAE
+
+## Badges disponibles
+
+### 🏆 Badges de Score
+- **Perfectionniste** 🎯 : Atteint un score audit de 60/60
+- **Maître 50+** ⭐⭐⭐ : Score audit ≥ 50/60 pendant 5 jours consécutifs
+- **Améliorateur** 📈 : Amélioration de +5 points en une session
+
+### 🤖 Badges d'Auto-amélioration
+- **Auto-améliorateur** 🤖 : 5 sessions d'auto-amélioration complétées
+- **Expert Auto** 🤖💡 : 10 sessions avec score ≥ 55/60
+- **Maître Auto** 🤖👑 : 20 sessions avec score ≥ 58/60
+
+### 📝 Badges de Documentation
+- **Scribe** 📜 : 10 Knowledge notes créées
+- **Encyclopédiste** 📚 : 25 Knowledge notes créées
+- **Archiviste** 🗃️ : 50 Knowledge notes créées
+
+### ⚡ Badges de Productivité
+- **Rapide** ⚡ : 5 sessions clôturées en < 30 min
+- **Efficace** ⏱️ : 10 sessions avec 100% des tâches complétées
+- **Marathonien** 🏃 : 5 sessions de > 2h en une semaine
+
+### 🎯 Badges Spéciaux
+- **Déblocage** 🔓 : Résolution de 5 gaps critiques
+- **Innovateur** 💡 : 3 améliorations majeures implémentées
+- **Mentor** 👨🏫 : Documentation de 3 processus complets
+
+## Historique des badges attribués
+
+EOF
+  echo "${GREEN}✅${RESET} Fichier de badges initialisé: $BADGES_FILE"
+fi
+
+# Fonction pour ajouter un badge
+add_badge() {
+  local agent=$1
+  local badge_name=$2
+  local badge_emoji=$3
+  local date=$(date +%Y-%m-%d)
+  local reason=$4
+  
+  # Vérifier si le badge existe déjà
+  if grep -q "\* \[$agent\] $badge_name" "$BADGES_FILE"; then
+    echo "${YELLOW}⚠️${RESET} $agent a déjà ce badge : $badge_name"
+    return 1
+  fi
+  
+  # Ajouter le badge
+  cat >> "$BADGES_FILE" << EOF
+
+### $date - $agent obtient $badge_emoji $badge_name
+> $reason
+EOF
+  
+  echo "${GREEN}✅${RESET} Badge attribué : $badge_emoji $badge_name à $agent"
+  return 0
+}
+
+# Fonction pour vérifier les conditions de badge
+check_badges() {
+  local agent=$1
+  
+  echo "${BLUE}🔍${RESET} Vérification des badges pour $agent..."
+  
+  # Vérifier le score actuel
+  if [ -f "$PROFILS_FILE" ]; then
+    SCORE=$(ipcrae-audit-check 2>/dev/null | grep "Score Global" | grep -oP '\d+/\d+' || echo "0/60")
+    
+    if [[ $SCORE == "60/60" ]]; then
+      add_badge "$agent" "Perfectionniste" "🎯" "Score audit parfait 60/60"
+    fi
+    
+    if [[ $SCORE =~ ^[5-5][0-9]/60 ]]; then
+      add_badge "$agent" "Maître 50+" "⭐⭐⭐" "Score audit ≥ 50/60"
+    fi
+  fi
+  
+  # Vérifier le nombre de sessions (via profils-usage)
+  if [ -f "$PROFILS_FILE" ]; then
+    SESSIONS=$(grep -c "session_id:" "$PROFILS_FILE" || echo "0")
+    
+    if [ "$SESSIONS" -ge 5 ]; then
+      add_badge "$agent" "Auto-améliorateur" "🤖" "$SESSIONS sessions d'auto-amélioration"
+    fi
+    
+    if [ "$SESSIONS" -ge 10 ]; then
+      add_badge "$agent" "Expert Auto" "🤖💡" "$SESSIONS sessions avec score élevé"
+    fi
+  fi
+  
+  echo "${BLUE}📊${RESET} Vérification terminée pour $agent"
+}
+
+# Fonction pour afficher les badges
+show_badges() {
+  local agent=$1
+  
+  echo "${BOLD}${PURPLE}🏆 Badges de $agent 🏆${RESET}"
+  echo ""
+  
+  if [ ! -f "$BADGES_FILE" ]; then
+    echo "${YELLOW}⚠️${RESET} Aucun badge attribué pour le moment"
+    return 0
+  fi
+  
+  # Afficher les badges de l'agent
+  grep -A 1 "$agent obtient" "$BADGES_FILE" || echo "${YELLOW}⚠️${RESET} $agent n'a pas encore de badges"
+  
+  echo ""
+  echo "${CYAN}📈 Progression vers les prochains badges:${RESET}"
+  
+  # Statistiques
+  if [ -f "$PROFILS_FILE" ]; then
+    SESSIONS=$(grep -c "session_id:" "$PROFILS_FILE" || echo "0")
+    echo "  Sessions: $SESSIONS/20 (Maître Auto)"
+    
+    SCORE=$(ipcrae-audit-check 2>/dev/null | grep "Score Global" | grep -oP '\d+/\d+' || echo "0/60")
+    echo "  Score: $SCORE (Perfectionniste: 60/60)"
+  fi
+}
+
+# Commande principale
+case "$1" in
+  check)
+    check_badges "${2:-Architect}"
+    ;;
+  show)
+    show_badges "${2:-Architect}"
+    ;;
+  add)
+    if [ $# -ge 4 ]; then
+      add_badge "$2" "$3" "$4" "$5"
+    else
+      echo "Usage: $0 add <agent> <badge_name> <emoji> <reason>"
+      exit 1
+    fi
+    ;;
+  list)
+    echo "${BOLD}${PURPLE}🏆 Liste de tous les badges 🏆${RESET}"
+    grep "^###" "$BADGES_FILE" | head -20
+    ;;
+  *)
+    echo "Usage: $0 [check|show|add|list]"
+    echo "  check <agent>  - Vérifier les badges pour un agent"
+    echo "  show <agent>   - Afficher les badges d'un agent"
+    echo "  add <agent> <badge> <emoji> <reason> - Ajouter un badge manuellement"
+    echo "  list           - Lister tous les badges disponibles"
+    exit 1
+    ;;
+esac
+
+exit 0

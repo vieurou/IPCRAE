@@ -53,7 +53,7 @@ Extensions “Étendu” :
 
 ## 4) Arborescence canonique du vault IPCRAE
 
-Le vault IPCRAE (par défaut `~/IPCRAE`) contient au minimum :
+Le vault IPCRAE (par défaut `~/brain`) contient au minimum :
 
 ```text
 IPCRAE_ROOT/
@@ -113,13 +113,13 @@ Note : le repo code **ne** contient pas de `Process/` vivant. Les process de ré
 # 1) Installer IPCRAE (vault central)
 git clone https://github.com/vieurou/IPCRAE.git
 cd IPCRAE
-bash ipcrae-install.sh -y "$HOME/IPCRAE"
+bash ipcrae-install.sh -y "$HOME/brain"
 
 # 2) Aller dans un repo projet local
 cd /chemin/vers/mon-projet
 
 # 3) Initialiser la couche conception + liens vers mémoire globale
-IPCRAE_ROOT="$HOME/IPCRAE" "$HOME/bin/ipcrae-addProject"
+IPCRAE_ROOT="$HOME/brain" "$HOME/bin/ipcrae-addProject"
 
 # 4) (optionnel) Vérifier la discipline stricte
 "$HOME/bin/ipcrae-strict-check" || true
@@ -288,8 +288,8 @@ ipcrae-addProject
 Cette commande initialise :
 1. L'architecture documentaire `docs/conception/` (`00_VISION.md`, `01_AI_RULES.md`, etc.).
 2. Un dossier pour notes volatiles (`.ipcrae-project/local-notes/`).
-3. Le **Hub Central Projet** injecté dans le cerveau (`~/IPCRAE/Projets/mon-projet/`).
-4. Le **Lien Mémoire Global** (`.ipcrae-memory -> ~/IPCRAE`).
+3. Le **Hub Central Projet** injecté dans le cerveau (`~/brain/Projets/mon-projet/`).
+4. Le **Lien Mémoire Global** (`.ipcrae-memory -> ~/brain`).
 5. Le manifeste `.ai-instructions.md` qui indique à l'IA d'utiliser la mémoire globale mais de stocker le debug dans les "local-notes".
 
 ---

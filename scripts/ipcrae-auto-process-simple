@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+INBOX_DIR="${IPCRAE_ROOT:-${HOME}/IPCRAE}/Inbox/demandes-brutes"
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [--dry-run]"
+      exit 1
+      ;;
+  esac
+done
+
+echo "Testing script..."
+echo "INBOX_DIR: $INBOX_DIR"
+echo "DRY_RUN: $DRY_RUN"
+
+# Tester la commande grep
+files=$(grep -l "type: demande-brute" "$INBOX_DIR"/*.md 2>/dev/null || true)
+echo "Files found: $files"
+
+exit 0

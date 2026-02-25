@@ -52,7 +52,7 @@ ipcrae-addProject
 ```
 *Action : Cette commande va :*
 1. Créer le dossier `docs/conception/` avec les templates (`00_VISION.md`, `01_AI_RULES.md`, `02_ARCHITECTURE.md`).
-2. Créer le hub central dans le cerveau `~/IPCRAE/Projets/MonNouveauProjet/`.
+2. Créer le hub central dans le cerveau `~/brain/Projets/MonNouveauProjet/`.
 3. Générer le fichier `.ai-instructions.md` pour guider l'agent localement.
 4. Créer un lien symbolique `.ipcrae-memory` pointant vers le Cerveau Global.
 
@@ -89,7 +89,7 @@ ipcrae-addProject
   1. Scanner votre code source existant.
   2. Rétro-documenter l'architecture dans `docs/conception/02_ARCHITECTURE.md`.
   3. Déduire les règles de code dans `01_AI_RULES.md`.
-  4. Mettre à jour le statut du hub dans `~/IPCRAE`.
+  4. Mettre à jour le statut du hub dans `~/brain`.
 
 Une fois terminé, votre ancien projet est entièrement pilotable via IPCRAE.
 

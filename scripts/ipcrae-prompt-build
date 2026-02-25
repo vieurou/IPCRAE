@@ -1,0 +1,107 @@
+#!/bin/bash
+
+# ipcrae-prompt-build - Génération automatique de prompts pour les agents IA
+# Combine les différentes couches de prompts selon la méthodologie IPCRAE v3.3
+
+set -euo pipefail
+
+# Configuration
+IPCRAE_ROOT="${IPCRAE_ROOT:-${HOME}/IPCRAE}"
+PROMPTS_DIR="$IPCRAE_ROOT/.ipcrae/prompts"
+OUTPUT_DIR="$IPCRAE_ROOT/.ipcrae/generated"
+
+# Couleurs
+RESET='\033[0m'
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+
+# Créer le dossier de sortie
+mkdir -p "$OUTPUT_DIR"
+
+# Fonction pour construire un prompt
+build_prompt() {
+  local agent="$1"
+  local output_file="$OUTPUT_DIR/prompt_${agent}.md"
+  
+  echo "${BLUE}📝${RESET} Construction du prompt pour l'agent $agent..."
+  
+  # Couche 1: Fonctionnement IA commun
+  echo "# Prompt complet pour $agent" > "$output_file"
+  echo "" >> "$output_file"
+  echo "## Couche 1: Fonctionnement IA commun" >> "$output_file"
+  echo "" >> "$output_file"
+  cat "$PROMPTS_DIR/core_ai_functioning.md" >> "$output_file"
+  echo "" >> "$output_file"
+  
+  # Couche 2: Workflow IPCRAE
+  echo "## Couche 2: Workflow IPCRAE" >> "$output_file"
+  echo "" >> "$output_file"
+  cat "$PROMPTS_DIR/core_ai_workflow_ipcra.md" >> "$output_file"
+  echo "" >> "$output_file"
+  
+  # Couche 3: Méthode mémoire
+  echo "## Couche 3: Méthode mémoire IPCRAE" >> "$output_file"
+  echo "" >> "$output_file"
+  cat "$PROMPTS_DIR/core_ai_memory_method.md" >> "$output_file"
+  echo "" >> "$output_file"
+  
+  # Couche 4: Spécialisation agent
+  if [ -f "$PROMPTS_DIR/agent_${agent}.md" ]; then
+    echo "## Couche 4: Spécialisation $agent" >> "$output_file"
+    echo "" >> "$output_file"
+    cat "$PROMPTS_DIR/agent_${agent}.md" >> "$output_file"
+    echo "" >> "$output_file"
+  else
+    echo "${YELLOW}⚠️${RESET} Aucun fichier de spécialisation trouvé pour $agent"
+  fi
+  
+  # Statistiques
+  LINES=$(wc -l < "$output_file")
+  SIZE=$(du -h "$output_file" | cut -f1)
+  
+  echo "${GREEN}✅${RESET} Prompt construit: $output_file"
+  echo "   Lignes: $LINES | Taille: $SIZE"
+}
+
+# Fonction pour lister les agents disponibles
+list_agents() {
+  echo "${BOLD}${PURPLE}🤖 Agents disponibles:${RESET}"
+  
+  for file in "$PROMPTS_DIR"/agent_*.md; do
+    if [ -f "$file" ]; then
+      agent=$(basename "$file" | sed 's/agent_//;s/.md//')
+      echo "  - $agent"
+    fi
+  done
+  
+  echo ""
+  echo "Utilisation: ipcrae-prompt-build <agent>"
+}
+
+# Commande principale
+if [ $# -eq 0 ]; then
+  list_agents
+  exit 0
+fi
+
+AGENT="$1"
+
+# Vérifier que l'agent existe
+if [ ! -f "$PROMPTS_DIR/agent_${AGENT}.md" ]; then
+  echo "${RED}❌${RESET} Agent inconnu: $AGENT"
+  echo ""
+  list_agents
+  exit 1
+fi
+
+# Construire le prompt
+build_prompt "$AGENT"
+
+echo ""
+echo "${BOLD}${PURPLE}🎉${RESET} Prompt prêt pour l'agent $AGENT !"
+echo "Fichier: $OUTPUT_DIR/prompt_${AGENT}.md"
+
+exit 0

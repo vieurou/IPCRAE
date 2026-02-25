@@ -138,7 +138,7 @@ Quand un repo local intègre IPCRAE via `ipcrae-addProject` :
 │   └── 03_IPCRAE_BRIDGE.md  # Contrat lecture/écriture vault ↔ projet
 ├── .ipcrae-project/
 │   └── local-notes/         # Notes volatiles (debug, hypothèses)
-├── .ipcrae-memory -> ~/IPCRAE  # Symlink vers vault global
+├── .ipcrae-memory -> ~/brain  # Symlink vers vault global
 └── .ai-instructions.md      # Directive : lire mémoire globale, écrire local
 ```
 

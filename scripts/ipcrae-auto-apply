@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# ipcrae-auto-apply - Applique automatiquement les corrections d'auto-amélioration
+# Process: Process/auto-amelioration.md
+
+set -euo pipefail
+
+# --- Variables ---
+if [[ -z "${IPCRAE_ROOT:-}" ]]; then
+  IPCRAE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+
+AUTO_DIR="$IPCRAE_ROOT/.ipcrae/auto"
+CACHE_DIR="$IPCRAE_ROOT/.ipcrae/cache"
+
+# Couleurs
+C_GREEN="\033[0;32m"
+C_YELLOW="\033[0;33m"
+C_BLUE="\033[0;34m"
+C_RESET="\033[0m"
+
+# --- Fonctions ---
+
+# Exécute l'audit et retourne le score
+get_audit_score() {
+  local output
+  output=$("$IPCRAE_ROOT/scripts/ipcrae-audit-check.sh" 2>&1)
+  echo "$output" | grep "Score:" | awk '{print $2}' | cut -d'/' -f1
+}
+
+# Applique les corrections automatiques
+apply_auto_fixes() {
+  echo -e "${C_BLUE}→${C_RESET} Application des corrections automatiques..."
+  
+  # 1. Commit des modifications si nécessaire
+  if ! (cd "$IPCRAE_ROOT" && git diff --quiet && git diff --cached --quiet); then
+    echo -e "${C_YELLOW}→${C_RESET} Commit des modifications locales..."
+    cd "$IPCRAE_ROOT" && git add -A && git commit -m "Auto: corrections automatiques post-session"
+  fi
+  
+  # 2. Mise à jour du cache des tags si nécessaire
+  if [ ! -f "$CACHE_DIR/tag-index.json" ] || [ $(find "$CACHE_DIR/tag-index.json" -mtime +1) ]; then
+    echo -e "${C_YELLOW}→${C_RESET} Reconstruction de l'index des tags..."
+    "$IPCRAE_ROOT/scripts/ipcrae-index.sh" --force
+  fi
+  
+  echo -e "${C_GREEN}✓${C_RESET} Corrections automatiques appliquées"
+}
+
+# --- Exécution ---
+
+echo "=== IPCRAE Auto-Apply ==="
+echo ""
+
+# Score initial
+SCORE_BEFORE=$(get_audit_score)
+echo "Score avant: $SCORE_BEFORE/25"
+
+# Appliquer les corrections
+apply_auto_fixes
+
+# Score après
+SCORE_AFTER=$(get_audit_score)
+echo "Score après: $SCORE_AFTER/25"
+
+# Résultat
+if [ "$SCORE_AFTER" -gt "$SCORE_BEFORE" ]; then
+  echo -e "${C_GREEN}✓ Amélioration: +$(($SCORE_AFTER-$SCORE_BEFORE)) points${C_RESET}"
+  exit 0
+elif [ "$SCORE_AFTER" -eq "$SCORE_BEFORE" ]; then
+  echo -e "${C_YELLOW}i Score stable (déjà optimal)${C_RESET}"
+  exit 0
+else
+  echo -e "${C_RED}✗ Régression détectée${C_RESET}"
+  exit 1
+fi

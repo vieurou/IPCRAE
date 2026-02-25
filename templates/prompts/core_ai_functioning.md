@@ -1,25 +1,16 @@
-# 🚨 RÈGLE ABSOLUE 0 : Gate de Pré-traitement (MANDATORY FIRST STEP)
+# Règle 0 : Protocole d'Initialisation et de Traçabilité
 
-> **NON-NÉGOCIABLE. Cette règle prime sur TOUTES les autres.**
-> AVANT toute action technique (debug, code, commandes, analyse), tu DOIS :
+**Absolument prioritaire. Doit être exécuté au début de chaque nouvelle session.**
 
-1. **IDENTIFIER** le projet/domaine → lire `.ipcrae-project/memory/project.md`
-2. **CONSULTER** la mémoire domaine → `memory/<domaine>.md`
-3. **RECHERCHER** les KI pertinentes → `ipcrae tag <tag>` ou recherche tag-first
-4. **VÉRIFIER** les conversations passées si le sujet a déjà été traité
-5. **RECONSTRUIRE** un prompt optimisé (objectif + contexte + contraintes + critères de done)
-6. **ALORS SEULEMENT**, agir sur le prompt optimisé
-
-**Aucune urgence perçue (502, crash, erreur critique) ne justifie de sauter ces étapes.**
-Si tu passes directement en mode debug/code sans ce gate, tu violes le contrat IPCRAE.
-
-Voir détails : `Process/pretraitement-demande.md` et `templates/prompts/core_ai_pretreatment_gate.md`
+1.  **Audit de Santé :** Annoncez que vous lancez un audit de santé. Proposez à l'utilisateur de lancer `ipcrae-audit-check`. Si le score est inférieur à 35/40 ou si des problèmes critiques sont détectés, leur résolution devient la tâche prioritaire.
+2.  **Capture de la Demande :** Une fois l'audit traité, votre première action de travail est de capturer la demande brute de l'utilisateur. Créez un fichier de tâche horodaté dans `Tasks/to_ai/` (si le dossier existe) ou `Inbox/` avec le contenu du prompt. Annoncez le nom du fichier créé.
+3.  **Journalisation de Session Active :** Pour chaque commande que vous exécutez (`read_file`, `run_shell_command`, etc.), ajoutez une ligne de log dans le fichier `Tasks/active_session.md` (si il existe) ou `.ipcrae-project/memory/session-active.md` au format : `- [YYYY-MM-DD HH:MM:SS] <outil_utilisé> <arguments_ou_description>`.
 
 ---
 
 # 🚨 RÈGLE ABSOLUE : Ne jamais perdre de données
 
-> **NON-NÉGOCIABLE.** En cas de merge, rebase, refactor, compaction mémoire, migration ou nettoyage :
+**NON-NÉGOCIABLE.** En cas de merge, rebase, refactor, compaction mémoire, migration ou nettoyage :
 
 - **Préserver l'information avant tout** (même si la forme est imparfaite).
 - **Préférer la duplication temporaire** à la suppression irréversible.
@@ -28,15 +19,25 @@ Voir détails : `Process/pretraitement-demande.md` et `templates/prompts/core_ai
 
 ---
 
-# Règle 1 : Protocole d'Initialisation et de Traçabilité
+## Contrat enregistrement des demandes brutes (obligatoire)
+- **Toutes** les demandes brutes de l'utilisateur doivent être enregistrées dans `Inbox/demandes-brutes/`
+- Le format doit inclure un frontmatter YAML standardisé (type, date, status, project, domain)
+- Le processus doit utiliser le script `ipcrae-capture-request` quand disponible
+- Les demandes traitées doivent être déplacées vers `Inbox/demandes-brutes/traites/`
+- Référence : voir [[Knowledge/howto/capture-demande-brute]] pour le détail du workflow
 
-**Prioritaire. Doit être exécuté au début de chaque nouvelle session (après le gate de pré-traitement).**
+## Contrat utilisation optimisée des outils Git (obligatoire)
+- Utiliser `git diff` pour les comparaisons au lieu de lire manuellement les fichiers
+- Utiliser `git log --oneline` pour identifier rapidement les commits pertinents
+- Utiliser `git show` pour examiner le contenu d'un commit sans checkout
+- Utiliser `git grep` pour rechercher dans l'historique des versions
+- Référence : voir [[Knowledge/howto/outils-optimisation-agent-ipcrae]] pour les bonnes pratiques
 
-1.  **Audit de Santé :** Annoncez que vous lancez un audit de santé. Proposez à l'utilisateur de lancer `ipcrae-audit-check`. Si le score est inférieur à 35/40 ou si des problèmes critiques sont détectés, leur résolution devient la tâche prioritaire.
-2.  **Capture de la Demande :** Une fois l'audit traité, votre première action de travail est de capturer la demande brute de l'utilisateur. Créez un fichier de tâche horodaté dans `Tasks/to_ai/` (si le dossier existe) ou `Inbox/` avec le contenu du prompt. Annoncez le nom du fichier créé.
-3.  **Journalisation de Session Active :** Pour chaque commande que vous exécutez (`read_file`, `run_shell_command`, etc.), ajoutez une ligne de log dans le fichier `Tasks/active_session.md` (si il existe) ou `.ipcrae-project/memory/session-active.md` au format : `- [YYYY-MM-DD HH:MM:SS] <outil_utilisé> <arguments_ou_description>`.
-
----
+## Contrat utilisation des outils système optimisés (obligatoire)
+- Préférer `tree` à plusieurs `ls` pour visualiser la structure d'un répertoire
+- Préférer `ripgrep` (rg) à `grep` quand disponible
+- Préférer `fd` à `find` quand disponible
+- Respecter les bonnes pratiques documentées dans [[Knowledge/howto/outils-optimisation-agent-ipcrae]]
 
 # Noyau IA — Fonctionnement commun IPCRAE
 
