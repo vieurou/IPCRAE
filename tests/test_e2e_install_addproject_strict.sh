@@ -4,9 +4,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRAIN_ROOT="$(mktemp -d)"
 DUMMY_REPO="$(mktemp -d)"
+STRICT_LOG="$(mktemp)"
 
 cleanup() {
-  rm -rf "$BRAIN_ROOT" "$DUMMY_REPO"
+  rm -rf "$BRAIN_ROOT" "$DUMMY_REPO" "$STRICT_LOG"
 }
 trap cleanup EXIT
 
@@ -28,6 +29,6 @@ IPCRAE_ROOT="$BRAIN_ROOT" bash "$REPO_ROOT/templates/ipcrae-addProject.sh" -y >/
 expected_hook_line="_IPCRAE_ROOT=\"\${IPCRAE_ROOT:-$BRAIN_ROOT}\""
 grep -Fq "$expected_hook_line" .git/hooks/post-commit
 
-IPCRAE_ROOT="$BRAIN_ROOT" "$HOME/bin/ipcrae-strict-check" >/tmp/ipcrae-strict-e2e.log
+IPCRAE_ROOT="$BRAIN_ROOT" "$HOME/bin/ipcrae-strict-check" >"$STRICT_LOG"
 
 echo "E2E install+addProject+strict-check: OK"
