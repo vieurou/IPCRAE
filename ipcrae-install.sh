@@ -31,8 +31,8 @@ normalize_root() {
   # Expansion robuste de ~ sans eval.
   if [[ "$input" == "~" ]]; then
     input="$HOME"
-  elif [[ "$input" == ~/* ]]; then
-    input="$HOME/${input#~/}"
+  elif [[ "$input" == "~/"* ]]; then
+    input="$HOME/${input#"~/"}"
   fi
 
   # Retirer les slashs finaux sauf pour '/'.
@@ -97,6 +97,11 @@ Usage: $(basename "$0") [OPTIONS] [CHEMIN]
   -V, --version   Version
 EOF
 }
+
+# Permet de sourcer ce fichier depuis les tests sans déclencher l'installation.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
 
 cleanup() { local e=$?; if [ $e -ne 0 ]; then logerr "Erreur (code $e). Installation incomplète."; fi; }
 trap cleanup EXIT
