@@ -1160,15 +1160,26 @@ cmd_doctor() {
 
   section "Doctor — Environnement"
 
+  printf '\n%bDépendances hard%b\n' "$YELLOW" "$NC"
   local missing=0
   for c in git find sed awk python3 curl iconv; do
     if command -v "$c" >/dev/null 2>&1; then
-      [ "$verbose" = true ] && printf '  ✓ %s\n' "$c"
+      printf '  ✓ %s\n' "$c"
     else
       printf '  ✗ %s (manquant)\n' "$c"
       missing=$((missing + 1))
     fi
   done
+
+  printf '\n%bDépendances soft%b\n' "$YELLOW" "$NC"
+  for c in rg jq fzf; do
+    if command -v "$c" >/dev/null 2>&1; then
+      printf '  ✓ %s\n' "$c"
+    else
+      printf '  ⚠ %s (optionnel)\n' "$c"
+    fi
+  done
+
   [ "$verbose" = false ] && [ "$missing" -eq 0 ] && printf '  ✓ Dépendances système OK\n'
 
   printf '\n%bProviders%b\n' "$YELLOW" "$NC"
@@ -1366,8 +1377,19 @@ cmd_search() {
 
   [ "${#targets[@]}" -eq 0 ] && { logwarn "Aucun dossier de recherche présent (Knowledge/Zettelkasten/memory/docs)."; return 1; }
 
-  rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
-    || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  if command -v rg >/dev/null 2>&1; then
+    rg -n --glob '*.md' --glob '!Archives/**' "$query" "${targets[@]}" \
+      || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  else
+    logwarn "rg introuvable, fallback via grep (plus lent)."
+    local found=1
+    while IFS= read -r -d '' file; do
+      if grep -n -- "$query" "$file"; then
+        found=0
+      fi
+    done < <(find "${targets[@]}" -type f -name '*.md' ! -path '*/Archives/*' -print0)
+    [ "$found" -eq 0 ] || { logwarn "Aucun résultat via grep pour: $query"; return 1; }
+  fi
 }
 
 cmd_links() {
@@ -1894,8 +1916,59 @@ cmd_demandes() {
 }
 
 # ── Process ───────────────────────────────────────────────────
+
+cmd_process_run() {
+  need_root
+  local dry_run=false
+  local slug=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run) dry_run=true ;;
+      -*) logerr "Option inconnue: $1"; return 1 ;;
+      *) slug="$1" ;;
+    esac
+    shift
+  done
+
+  [ -z "$slug" ] && { logerr "Usage: ipcrae process run [--dry-run] <slug>"; return 1; }
+
+  local abs=""
+  for candidate in \
+    "${IPCRAE_ROOT}/Process/manual/${slug}.md" \
+    "${IPCRAE_ROOT}/Process/${slug}.md" \
+    "${IPCRAE_ROOT}/Process/Process-${slug}.md"; do
+    if [ -f "$candidate" ]; then
+      abs="$candidate"
+      break
+    fi
+  done
+
+  [ -z "$abs" ] && { logerr "Process introuvable: $slug"; return 1; }
+
+  local agent
+  agent=$(sed -n 's/^- \*\*Agent\*\* *: *//p' "$abs" | head -1 | sed 's/^ *//;s/ *$//')
+  [ -z "$agent" ] && agent="agent_devops"
+
+  printf 'Process: %s\n' "${abs#$IPCRAE_ROOT/}"
+  printf 'Agent recommandé: %s\n' "$agent"
+
+  if [ "$dry_run" = true ]; then
+    printf 'Mode: dry-run\n'
+    return 0
+  fi
+
+  open_note "$abs" "${abs#$IPCRAE_ROOT/}"
+}
+
 cmd_process() {
   need_root
+  if [ "${1:-}" = "run" ]; then
+    shift
+    cmd_process_run "$@"
+    return $?
+  fi
+
   local nom="${1:-}"
   if [ -z "$nom" ]; then
     open_note "${IPCRAE_ROOT}/Process/index.md" "Process/index.md"
@@ -2235,7 +2308,7 @@ main() {
     archive)           cmd_archive "${cmd_args[@]:-}" ;;
     demandes)          cmd_demandes "${cmd_args[@]:-}" ;;
     phase|phases)      need_root; open_note "${IPCRAE_ROOT}/Phases/index.md" "Phases/index.md" ;;
-    process|processes) cmd_process "${cmd_args[*]:-}" ;;
+    process|processes) cmd_process "${cmd_args[@]:-}" ;;
     *)
       need_root; show_dashboard
       printf '%b🤖 Provider: %s | 🎯 Expert: %s%b
